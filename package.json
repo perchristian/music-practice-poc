@@ -1,0 +1,18 @@
+{
+  "name": "piano-practice-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mock-first piano practice POC for screen recording uploads.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "test:gui": "playwright test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}

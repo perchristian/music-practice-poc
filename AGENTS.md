@@ -33,12 +33,24 @@ Build an end-to-end prototype where a user can:
 1. Select a screen recording from Photos on iOS.
 2. Upload it to a backend.
 3. Wait for processing.
-4. Listen to an isolated piano stem.
-5. Slow it down.
-6. Loop difficult passages.
-7. View approximate harmonic information.
+4. Listen to separated stems, at minimum drums, bass, guitar, and piano in the POC.
+5. Mute and unmute individual stems, especially the piano stem, so the user can practise playing the piano part themselves against the rest of the arrangement.
+6. Slow playback down.
+7. Loop difficult passages.
+8. View approximate harmonic information.
 
 Do not optimize beyond what is necessary for this experience.
+
+The first prototype may use a web/local uploader instead of a native iOS app.
+Native iOS should be deferred until the web POC demonstrates enough value to justify
+the setup cost, unless a core assumption specifically requires native Photos access.
+
+Approximate harmonic information means, at minimum, useful learning cues such as:
+
+- detected key
+- concrete chord names over time
+- roman-numeral chord labels relative to the key
+- a melody line when one can be extracted or plausibly mocked
 
 ---
 
@@ -60,6 +72,26 @@ PIPELINE_MODE=real
 
 The application must remain useful in `mock` mode.
 
+`PIPELINE_MODE=mock` must simulate a realistic backend so the whole product can be
+developed and demonstrated without depending on:
+
+- Demucs
+- Basic Pitch
+- GPU availability
+- FFmpeg
+- long processing times
+- large test files
+
+Mock mode should still exercise the real product flow: upload, job creation, job
+status transitions, processed stem playback, piano mute/unmute, speed changes,
+looping, and harmonic metadata display.
+
+`PIPELINE_MODE=real` should replace mock subsystems gradually. Basic Pitch is only
+an example transcription option, not a committed choice.
+
+Demo media should be replaceable. Include or generate a small default test asset
+when practical, but document copyright and source limitations.
+
 ---
 
 ## Engineering Definition of Done
@@ -68,7 +100,8 @@ The prototype is considered complete when another developer can follow `DEMO.md`
 
 - choose a screen recording
 - process it
-- hear the isolated piano
+- hear separated mock stems for drums, bass, guitar, and piano
+- mute and unmute stems, especially muting piano for play-along practice
 - switch playback speed
 - loop a passage
 - view harmonic information
@@ -225,6 +258,57 @@ Reduce the highest-risk items as early as practical.
 
 ---
 
+## Environment, skills, and dependency management
+
+The project must be reproducible without relying on hidden agent state.
+
+Codex may use available Codex skills when they are directly relevant, but the project must not depend on custom skills being present.
+
+If a skill is used, document it in `STATUS.md` with:
+
+- skill name
+- purpose
+- result
+- whether the work can be reproduced without the skill
+
+Do not create new Codex skills during the POC unless the same workflow has been repeated at least twice and packaging it clearly reduces future work.
+
+Project dependencies must be explicit and version-controlled.
+
+Use:
+
+- `pyproject.toml` or `requirements.txt` for Python dependencies
+- `package.json` for JavaScript/TypeScript dependencies
+- setup scripts or Dockerfile for system dependencies such as FFmpeg
+
+Separate lightweight mock-mode dependencies from heavy real-pipeline dependencies.
+
+The default setup must support `PIPELINE_MODE=mock` without installing heavy ML dependencies such as Demucs, Torch, TensorFlow, or Basic Pitch.
+
+Real pipeline dependencies should be installed only through an explicit setup command, for example:
+
+    pip install -e ".[real]"
+
+or:
+
+    pip install -r requirements-real.txt
+
+Before adding a new dependency, evaluate:
+
+1. Is it needed for the demo?
+2. Is it needed for mock mode or only real mode?
+3. Is there a lighter alternative?
+4. Does it introduce platform, GPU, license, or install-time risk?
+5. Can the feature be mocked first?
+
+Document significant dependency choices in `DECISIONS.md`.
+
+If a dependency cannot be installed in the current environment, do not block the project. Keep mock mode working, document the limitation, and continue with tasks that can still be completed.
+
+Dependency, platform, and installation risks must be tracked in `RISKS.md`.
+
+---
+
 ## Planning
 
 Before implementation, create:
@@ -252,8 +336,8 @@ Every epic must produce something demonstrable.
 Examples:
 
 - User can upload a video.
-- User receives isolated piano audio.
-- User can practise using slowed playback.
+- User receives separated stems with piano as the primary practice target.
+- User can mute piano and practise using slowed playback.
 - User can see approximate harmonic information.
 
 Each epic should reduce technical uncertainty or improve the demo.
@@ -325,7 +409,9 @@ Avoid unnecessary additional specialist agents.
 
 ## Model strategy
 
-Do not always use the largest model.
+This session should keep using high or extra-high reasoning.
+
+Do not always use the largest model for delegated work.
 
 Use strongest reasoning for:
 
@@ -341,7 +427,9 @@ Use cheaper models for:
 - formatting
 - routine tests
 
-Document every model switch in `STATUS.md`.
+Simple tasks should be delegated to agents using simpler models when practical.
+
+Document every model switch, delegation, or agent use in `STATUS.md`.
 
 ---
 
@@ -365,11 +453,11 @@ A new Codex session should be able to continue using only these files together w
 
 ## Context Recovery Test
 
-After approximately three completed epics, perform a recovery test.
+After approximately three completed epics, perform a context recovery review.
 
-Start a fresh Codex session.
+Preferred method:
 
-Provide only:
+Start a fresh Codex session and provide only:
 
 - `STATUS.md`
 - `TASKS.md`
@@ -383,7 +471,45 @@ The new session must correctly explain:
 - remaining work
 - next recommended task
 
-If this fails, improve documentation before continuing.
+If starting a fresh session is not practical, perform a simulated recovery review in
+the current session using only the same files as source material.
+
+In that case:
+
+- explicitly state that it is a simulated recovery review
+- do not rely on prior conversation history
+- cite the relevant project files used
+- identify any missing or ambiguous information
+- update the documentation before continuing if the review fails
+
+The review passes only if the project can be understood and continued from those
+files alone.
+
+Use this output format:
+
+```text
+## Context Recovery Review Result
+
+Type: Simulated or Fresh Session
+
+Files used:
+- STATUS.md
+- TASKS.md
+- DECISIONS.md
+- ARCHITECTURE.md
+
+Summary:
+- Current architecture: ...
+- Completed work: ...
+- Remaining work: ...
+- Next recommended task: ...
+
+Gaps found:
+- ...
+
+Result:
+PASS or FAIL
+```
 
 ---
 
