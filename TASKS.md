@@ -34,7 +34,8 @@ Goal: A user can practise with processed stems, including muting the piano part 
 Demonstrable outcome:
 - Synchronized stem playback works for drums, bass, guitar, and piano.
 - User can mute and unmute each stem.
-- User can use a piano-mute preset for play-along practice.
+- User can solo each stem.
+- Mute and solo cannot both be active for the same stem.
 - User can switch playback speed.
 - User can set loop start/end and enable looping.
 - Current playback time is visible.
@@ -43,6 +44,7 @@ Verification:
 - Manual browser test.
 - Confirm each mock stem URL returns WAV audio.
 - Confirm piano can be muted while drums, bass, and guitar remain active.
+- Confirm piano can be soloed while the other stems drop out.
 - Confirm playback rate changes.
 - Confirm loop jumps from end back to start.
 
@@ -55,7 +57,6 @@ Goal: A user can view approximate harmonic information aligned to time.
 Demonstrable outcome:
 - Detected key is displayed.
 - Chord names and roman numerals appear over time.
-- Melody cues are shown.
 - Current chord is highlighted during playback.
 
 Verification:

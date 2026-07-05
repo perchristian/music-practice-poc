@@ -235,7 +235,6 @@ audio {
 }
 
 .play-button,
-.preset-row button,
 .stem-toggle {
   min-height: 42px;
   border-radius: 8px;
@@ -252,21 +251,12 @@ audio {
   accent-color: var(--accent);
 }
 
-.preset-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.preset-row button,
 .stem-toggle {
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
 }
 
-.preset-row button:focus-visible,
 .stem-toggle:focus-visible,
 .play-button:focus-visible,
 .segmented button:focus-visible,
@@ -281,7 +271,7 @@ audio {
 }
 
 .stem-heading {
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto;
   align-items: baseline;
   margin-bottom: 8px;
 }
@@ -319,7 +309,7 @@ audio {
 
 .stem-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   border: 1px solid var(--line);
@@ -337,25 +327,32 @@ audio {
   font-weight: 850;
 }
 
-.stem-role {
-  color: var(--muted);
-  font-size: 0.86rem;
-}
-
-.stem-piano {
-  border-color: rgba(15, 118, 110, 0.45);
-  background: #f2fbf8;
-}
-
 .stem-row.muted {
   background: #f8fafc;
   color: var(--muted);
 }
 
-.stem-row.muted .stem-toggle {
+.stem-row.solo {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: #f6f9ff;
+}
+
+.stem-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 82px);
+  gap: 8px;
+}
+
+.stem-toggle[aria-pressed="true"] {
   border-color: var(--accent);
   background: #dff4ef;
   color: var(--accent-strong);
+}
+
+.stem-solo[aria-pressed="true"] {
+  border-color: var(--blue);
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .loop-grid {
@@ -389,14 +386,12 @@ audio {
   padding: 8px 12px;
 }
 
-.chord-list,
-.melody-list {
+.chord-list {
   display: grid;
   gap: 8px;
 }
 
-.chord-card,
-.melody-card {
+.chord-card {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto;
   gap: 12px;
@@ -448,7 +443,6 @@ audio {
   }
 
   .transport,
-  .preset-row,
   .stem-heading,
   .stem-row {
     grid-template-columns: 1fr;

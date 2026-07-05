@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -20,14 +20,32 @@ const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
-  ".wav": "audio/wav"
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4"
 };
 
-const mockStems = [
-  { id: "drums", name: "Drums", role: "rhythm bed" },
-  { id: "bass", name: "Bass", role: "low harmony" },
-  { id: "guitar", name: "Guitar", role: "comping" },
-  { id: "piano", name: "Piano", role: "practice target" }
+const generatedMockStems = [
+  { id: "drums", name: "Drums" },
+  { id: "bass", name: "Bass" },
+  { id: "guitar", name: "Guitar" },
+  { id: "piano", name: "Piano" }
+];
+
+const externalMockStemSources = [
+  {
+    id: "accompaniment",
+    name: "Accompaniment",
+    sourceFilename: "Uten piano.m4a",
+    filename: "accompaniment.m4a",
+    contentType: "audio/mp4"
+  },
+  {
+    id: "piano",
+    name: "Piano",
+    sourceFilename: "Bare piano.m4a",
+    filename: "piano.m4a",
+    contentType: "audio/mp4"
+  }
 ];
 
 async function ensureBaseDirs() {
@@ -51,9 +69,40 @@ function badRequest(res, message) {
   json(res, 400, { error: message });
 }
 
+function generatedStemDescriptors() {
+  return generatedMockStems.map((stem) => ({
+    ...stem,
+    filename: `${stem.id}.wav`,
+    contentType: "audio/wav"
+  }));
+}
+
+function stemsForJob(job) {
+  return job.stems?.length ? job.stems : generatedStemDescriptors();
+}
+
+function stemAudioUrl(job, stem) {
+  const ext = extname(stem.filename || `${stem.id}.wav`) || ".wav";
+  return `/api/jobs/${job.id}/stems/${stem.id}${ext}`;
+}
+
+function publicStem(job, stem) {
+  return {
+    id: stem.id,
+    name: stem.name,
+    audioUrl: stemAudioUrl(job, stem),
+    defaultMuted: false
+  };
+}
+
+function contentTypeForPath(path, fallback = "application/octet-stream") {
+  return mimeTypes[extname(path)] || fallback;
+}
+
 function safePublicPath(urlPath) {
-  const requested = urlPath === "/" ? "/index.html" : urlPath;
-  const decoded = decodeURIComponent(requested.split("?")[0]);
+  const pathOnly = urlPath.split("?")[0];
+  const requested = pathOnly === "/" ? "/index.html" : pathOnly;
+  const decoded = decodeURIComponent(requested);
   const fullPath = normalize(join(PUBLIC_DIR, decoded));
   if (!fullPath.startsWith(PUBLIC_DIR)) return null;
   return fullPath;
@@ -353,6 +402,8 @@ async function createJobRecord({ originalFilename, originalSize = null, original
 }
 
 function publicJob(job) {
+  const stems = stemsForJob(job);
+
   return {
     id: job.id,
     mode: job.mode,
@@ -366,15 +417,67 @@ function publicJob(job) {
     result: job.status === "complete"
       ? {
           audioUrl: `/api/jobs/${job.id}/piano.wav`,
-          stems: mockStems.map((stem) => ({
-            ...stem,
-            audioUrl: `/api/jobs/${job.id}/stems/${stem.id}.wav`,
-            defaultMuted: false
-          })),
+          stems: stems.map((stem) => publicStem(job, stem)),
           metadata: job.metadata
         }
       : null
   };
+}
+
+async function availableExternalMockStems() {
+  const resolved = [];
+
+  for (const stem of externalMockStemSources) {
+    const sourcePath = join(DATA_DIR, "jobs", stem.sourceFilename);
+    try {
+      await access(sourcePath);
+    } catch {
+      return null;
+    }
+    resolved.push({ ...stem, sourcePath });
+  }
+
+  return resolved;
+}
+
+async function copyExternalMockStems(job) {
+  const externalStems = await availableExternalMockStems();
+  if (!externalStems) return false;
+
+  await mkdir(join(job.dir, "stems"), { recursive: true });
+
+  for (const stem of externalStems) {
+    await copyFile(stem.sourcePath, join(job.dir, "stems", stem.filename));
+  }
+
+  job.stems = externalStems.map(({ sourceFilename, sourcePath, ...stem }) => stem);
+  return true;
+}
+
+async function generateFallbackMockStems(job) {
+  await mkdir(join(job.dir, "stems"), { recursive: true });
+  job.stems = generatedStemDescriptors();
+
+  for (const stem of job.stems) {
+    const wav = generateMockWav(stem.id);
+    await writeFile(join(job.dir, "stems", stem.filename), wav);
+    if (stem.id === "piano") {
+      await writeFile(join(job.dir, "piano.wav"), wav);
+    }
+  }
+}
+
+async function completeMockJob(job) {
+  const usedExternalStems = await copyExternalMockStems(job);
+  if (!usedExternalStems) {
+    await generateFallbackMockStems(job);
+  }
+
+  job.status = "complete";
+  job.progress = 100;
+  job.metadata = createMockMetadata();
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
 }
 
 async function runMockPipeline(job) {
@@ -393,19 +496,7 @@ async function runMockPipeline(job) {
     await saveJob(job);
   }
 
-  await mkdir(join(job.dir, "stems"), { recursive: true });
-  for (const stem of mockStems) {
-    const wav = generateMockWav(stem.id);
-    await writeFile(join(job.dir, "stems", `${stem.id}.wav`), wav);
-    if (stem.id === "piano") {
-      await writeFile(join(job.dir, "piano.wav"), wav);
-    }
-  }
-  job.status = "complete";
-  job.progress = 100;
-  job.metadata = createMockMetadata();
-  job.updatedAt = new Date().toISOString();
-  await saveJob(job);
+  await completeMockJob(job);
 }
 
 async function handleCreateJob(req, res) {
@@ -468,6 +559,24 @@ async function handleCreateJob(req, res) {
   json(res, 202, publicJob(job));
 }
 
+async function handleGetProcessedDemoJob(res) {
+  if (PIPELINE_MODE !== "mock") {
+    json(res, 409, { error: "Processed demo shortcut is only available in PIPELINE_MODE=mock." });
+    return;
+  }
+
+  const job = await createJobRecord({
+    originalFilename: "demo-processed-screen-recording.mov",
+    originalSize: 500_000_000,
+    originalType: "video/quicktime",
+    mockUpload: true
+  });
+  job.demoShortcut = true;
+  await completeMockJob(job);
+
+  json(res, 200, publicJob(job));
+}
+
 async function readJobFromDisk(id) {
   if (jobs.has(id)) return jobs.get(id);
   try {
@@ -495,26 +604,38 @@ async function handleGetAudio(id, res) {
     return;
   }
 
-  const audioPath = join(job.dir, "piano.wav");
+  const pianoStem = stemsForJob(job).find((stem) => stem.id === "piano");
+  let streamPath = pianoStem
+    ? join(job.dir, "stems", pianoStem.filename)
+    : join(job.dir, "piano.wav");
+  let streamContentType = pianoStem?.contentType || contentTypeForPath(streamPath, "audio/wav");
   try {
-    await access(audioPath);
+    await access(streamPath);
   } catch {
-    notFound(res);
-    return;
+    const fallbackPath = join(job.dir, "piano.wav");
+    try {
+      await access(fallbackPath);
+      streamPath = fallbackPath;
+      streamContentType = contentTypeForPath(streamPath, "audio/wav");
+    } catch {
+      notFound(res);
+      return;
+    }
   }
 
-  res.writeHead(200, { "content-type": "audio/wav" });
-  createReadStream(audioPath).pipe(res);
+  res.writeHead(200, { "content-type": streamContentType });
+  createReadStream(streamPath).pipe(res);
 }
 
 async function handleGetStem(id, stemId, res) {
   const job = await readJobFromDisk(id);
-  if (!job || job.status !== "complete" || !mockStems.some((stem) => stem.id === stemId)) {
+  const stem = job ? stemsForJob(job).find((candidate) => candidate.id === stemId) : null;
+  if (!job || job.status !== "complete" || !stem) {
     notFound(res);
     return;
   }
 
-  const stemPath = join(job.dir, "stems", `${stemId}.wav`);
+  const stemPath = join(job.dir, "stems", stem.filename);
   try {
     await access(stemPath);
   } catch {
@@ -522,7 +643,7 @@ async function handleGetStem(id, stemId, res) {
     return;
   }
 
-  res.writeHead(200, { "content-type": "audio/wav" });
+  res.writeHead(200, { "content-type": stem.contentType || contentTypeForPath(stemPath, "audio/wav") });
   createReadStream(stemPath).pipe(res);
 }
 
@@ -539,6 +660,11 @@ async function route(req, res) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/demo/processed-job") {
+    await handleGetProcessedDemoJob(res);
+    return;
+  }
+
   const jobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)$/);
   if (req.method === "GET" && jobMatch) {
     await handleGetJob(jobMatch[1], res);
@@ -551,7 +677,7 @@ async function route(req, res) {
     return;
   }
 
-  const stemMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/stems\/([a-z]+)\.wav$/);
+  const stemMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/stems\/([a-z]+)\.(?:wav|m4a)$/);
   if (req.method === "GET" && stemMatch) {
     await handleGetStem(stemMatch[1], stemMatch[2], res);
     return;

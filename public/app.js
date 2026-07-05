@@ -12,8 +12,6 @@ const stemDeck = document.querySelector("#stemDeck");
 const stemMixer = document.querySelector("#stemMixer");
 const playButton = document.querySelector("#playButton");
 const scrubber = document.querySelector("#scrubber");
-const fullMixButton = document.querySelector("#fullMixButton");
-const mutePianoButton = document.querySelector("#mutePianoButton");
 const speedControls = document.querySelector("#speedControls");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
@@ -21,7 +19,7 @@ const loopEnabled = document.querySelector("#loopEnabled");
 const timeReadout = document.querySelector("#timeReadout");
 const keyBadge = document.querySelector("#keyBadge");
 const chordList = document.querySelector("#chordList");
-const melodyList = document.querySelector("#melodyList");
+const urlParams = new URLSearchParams(window.location.search);
 
 let currentMetadata = null;
 let pollTimer = null;
@@ -31,6 +29,12 @@ let primaryPlayer = null;
 let isPlaying = false;
 let isSeeking = false;
 let playbackRate = 1;
+let transportPosition = 0;
+let transportStartedAt = 0;
+let transportFrame = null;
+const loadProcessedDemo =
+  urlParams.get("demo") === "processed" ||
+  urlParams.get("skipUpload") === "1";
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -44,6 +48,15 @@ function updateProgress(job) {
   jobStatus.textContent = job.status;
   jobPercent.textContent = `${job.progress}%`;
   progressBar.style.width = `${job.progress}%`;
+}
+
+function renderCompletedJob(job) {
+  const stems = job.result.stems?.length
+    ? job.result.stems
+    : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
+  renderStemPlayers(stems);
+  renderMetadata(job.result.metadata);
+  practiceView.hidden = false;
 }
 
 function renderMetadata(metadata) {
@@ -63,27 +76,32 @@ function renderMetadata(metadata) {
       return card;
     })
   );
-
-  melodyList.replaceChildren(
-    ...metadata.melody.map((cue) => {
-      const card = document.createElement("div");
-      card.className = "melody-card";
-      card.innerHTML = `
-        <span class="cue-time">${formatTime(cue.time)}</span>
-        <span class="cue-name">${cue.notes.join(" ")}</span>
-        <span class="cue-roman">melody</span>
-      `;
-      return card;
-    })
-  );
 }
 
 function transportTime() {
-  return primaryPlayer ? primaryPlayer.audio.currentTime : 0;
+  if (!isPlaying) return boundTransportTime(transportPosition);
+
+  const elapsed = (performance.now() - transportStartedAt) / 1000;
+  return boundTransportTime(transportPosition + elapsed * playbackRate);
 }
 
 function transportDuration() {
-  return primaryPlayer ? primaryPlayer.audio.duration : 0;
+  const preferredPlayers = [primaryPlayer, ...stemPlayers].filter(Boolean);
+  const player = preferredPlayers.find((candidate) => Number.isFinite(candidate.audio.duration) && candidate.audio.duration > 0);
+  return player ? player.audio.duration : 0;
+}
+
+function boundTransportTime(seconds) {
+  const duration = transportDuration();
+  if (Number.isFinite(duration) && duration > 0) {
+    return Math.max(0, Math.min(seconds, duration));
+  }
+  return Math.max(0, seconds);
+}
+
+function anchorTransport(seconds) {
+  transportPosition = boundTransportTime(seconds);
+  transportStartedAt = performance.now();
 }
 
 function updateTimeDisplay() {
@@ -110,44 +128,77 @@ function highlightCurrentChord() {
   }
 }
 
-function syncStemDrift() {
-  if (!primaryPlayer || isSeeking) return;
-  const current = primaryPlayer.audio.currentTime;
-
+function syncStemTimes(seconds, threshold = 0) {
   for (const player of stemPlayers) {
-    if (player === primaryPlayer) continue;
-    if (Math.abs(player.audio.currentTime - current) > 0.08) {
-      player.audio.currentTime = current;
+    if (Math.abs(player.audio.currentTime - seconds) > threshold) {
+      player.audio.currentTime = seconds;
     }
   }
 }
 
 function setTransportTime(seconds) {
-  const duration = transportDuration();
-  const bounded = Number.isFinite(duration) && duration > 0
-    ? Math.max(0, Math.min(seconds, duration))
-    : Math.max(0, seconds);
-
-  for (const player of stemPlayers) {
-    player.audio.currentTime = bounded;
-  }
-
+  const bounded = boundTransportTime(seconds);
+  anchorTransport(bounded);
+  syncStemTimes(bounded);
   updateTimeDisplay();
   highlightCurrentChord();
 }
 
+function stopTransportTick() {
+  if (transportFrame !== null) {
+    cancelAnimationFrame(transportFrame);
+    transportFrame = null;
+  }
+}
+
+function tickTransport() {
+  if (!isPlaying) return;
+
+  const start = Number(loopStart.value);
+  const end = Number(loopEnd.value);
+  let current = transportTime();
+
+  if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
+    setTransportTime(start);
+    current = transportTime();
+  }
+
+  updateTimeDisplay();
+  highlightCurrentChord();
+
+  const duration = transportDuration();
+  if (Number.isFinite(duration) && duration > 0 && current >= duration) {
+    pauseAll();
+    setTransportTime(0);
+    return;
+  }
+
+  transportFrame = requestAnimationFrame(tickTransport);
+}
+
+function startTransportTick() {
+  stopTransportTick();
+  transportFrame = requestAnimationFrame(tickTransport);
+}
+
 function pauseAll() {
+  const current = transportTime();
   for (const player of stemPlayers) {
     player.audio.pause();
   }
   isPlaying = false;
+  anchorTransport(current);
+  stopTransportTick();
   playButton.textContent = "Play";
+  updateTimeDisplay();
+  highlightCurrentChord();
 }
 
 async function playAll() {
   if (!stemPlayers.length) return;
 
   const current = transportTime();
+  anchorTransport(current);
   for (const player of stemPlayers) {
     player.audio.currentTime = current;
     player.audio.playbackRate = playbackRate;
@@ -156,7 +207,52 @@ async function playAll() {
   const results = await Promise.allSettled(stemPlayers.map((player) => player.audio.play()));
   if (results.some((result) => result.status === "fulfilled")) {
     isPlaying = true;
+    anchorTransport(current);
+    startTransportTick();
     playButton.textContent = "Pause";
+  }
+}
+
+function resumeAudibleStem(player) {
+  if (!isPlaying || player.audio.muted) return;
+
+  const current = transportTime();
+  player.audio.playbackRate = playbackRate;
+
+  if (player.audio.paused) {
+    player.audio.currentTime = current;
+    player.audio.play().catch(console.error);
+    return;
+  }
+
+  if (Math.abs(player.audio.currentTime - current) > 0.75) {
+    player.audio.currentTime = current;
+  }
+}
+
+function updateStemAudibility() {
+  const hasSolo = stemPlayers.some((player) => player.solo);
+  const playersToResume = [];
+
+  for (const player of stemPlayers) {
+    const wasMuted = player.audio.muted;
+    const nextMuted = hasSolo ? !player.solo : player.muted;
+
+    player.audio.muted = nextMuted;
+    player.row.classList.toggle("muted", player.muted);
+    player.row.classList.toggle("solo", player.solo);
+    player.muteButton.textContent = player.muted ? "Unmute" : "Mute";
+    player.muteButton.setAttribute("aria-pressed", String(player.muted));
+    player.soloButton.textContent = player.solo ? "Unsolo" : "Solo";
+    player.soloButton.setAttribute("aria-pressed", String(player.solo));
+
+    if (wasMuted && !nextMuted) {
+      playersToResume.push(player);
+    }
+  }
+
+  for (const player of playersToResume) {
+    resumeAudibleStem(player);
   }
 }
 
@@ -164,22 +260,29 @@ function setStemMuted(stemId, muted) {
   const player = stemPlayers.find((candidate) => candidate.id === stemId);
   if (!player) return;
 
-  player.audio.muted = muted;
-  player.row.classList.toggle("muted", muted);
-  player.button.textContent = muted ? "Unmute" : "Mute";
-  player.button.setAttribute("aria-pressed", String(muted));
+  player.muted = muted;
+  if (muted) {
+    player.solo = false;
+  }
+  updateStemAudibility();
 }
 
-function setMixPreset(mutedByStem) {
-  for (const player of stemPlayers) {
-    setStemMuted(player.id, Boolean(mutedByStem[player.id]));
+function setStemSolo(stemId, solo) {
+  const player = stemPlayers.find((candidate) => candidate.id === stemId);
+  if (!player) return;
+
+  player.solo = solo;
+  if (solo) {
+    player.muted = false;
   }
+  updateStemAudibility();
 }
 
 function renderStemPlayers(stems) {
   pauseAll();
   stemPlayers = [];
   primaryPlayer = null;
+  anchorTransport(0);
   stemDeck.replaceChildren();
   stemMixer.replaceChildren();
 
@@ -193,61 +296,72 @@ function renderStemPlayers(stems) {
     stemDeck.append(audio);
 
     const row = document.createElement("div");
-    row.className = `stem-row stem-${stem.id}`;
+    row.className = "stem-row";
     row.dataset.testid = `stem-row-${stem.id}`;
     row.innerHTML = `
       <div>
         <span class="stem-name">${stem.name}</span>
-        <span class="stem-role">${stem.role}</span>
       </div>
     `;
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "stem-toggle";
-    button.dataset.stemId = stem.id;
-    button.dataset.testid = `stem-toggle-${stem.id}`;
-    row.append(button);
+    const controls = document.createElement("div");
+    controls.className = "stem-controls";
+
+    const muteButton = document.createElement("button");
+    muteButton.type = "button";
+    muteButton.className = "stem-toggle";
+    muteButton.dataset.stemId = stem.id;
+    muteButton.dataset.stemAction = "mute";
+    muteButton.dataset.testid = `stem-mute-${stem.id}`;
+    controls.append(muteButton);
+
+    const soloButton = document.createElement("button");
+    soloButton.type = "button";
+    soloButton.className = "stem-toggle stem-solo";
+    soloButton.dataset.stemId = stem.id;
+    soloButton.dataset.stemAction = "solo";
+    soloButton.dataset.testid = `stem-solo-${stem.id}`;
+    controls.append(soloButton);
+
+    row.append(controls);
     stemMixer.append(row);
 
-    const player = { ...stem, audio, row, button };
+    const player = {
+      ...stem,
+      audio,
+      row,
+      muteButton,
+      soloButton,
+      muted: Boolean(stem.defaultMuted),
+      solo: false
+    };
     stemPlayers.push(player);
-    setStemMuted(stem.id, Boolean(stem.defaultMuted));
 
     if (stem.id === "piano") {
       primaryPlayer = player;
     }
   }
 
+  updateStemAudibility();
   primaryPlayer ||= stemPlayers[0] || null;
   if (!primaryPlayer) return;
 
-  primaryPlayer.audio.addEventListener("loadedmetadata", () => {
-    const duration = transportDuration();
-    loopEnd.value = Math.min(4, duration || 4);
-    scrubber.max = String(duration || 16);
-    updateTimeDisplay();
-  });
+  for (const player of stemPlayers) {
+    player.audio.addEventListener("loadedmetadata", () => {
+      const duration = transportDuration();
+      loopEnd.value = Math.min(4, duration || 4);
+      scrubber.max = String(duration || 16);
+      updateTimeDisplay();
+    });
 
-  primaryPlayer.audio.addEventListener("timeupdate", () => {
-    const start = Number(loopStart.value);
-    const end = Number(loopEnd.value);
-
-    if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start) {
-      if (primaryPlayer.audio.currentTime >= end) {
-        setTransportTime(start);
-        if (isPlaying) {
-          playAll().catch(console.error);
-        }
+    player.audio.addEventListener("ended", () => {
+      const duration = transportDuration();
+      if (Number.isFinite(duration) && duration > 0 && transportTime() >= duration) {
+        pauseAll();
+        setTransportTime(0);
       }
-    }
-
-    syncStemDrift();
-    updateTimeDisplay();
-    highlightCurrentChord();
-  });
-
-  primaryPlayer.audio.addEventListener("ended", pauseAll);
+    });
+  }
 }
 
 async function pollJob(jobId) {
@@ -258,12 +372,7 @@ async function pollJob(jobId) {
 
   if (job.status === "complete") {
     clearInterval(pollTimer);
-    const stems = job.result.stems?.length
-      ? job.result.stems
-      : [{ id: "piano", name: "Piano", role: "practice target", audioUrl: job.result.audioUrl }];
-    renderStemPlayers(stems);
-    renderMetadata(job.result.metadata);
-    practiceView.hidden = false;
+    renderCompletedJob(job);
     uploadButton.disabled = false;
     uploadButton.textContent = "Upload and process";
   }
@@ -319,10 +428,34 @@ async function checkHealth() {
     const response = await fetch("/api/health");
     const health = await response.json();
     pipelineMode = health.mode;
-    serviceStatus.textContent = `Backend ready: ${health.mode}`;
+    serviceStatus.textContent = loadProcessedDemo
+      ? `Backend ready: ${health.mode} · processed demo`
+      : `Backend ready: ${health.mode}`;
   } catch {
     serviceStatus.textContent = "Backend unavailable";
   }
+}
+
+async function showProcessedDemo() {
+  clearInterval(pollTimer);
+  pauseAll();
+  practiceView.hidden = true;
+  uploadButton.disabled = true;
+  uploadButton.textContent = "Demo loaded";
+  fileLabel.textContent = "Processed demo";
+  updateProgress({ status: "loading processed demo", progress: 65 });
+
+  const response = await fetch("/api/demo/processed-job");
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Could not load processed demo." }));
+    throw new Error(error.error);
+  }
+
+  const job = await response.json();
+  updateProgress(job);
+  renderCompletedJob(job);
+  uploadButton.disabled = false;
+  uploadButton.textContent = "Upload and process";
 }
 
 mediaInput.addEventListener("change", () => {
@@ -374,28 +507,26 @@ scrubber.addEventListener("change", () => {
 });
 
 stemMixer.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-stem-id]");
+  const button = event.target.closest("button[data-stem-id][data-stem-action]");
   if (!button) return;
 
   const player = stemPlayers.find((candidate) => candidate.id === button.dataset.stemId);
   if (!player) return;
 
-  setStemMuted(player.id, !player.audio.muted);
-});
-
-fullMixButton.addEventListener("click", () => {
-  setMixPreset({});
-});
-
-mutePianoButton.addEventListener("click", () => {
-  setMixPreset({ piano: true });
+  if (button.dataset.stemAction === "solo") {
+    setStemSolo(player.id, !player.solo);
+  } else {
+    setStemMuted(player.id, !player.muted);
+  }
 });
 
 speedControls.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-speed]");
   if (!button) return;
 
+  const current = transportTime();
   playbackRate = Number(button.dataset.speed);
+  anchorTransport(current);
   for (const player of stemPlayers) {
     player.audio.playbackRate = playbackRate;
   }
@@ -405,4 +536,17 @@ speedControls.addEventListener("click", (event) => {
   }
 });
 
-checkHealth();
+async function boot() {
+  await checkHealth();
+  if (!loadProcessedDemo) return;
+
+  try {
+    await showProcessedDemo();
+  } catch (error) {
+    jobStatus.textContent = error.message;
+    uploadButton.disabled = false;
+    uploadButton.textContent = "Upload and process";
+  }
+}
+
+boot();

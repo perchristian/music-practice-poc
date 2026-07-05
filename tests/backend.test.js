@@ -80,14 +80,32 @@ describe("mock backend", () => {
     assert.equal(completedJob.progress, 100);
     assert.equal(completedJob.result.metadata.key.tonic, "C");
 
-    const stems = completedJob.result.stems.map((stem) => stem.id).sort();
-    assert.deepEqual(stems, ["bass", "drums", "guitar", "piano"]);
+    const stems = completedJob.result.stems;
+    const stemIds = stems.map((stem) => stem.id).sort();
+    assert.ok(stemIds.includes("piano"));
+    assert.ok(
+      stemIds.includes("accompaniment") ||
+        ["bass", "drums", "guitar"].every((stemId) => stemIds.includes(stemId))
+    );
 
-    for (const stemId of stems) {
-      const response = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/stems/${stemId}.wav`);
+    for (const stem of stems) {
+      const response = await fetch(`${baseUrl}${stem.audioUrl}`);
       assert.equal(response.status, 200);
-      assert.equal(response.headers.get("content-type"), "audio/wav");
+      assert.match(response.headers.get("content-type"), /^audio\/(mp4|wav)/);
       assert.ok((await response.arrayBuffer()).byteLength > 44);
     }
+  });
+
+  it("exposes an already processed mock demo job for skipping upload during development", async () => {
+    const response = await fetch(`${baseUrl}/api/demo/processed-job`);
+
+    assert.equal(response.status, 200);
+    const job = await response.json();
+    assert.equal(job.status, "complete");
+    assert.equal(job.progress, 100);
+    assert.equal(job.mockUpload, true);
+    assert.equal(job.originalFilename, "demo-processed-screen-recording.mov");
+    assert.equal(job.result.metadata.key.tonic, "C");
+    assert.ok(job.result.stems.some((stem) => stem.id === "piano"));
   });
 });

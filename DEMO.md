@@ -2,7 +2,7 @@
 
 ## Goal
 
-Demonstrate that a user can choose a screen recording, process it, hear separated stems, mute/unmute stems, mute piano to practise the piano part themselves, slow playback down, loop a passage, and view approximate harmonic information.
+Demonstrate that a user can choose a screen recording, process it, hear separated stems, mute/unmute or solo stems, slow playback down, loop a passage, and view approximate harmonic information.
 
 ## Current Demo Mode
 
@@ -12,9 +12,9 @@ The first demo is intended to run in mock mode:
 PIPELINE_MODE=mock
 ```
 
-Mock mode does not perform real stem separation or transcription. It simulates the full product flow and returns generated drums, bass, guitar, and piano stems plus plausible harmonic metadata.
+Mock mode does not perform real stem separation or transcription. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, it returns piano and accompaniment stems from those files so piano mute/unmute can be evaluated by ear. If those files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems plus plausible harmonic metadata.
 
-In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising job creation, processing status, synchronized stem playback, piano mute/unmute, looping, and harmonic display.
+In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising job creation, processing status, synchronized stem playback, per-stem mute/solo controls, looping, and harmonic display.
 
 ## Prerequisites
 
@@ -39,6 +39,14 @@ http://localhost:3000
 
 If a sandbox blocks local port binding, run the same command in a normal terminal from the repository root.
 
+For repeated frontend testing where file selection and upload are not the thing being evaluated, open:
+
+```text
+http://localhost:3000/?demo=processed
+```
+
+This feature toggle creates a complete mock job and opens the processed practice view directly. It still uses backend-generated/copy-backed stems, the normal job result shape, and the same player controls as the full upload flow.
+
 ## Automated Verification
 
 Run the backend smoke test:
@@ -54,7 +62,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, file selection, job completion, drums/bass/guitar/piano stem controls, piano mute preset, full mix preset, playback speed selection, loop control state, detected key, chord labels, roman numerals, and melody cues.
+The browser smoke test covers the mock-mode happy path: backend readiness, file selection, job completion, per-stem mute/solo controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -64,14 +72,22 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 2. Choose a screen recording or small media file.
 3. Upload it.
 4. Wait for the mock processing job to complete.
-5. Play the generated stem mix.
-6. Confirm the mixer shows drums, bass, guitar, and piano.
-7. Use the piano mute control or `Mute piano` preset so drums, bass, and guitar remain while the piano drops out.
-8. Unmute piano again and confirm it returns.
-9. Change playback speed.
-10. Set a loop start and loop end.
-11. Enable looping and confirm playback repeats the selected passage.
-12. Inspect detected key, chord names, roman numerals, and melody cues.
+5. Play the stem mix.
+6. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
+7. Mute the piano stem so the non-piano backing remains while the piano drops out.
+8. Solo the piano stem and confirm other stems drop out.
+9. Confirm mute and solo cannot remain active at the same time on the piano stem.
+10. Change playback speed.
+11. Set a loop start and loop end.
+12. Enable looping and confirm playback repeats the selected passage.
+13. Inspect detected key, chord names, and roman numerals.
+
+## Fast Iteration Steps
+
+1. Start the app with `PIPELINE_MODE=mock npm start`.
+2. Open `http://localhost:3000/?demo=processed`.
+3. Confirm the app lands directly on the processed practice view.
+4. Test mute/solo, speed, loop, and harmonic cue changes without repeating file selection.
 
 ## Expected Result
 
@@ -79,7 +95,7 @@ The user should experience the intended learning workflow end to end, even thoug
 
 ## Demo Media and Copyright
 
-Do not include commercial recordings in the repository. Use a user-provided test file or a generated/local sample. The mock pipeline does not depend on the uploaded file content yet.
+Do not include commercial recordings in the repository. Use a user-provided test file or a generated/local sample. The local demo stem files under `data/` are ignored by git and must be replaced with material the tester is allowed to process. The mock pipeline does not depend on the uploaded file content yet.
 
 ## Known Limitations
 

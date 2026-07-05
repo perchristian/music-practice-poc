@@ -2,7 +2,7 @@
 
 Mock-first prototype for testing whether a screen recording can become a better piano learning workflow.
 
-The current POC generates mock drums, bass, guitar, and piano stems. The browser can play them together, mute/unmute individual stems, and mute piano for play-along practice.
+The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can play stems together, mute/unmute individual stems, solo individual stems, slow playback, loop passages, and show harmonic cues.
 
 ## Run
 
@@ -12,6 +12,14 @@ npm start
 ```
 
 Open `http://localhost:3000`.
+
+For faster frontend iteration without selecting or uploading a file, open:
+
+```text
+http://localhost:3000/?demo=processed
+```
+
+This creates an already-complete mock job and jumps directly to the processed practice view.
 
 Mock mode is the default and requires no heavy ML dependencies:
 

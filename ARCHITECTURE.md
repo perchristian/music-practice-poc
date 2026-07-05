@@ -4,11 +4,11 @@
 
 Build a local web POC with a lightweight Node.js backend and static browser client.
 
-The backend owns uploads, job status, pipeline mode, generated mock stem assets, and future real-pipeline integration. The browser owns file selection, upload progress, polling, synchronized stem playback, stem mute/unmute, audio playback speed, loop controls, and harmonic display.
+The backend owns uploads, job status, pipeline mode, generated mock stem assets, and future real-pipeline integration. The browser owns file selection, upload progress, polling, synchronized stem playback, per-stem mute/solo controls, audio playback speed, loop controls, and harmonic display.
 
 ## Runtime Modes
 
-- `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns generated audio plus plausible harmonic metadata.
+- `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
 - `PIPELINE_MODE=real`: future mode. Replaces mock subsystems one at a time while preserving the same API and client workflow.
 
 ## Recommended Architecture
@@ -19,7 +19,7 @@ Browser UI
   - POSTs to backend
   - polls job status
   - plays processed stems in sync
-  - mutes/unmutes individual stems, especially piano for play-along practice
+  - mutes/unmutes and solos individual stems, especially piano for play-along practice
   - controls speed and loop region
   - renders harmonic metadata
 
@@ -33,7 +33,7 @@ Node.js backend
 
 Local filesystem storage
   - uploaded source files
-  - generated mock stem WAVs
+  - local demo stem copies or generated mock stem WAVs
   - job metadata JSON
 ```
 
@@ -41,8 +41,8 @@ Local filesystem storage
 
 - `GET /api/health`: returns mode and service status.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates a simulated upload job; in future real mode, accepts one uploaded media file and creates a processing job.
-- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains drums, bass, guitar, and piano stems.
-- `GET /api/jobs/:id/stems/:stem.wav`: returns a processed stem WAV for `drums`, `bass`, `guitar`, or `piano`.
+- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems.
+- `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 
 ## Alternative 1: Native iOS App First
@@ -119,7 +119,7 @@ The pipeline boundary should be stable:
 input media file -> processing job -> stem audio assets + harmonic metadata
 ```
 
-Mock mode records selected file metadata, simulates upload/processing, generates short drums, bass, guitar, and piano WAV stems, and returns deterministic harmonic metadata. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
+Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
 Real mode should later replace:
 
