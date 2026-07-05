@@ -151,3 +151,25 @@ High.
 
 Date:
 2026-07-05
+
+## Decision 8
+
+Decision:
+Defer native iOS until the web POC has a reusable song library, saved practice state, at least one real-pipeline spike on real screen recordings, and evidence that mobile import/storage/caching friction is blocking validation.
+
+Reason:
+The core uncertainty is whether separated stems, harmonic cues, and structured practice help musicians learn faster. A native app would improve Photos access and mobile file handling, but it does not answer the stem-quality or learning-value question faster than the current web POC.
+
+Alternatives considered:
+- Start native iOS immediately after the first mock demo.
+- Keep the project web-only indefinitely.
+- Build a full native app before real-pipeline validation.
+
+Tradeoffs:
+Deferring iOS keeps iteration fast and focuses effort on learning value, but it delays validation of Photos permissions, App Transport Security, local caching, background audio, and native recording workflows. The compromise is a narrow iOS feasibility spike once the web POC shows enough value or mobile-specific friction becomes the largest blocker.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-05

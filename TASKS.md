@@ -65,7 +65,7 @@ Verification:
 
 Status: Complete in mock mode.
 
-## Epic 4: Demo Readiness and Reproducibility
+## Epic 4 / Phase 0: Baseline Demo Closure
 
 Goal: Another developer can follow `DEMO.md` without intervention.
 
@@ -84,9 +84,48 @@ Verification:
 - Run `npm run test:gui`.
 - Manually listen to the demo to confirm piano mute/unmute, playback speed, and looping feel usable.
 
-Status: In progress.
+Status: Functionally complete for automated verification. `npm test` and `npm run test:gui` pass as of 2026-07-05. Subjective audio usefulness still needs a human listening pass before external user testing.
 
-## Epic 5: First Real-Pipeline Spike
+## Phase 1: Processed Song Library and Saved Practice State
+
+Goal: A user can return to previously processed songs without processing them again, and the app remembers how they practised each song.
+
+Demonstrable outcome:
+- Processed songs are listed in the UI.
+- A song can be opened without creating a new processing job.
+- A song can be previewed before loading into the full practice view.
+- A song can be renamed and deleted.
+- A song has a simple learning status such as `not_started`, `practicing`, or `learned`.
+- Practice state persists per song:
+  - mute/solo state
+  - volume per stem
+  - playback speed
+  - loop points
+  - last playback position
+
+Verification:
+- Process a mock song, reload the browser, and reopen it from the library.
+- Change speed, stem mix, volume, loop points, and status; reload and confirm the values persist.
+- Delete a processed song and confirm it disappears from the library and no longer opens.
+
+Status: Planned next.
+
+## Phase 2: Problem Areas and Practice Notes
+
+Goal: A user can track difficult passages and use the app as an ongoing practice workspace, not just a one-off player.
+
+Demonstrable outcome:
+- Multiple saved loops can be attached to one song.
+- Each loop can have a name, note, and status such as `difficult`, `improving`, or `learned`.
+- Saved loops can be selected quickly from the practice view.
+
+Verification:
+- Create, edit, select, and delete multiple loops on one processed song.
+- Reload the app and confirm notes and loop status persist.
+
+Status: Planned.
+
+## Phase 3: First Real-Pipeline Spike
 
 Goal: Reduce the highest technical uncertainty with one replaceable real subsystem.
 
@@ -103,8 +142,66 @@ Verification:
 - Run mock demo.
 - Run real spike on one sample if dependencies are available.
 
-Status: Deferred until mock demo is complete.
+Status: Planned after library and saved practice state, unless real stem quality becomes the immediate blocker.
+
+## Phase 4: Musical Grid and Bar-Based Practice
+
+Goal: Playback, loops, and harmonic cues align to musical structure instead of only raw seconds.
+
+Demonstrable outcome:
+- BPM is detected or mocked.
+- Time signature is detected or mocked.
+- Downbeat / first bar position is detected or mocked.
+- Bar markers appear in the timeline.
+- Chords are displayed relative to bars.
+- Loops can snap to bars.
+- Count-in and/or metronome can be enabled for loop practice.
+
+Verification:
+- Open a processed song and confirm bar markers, chord placement, and bar-based loop boundaries are visible.
+- Start a loop with count-in and confirm playback begins at the expected bar.
+
+Status: Planned.
+
+## Phase 5: Expand Practice Targets Without Losing Piano Focus
+
+Goal: Keep piano as the first validation target while allowing the same model to support vocals, guitar, bass, and synth later.
+
+Demonstrable outcome:
+- The data model can represent a `practiceTarget`.
+- Stem labels can include piano, synth, guitar, lead vocal, bass, drums, and rest when the pipeline provides them.
+- The UI remains usable when fewer or more stems are available.
+
+Verification:
+- Mock results can expose different stem sets without breaking the player.
+- Piano remains the default target for the POC.
+
+Status: Planned.
+
+## Phase 6: Native iOS Feasibility Spike
+
+Goal: Test whether native iOS materially reduces friction once the web POC has demonstrated learning value.
+
+Entry criteria:
+- The web POC has a processed-song library.
+- Practice state persists per song.
+- At least one real-pipeline spike has been tested with real screen recordings.
+- A simple BPM/time-signature/downbeat grid exists or the lack of it is clearly the current blocker.
+- User feedback indicates import, storage, caching, background audio, recording, or mobile workflow is a bigger blocker than web feature maturity.
+
+Candidate scope:
+- Select a video from Photos.
+- Upload it to the same backend.
+- Open a processed result.
+- Play stems.
+- Cache processed stems locally.
+
+Verification:
+- Run the same source recording through web and iOS entry points and compare user friction.
+- Confirm large-file handling and local caching are better than the web flow.
+
+Status: Deferred until entry criteria are met.
 
 ## Next Task
 
-Finish Epic 4 by running through `DEMO.md` with manual listening in a browser, confirming synchronized stem playback, piano mute/unmute, speed, and loop behavior by ear, and tightening any setup gaps found during that run-through.
+Start Phase 1 by adding a processed-song library API and UI that lists existing completed jobs and reopens one without reprocessing.

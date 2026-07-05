@@ -111,6 +111,8 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files and
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
+The next web milestone should add a processed-song library over the same local storage. The library should treat completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, notes, and last position should be stored per song.
+
 ## Pipeline Strategy
 
 The pipeline boundary should be stable:
@@ -129,6 +131,21 @@ Real mode should later replace:
 4. harmonic analysis
 
 one subsystem at a time.
+
+## Native iOS Transition Criteria
+
+Native iOS remains deferred until the web POC demonstrates enough learning value or mobile-specific friction becomes the dominant blocker.
+
+Move to a native iOS feasibility spike when most of these are true:
+
+- The web POC has a processed-song library.
+- Processed songs can be reopened without reprocessing.
+- Practice state persists per song.
+- A first real-pipeline spike has been tested with real screen recordings.
+- The app has at least a simple BPM/time-signature/downbeat model, or the absence of one is clearly blocking learning validation.
+- User feedback indicates import, storage, caching, background audio, recording, or mobile workflow is more limiting than web feature maturity.
+
+The first iOS spike should stay narrow: choose a video from Photos, upload it to the existing backend, open a processed result, play stems, and cache processed stems locally. It should not replace the web POC until it proves that native workflow materially improves validation.
 
 ## Critical Assumptions
 

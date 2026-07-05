@@ -2,7 +2,9 @@
 
 ## Current Status
 
-The first mock-mode vertical slice is implemented. A developer can start the local web POC, upload a media file, wait for mock processing, receive local piano/accompaniment demo stems when `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` exist, mute/unmute stems, solo stems, use playback controls, and inspect harmonic cues. If the local M4A demo stems are missing, mock mode falls back to generated drums/bass/guitar/piano WAV stems.
+The first mock-mode vertical slice is implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, upload a media file, wait for mock processing, receive local piano/accompaniment demo stems when `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` exist, mute/unmute stems, solo stems, use playback controls, and inspect harmonic cues. If the local M4A demo stems are missing, mock mode falls back to generated drums/bass/guitar/piano WAV stems.
+
+Phase 0 / baseline demo closure is complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
 
 ## Current Architecture
 
@@ -51,14 +53,25 @@ Local web POC:
   - `/?demo=processed`
   - `/?skipUpload=1`
 - The processed demo shortcut creates a complete mock job and jumps directly to the practice view without selecting or uploading a file.
+- Completed Phase 0 automated verification:
+  - `npm test` passed on 2026-07-05.
+  - `npm run test:gui` passed on 2026-07-05.
+- Added a phased forward roadmap in `TASKS.md`:
+  - Phase 1: processed-song library and saved practice state.
+  - Phase 2: problem areas and practice notes.
+  - Phase 3: first real-pipeline spike.
+  - Phase 4: musical grid and bar-based practice.
+  - Phase 5: expanded practice targets.
+  - Phase 6: native iOS feasibility spike.
+- Documented native iOS transition criteria in `ARCHITECTURE.md`.
 
 ## In Progress
 
-- Epic 4: Demo Readiness and Reproducibility.
+- Phase 1 planning: processed-song library and saved practice state.
 
 ## Next Recommended Task
 
-Run a manual listening demo from `DEMO.md`, confirm synchronized stem playback, per-stem mute/solo behavior, speed, and loop behavior by ear, and update any setup or UX gaps before moving to the first real-pipeline spike.
+Add a processed-song library API and UI that lists existing completed jobs and reopens one without reprocessing. Include persisted per-song practice state early because it directly supports repeated learning sessions.
 
 ## Skills Used
 
@@ -174,3 +187,6 @@ No Codex skills used.
 - `node --check tests/gui.spec.js`: passed after processed demo shortcut coverage.
 - `npm test`: passed with 2 backend tests after processed demo shortcut coverage.
 - `npm run test:gui`: passed with 2 Playwright tests after processed demo shortcut coverage.
+- `npm test`: passed on 2026-07-05 while closing Phase 0.
+- `npm run test:gui`: passed on 2026-07-05 while closing Phase 0.
+- Manual subjective listening could not be completed by Codex; a human should still listen through `DEMO.md` before external user testing.
