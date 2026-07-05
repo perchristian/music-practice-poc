@@ -8,6 +8,50 @@ async function setPlaybackPosition(page, seconds) {
   }, seconds);
 }
 
+async function waitForLibraryJob(page, filename) {
+  return expect
+    .poll(async () => {
+      return page.evaluate(async (name) => {
+        const response = await fetch("/api/library");
+        const entries = await response.json();
+        return entries.find((entry) => entry.originalFilename === name)?.id || null;
+      }, filename);
+    }, { timeout: 15_000 })
+    .not.toBeNull();
+}
+
+async function libraryJobId(page, filename) {
+  await waitForLibraryJob(page, filename);
+  return page.evaluate(async (name) => {
+    const response = await fetch("/api/library");
+    const entries = await response.json();
+    return entries.find((entry) => entry.originalFilename === name).id;
+  }, filename);
+}
+
+async function createProcessedJob(page, filename) {
+  const jobId = await page.evaluate(async (name) => {
+    const createResponse = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ filename: name, size: 1234, type: "video/quicktime" })
+    });
+    const job = await createResponse.json();
+    return job.id;
+  }, filename);
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        return (await response.json()).status;
+      }, jobId);
+    }, { timeout: 15_000 })
+    .toBe("complete");
+
+  return jobId;
+}
+
 test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];
@@ -48,15 +92,28 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
 
+  const filename = `screen-recording-${Date.now()}.mov`;
   await page.getByTestId("media-input").setInputFiles({
-    name: "screen-recording.mov",
+    name: filename,
     mimeType: "video/quicktime",
     buffer: Buffer.from("mock media bytes")
   });
-  await expect(page.getByTestId("file-label")).toHaveText("screen-recording.mov");
+  await expect(page.getByTestId("file-label")).toHaveText(filename);
 
   await page.getByTestId("upload-button").click();
-  await expect(page.getByTestId("job-status")).toHaveText("complete", { timeout: 15_000 });
+  const jobId = await libraryJobId(page, filename);
+  await expect(page.getByTestId("home-view")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+  await page.getByTestId("all-songs-button").click();
+  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
+  await expect(page.getByTestId(`library-card-${jobId}`)).not.toContainText("complete");
+  await page.getByTestId(`library-open-${jobId}`).click();
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("back-to-home-button")).toHaveText("Back to songs");
+  await page.getByTestId("back-to-home-button").click();
+  await expect(page.getByTestId("all-songs-view")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+  await page.getByTestId(`library-open-${jobId}`).click();
   await expect(page.getByTestId("practice-view")).toBeVisible();
 
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
@@ -205,10 +262,249 @@ test("processed demo shortcut opens practice view without selecting a file", asy
 
   await page.goto("/?demo=processed");
   await expect(page.getByTestId("service-status")).toContainText("processed demo");
-  await expect(page.getByTestId("job-status")).toHaveText("complete", { timeout: 15_000 });
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("file-label")).toHaveText("Processed demo");
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect(page.getByTestId("key-badge")).toHaveText("C major");
   await expect(page.getByText("Cmaj7")).toBeVisible();
+});
+
+test("processed song library reopens songs and persists practice state", async ({ page }) => {
+  await page.addInitScript(() => {
+    const currentTimes = new WeakMap();
+    const pausedStates = new WeakMap();
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      get() {
+        return currentTimes.get(this) ?? 0;
+      },
+      set(value) {
+        currentTimes.set(this, Number(value) || 0);
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      get() {
+        return pausedStates.get(this) ?? true;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      pausedStates.set(this, false);
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      pausedStates.set(this, true);
+    };
+  });
+
+  const filename = `phase-one-library-${Date.now()}.mov`;
+  await page.goto("/");
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+
+  await page.getByTestId("media-input").setInputFiles({
+    name: filename,
+    mimeType: "video/quicktime",
+    buffer: Buffer.from("mock media bytes")
+  });
+  await page.getByTestId("upload-button").click();
+  const jobId = await libraryJobId(page, filename);
+  await expect(page.getByTestId("home-view")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+
+  await page.getByTestId("all-songs-button").click();
+  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
+  await expect(page.getByTestId(`library-card-${jobId}`)).not.toContainText("complete");
+
+  await page.reload();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+  await page.getByTestId("all-songs-button").click();
+  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
+
+  await page.getByTestId(`library-preview-${jobId}`).click();
+  await expect(page.getByTestId(`library-preview-audio-${jobId}`)).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+
+  await page.getByTestId(`library-open-${jobId}`).click();
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("all-songs-view")).toBeHidden();
+  await expect(page.getByTestId("stem-row-piano")).toBeVisible();
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch("/api/library");
+        const entries = await response.json();
+        return entries.find((entry) => entry.id === id)?.lastOpenedAt || null;
+      }, jobId);
+    })
+    .not.toBeNull();
+
+  await page.getByTestId("speed-075").click();
+  await page.getByTestId("loop-start").fill("1.5");
+  await page.getByTestId("loop-end").fill("5.5");
+  await page.getByTestId("loop-enabled").check();
+  await setPlaybackPosition(page, 3.2);
+  await page.getByTestId("stem-mute-piano").click();
+  await page.getByTestId("stem-volume-piano").evaluate((slider) => {
+    slider.value = "0.35";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.getByTestId("learning-status").selectOption("practicing");
+
+  await expect
+    .poll(async () => {
+      const state = await page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        return (await response.json()).practiceState;
+      }, jobId);
+      return {
+        learningStatus: state.learningStatus,
+        playbackRate: state.playbackRate,
+        loopStart: state.loopStart,
+        loopEnd: state.loopEnd,
+        loopEnabled: state.loopEnabled,
+        lastPosition: Math.round(state.lastPosition * 10) / 10,
+        pianoMuted: state.stemStates.piano.muted,
+        pianoVolume: state.stemStates.piano.volume
+      };
+    })
+    .toEqual({
+      learningStatus: "practicing",
+      playbackRate: 0.75,
+      loopStart: 1.5,
+      loopEnd: 5.5,
+      loopEnabled: true,
+      lastPosition: 3.2,
+      pianoMuted: true,
+      pianoVolume: 0.35
+    });
+
+  await page.reload();
+  await expect(page.getByTestId(`recent-card-${jobId}`)).toContainText("Practicing");
+  await page.getByTestId(`recent-open-${jobId}`).click();
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("learning-status")).toHaveValue("practicing");
+  await expect(page.getByTestId("speed-075")).toHaveClass(/active/);
+  await expect(page.getByTestId("loop-start")).toHaveValue("1.5");
+  await expect(page.getByTestId("loop-end")).toHaveValue("5.5");
+  await expect(page.getByTestId("loop-enabled")).toBeChecked();
+  await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);
+  await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");
+  await expect(page.locator("#scrubber")).toHaveValue("3.2");
+  await page.getByTestId("back-to-home-button").click();
+  await expect(page.getByTestId("home-view")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+  await page.getByTestId("all-songs-button").click();
+
+  page.once("dialog", (dialog) => dialog.accept("Renamed Phase 1 song"));
+  await page.getByTestId(`library-rename-${jobId}`).click();
+  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText("Renamed Phase 1 song");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByTestId(`library-delete-${jobId}`).click();
+  await expect(page.getByTestId(`library-card-${jobId}`)).toHaveCount(0);
+  await expect(page.getByTestId("all-songs-view")).toBeVisible();
+
+  const deletedStatus = await page.evaluate(async (id) => {
+    const response = await fetch(`/api/jobs/${id}`);
+    return response.status;
+  }, jobId);
+  expect(deletedStatus).toBe(404);
+});
+
+test("home upload queue processes multiple files without opening practice", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+
+  const firstFilename = `queue-first-${Date.now()}.mov`;
+  const secondFilename = `queue-second-${Date.now()}.mov`;
+  await page.getByTestId("media-input").setInputFiles([
+    {
+      name: firstFilename,
+      mimeType: "video/quicktime",
+      buffer: Buffer.from("first mock media bytes")
+    },
+    {
+      name: secondFilename,
+      mimeType: "video/quicktime",
+      buffer: Buffer.from("second mock media bytes")
+    }
+  ]);
+  await expect(page.getByTestId("file-label")).toHaveText("2 recordings selected");
+
+  await page.getByTestId("upload-button").click();
+  await expect(page.locator('[data-testid^="queue-card-"]')).toHaveCount(2);
+  await expect(page.getByTestId("queue-list")).toContainText(firstFilename);
+  await expect(page.getByTestId("queue-list")).toContainText(secondFilename);
+
+  const firstJobId = await libraryJobId(page, firstFilename);
+  const secondJobId = await libraryJobId(page, secondFilename);
+  await expect(page.getByTestId("home-view")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeHidden();
+  await expect(page.getByTestId("queue-panel")).toBeHidden();
+
+  await page.getByTestId("all-songs-button").click();
+  await expect(page.getByTestId(`library-card-${firstJobId}`)).toContainText(firstFilename);
+  await expect(page.getByTestId(`library-card-${secondJobId}`)).toContainText(secondFilename);
+  await expect(page.getByTestId(`library-card-${firstJobId}`)).not.toContainText("complete");
+  await expect(page.getByTestId(`library-card-${secondJobId}`)).not.toContainText("complete");
+});
+
+test("home shows five most recently opened songs and all songs filters by learning status", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+
+  const prefix = `recent-${Date.now()}`;
+  const filenames = Array.from({ length: 6 }, (_, index) => `${prefix}-${index + 1}.mov`);
+  const jobIds = [];
+
+  for (const filename of filenames) {
+    jobIds.push(await createProcessedJob(page, filename));
+  }
+
+  await page.evaluate(async (ids) => {
+    const statuses = ["not_started", "practicing", "learned", "not_started", "practicing", "learned"];
+    for (const [index, id] of ids.entries()) {
+      await fetch(`/api/jobs/${id}/practice-state`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ learningStatus: statuses[index] })
+      });
+      await fetch(`/api/jobs/${id}/opened`, { method: "POST" });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }, jobIds);
+
+  await page.reload();
+  await expect(page.getByTestId("recent-list").locator(".library-card")).toHaveCount(5);
+  await expect(page.getByTestId(`recent-card-${jobIds[5]}`)).toBeVisible();
+  await expect(page.getByTestId(`recent-card-${jobIds[4]}`)).toBeVisible();
+  await expect(page.getByTestId(`recent-card-${jobIds[3]}`)).toBeVisible();
+  await expect(page.getByTestId(`recent-card-${jobIds[2]}`)).toBeVisible();
+  await expect(page.getByTestId(`recent-card-${jobIds[1]}`)).toBeVisible();
+  await expect(page.getByTestId(`recent-card-${jobIds[0]}`)).toHaveCount(0);
+  await expect(page.getByTestId(`recent-card-${jobIds[5]}`)).toContainText("Learned");
+  await expect(page.getByTestId(`recent-card-${jobIds[4]}`)).toContainText("Practicing");
+  await expect(page.getByTestId(`recent-card-${jobIds[3]}`)).toContainText("Not started");
+
+  await page.getByTestId("all-songs-button").click();
+  await expect(page.getByTestId("all-songs-view")).toBeVisible();
+  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(6);
+
+  await page.getByTestId("filter-practicing").click();
+  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`library-card-${jobIds[1]}`)).toBeVisible();
+  await expect(page.getByTestId(`library-card-${jobIds[4]}`)).toBeVisible();
+
+  await page.getByTestId("filter-learned").click();
+  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`library-card-${jobIds[2]}`)).toBeVisible();
+  await expect(page.getByTestId(`library-card-${jobIds[5]}`)).toBeVisible();
+
+  await page.getByTestId("filter-not-started").click();
+  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`library-card-${jobIds[0]}`)).toBeVisible();
+  await expect(page.getByTestId(`library-card-${jobIds[3]}`)).toBeVisible();
 });

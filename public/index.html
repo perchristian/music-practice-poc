@@ -17,27 +17,60 @@
           <div class="status-pill" id="serviceStatus" data-testid="service-status">Checking backend</div>
         </header>
 
-        <section class="panel upload-panel" aria-labelledby="uploadTitle">
-          <div>
-            <h2 id="uploadTitle">Upload recording</h2>
-            <p class="muted">Choose a small video or audio file. Mock mode uses the file to exercise the real upload and job flow.</p>
-          </div>
-          <form id="uploadForm" class="upload-form">
-            <label class="file-drop">
-              <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" required>
-              <span id="fileLabel" data-testid="file-label">Select screen recording</span>
-            </label>
-            <button type="submit" id="uploadButton" data-testid="upload-button">Upload and process</button>
-          </form>
-          <div class="job-progress" id="jobProgress" hidden>
-            <div class="progress-copy">
-              <span id="jobStatus" data-testid="job-status">Waiting</span>
-              <span id="jobPercent" data-testid="job-percent">0%</span>
+        <section id="homeView" data-testid="home-view">
+          <section class="panel upload-panel" aria-labelledby="uploadTitle">
+            <div>
+              <h2 id="uploadTitle">Upload recordings</h2>
+              <p class="muted">Choose one or more video or audio files. Mock mode creates a separate processing job for each file.</p>
             </div>
-            <div class="progress-track">
-              <div class="progress-bar" id="progressBar"></div>
+            <form id="uploadForm" class="upload-form">
+              <label class="file-drop">
+                <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" multiple required>
+                <span id="fileLabel" data-testid="file-label">Select screen recordings</span>
+              </label>
+              <button type="submit" id="uploadButton" data-testid="upload-button">Add to processing queue</button>
+            </form>
+          </section>
+
+          <section class="panel queue-panel" id="queuePanel" aria-labelledby="queueTitle" data-testid="queue-panel" hidden>
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Processing</p>
+                <h2 id="queueTitle">Queue</h2>
+              </div>
             </div>
+            <div id="queueList" class="queue-list" data-testid="queue-list"></div>
+          </section>
+
+          <section class="panel library-panel" aria-labelledby="recentTitle">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow">Recent</p>
+                <h2 id="recentTitle">Recently opened songs</h2>
+              </div>
+              <button type="button" class="secondary-button" id="allSongsButton" data-testid="all-songs-button">All songs</button>
+            </div>
+            <p id="recentEmpty" class="muted" data-testid="recent-empty">Open a processed song to pin it here.</p>
+            <div id="recentList" class="library-list" data-testid="recent-list"></div>
+          </section>
+        </section>
+
+        <section class="panel library-panel" id="allSongsView" aria-labelledby="libraryTitle" data-testid="all-songs-view" hidden>
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Processed songs</p>
+              <h2 id="libraryTitle">All songs</h2>
+            </div>
+            <button type="button" class="secondary-button" id="homeButton" data-testid="home-button">Home</button>
           </div>
+          <div class="filter-row" id="libraryFilters" data-testid="library-filters" role="group" aria-label="Filter songs by learning status">
+            <button type="button" class="active" data-filter="all" data-testid="filter-all">All</button>
+            <button type="button" data-filter="not_started" data-testid="filter-not-started">Not started</button>
+            <button type="button" data-filter="practicing" data-testid="filter-practicing">Practicing</button>
+            <button type="button" data-filter="learned" data-testid="filter-learned">Learned</button>
+          </div>
+          <p id="libraryEmpty" class="muted" data-testid="library-empty">No completed songs yet.</p>
+          <div id="libraryList" class="library-list" data-testid="library-list"></div>
         </section>
 
         <section class="practice-grid" id="practiceView" data-testid="practice-view" hidden>
@@ -47,7 +80,18 @@
                 <p class="eyebrow">Processed result</p>
                 <h2 id="playerTitle">Stem practice mix</h2>
               </div>
-              <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
+              <div class="practice-status-group">
+                <button type="button" class="secondary-button" id="backToHomeButton" data-testid="back-to-home-button">Back to home</button>
+                <label class="status-control" for="learningStatus">
+                  <span>Learning status</span>
+                  <select id="learningStatus" data-testid="learning-status">
+                    <option value="not_started">Not started</option>
+                    <option value="practicing">Practicing</option>
+                    <option value="learned">Learned</option>
+                  </select>
+                </label>
+                <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
+              </div>
             </div>
 
             <div id="stemDeck" class="stem-deck" aria-label="Processed stems"></div>

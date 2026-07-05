@@ -116,7 +116,7 @@ h3 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
   gap: 24px;
-  align-items: center;
+  align-items: start;
   padding: 22px;
 }
 
@@ -150,12 +150,15 @@ h3 {
 }
 
 .upload-form button,
-.segmented button {
+.segmented button,
+.secondary-button,
+.filter-row button {
   min-height: 42px;
   border-radius: 8px;
 }
 
-.upload-form button {
+.upload-form button,
+.secondary-button.primary {
   background: var(--accent);
   color: white;
   font-weight: 750;
@@ -166,7 +169,167 @@ h3 {
   opacity: 0.65;
 }
 
-.job-progress {
+.secondary-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 0 14px;
+  font-weight: 750;
+}
+
+.queue-panel,
+.library-panel {
+  margin-top: 18px;
+  padding: 20px;
+}
+
+.section-heading.compact {
+  margin-bottom: 10px;
+}
+
+.library-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.library-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.library-card h3 {
+  margin: 0 0 4px;
+}
+
+.library-card-header,
+.library-actions,
+.practice-status-group {
+  display: flex;
+  gap: 10px;
+}
+
+.library-card-header {
+  align-items: start;
+  justify-content: space-between;
+}
+
+.library-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.library-actions button {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.library-actions button:first-child {
+  border-color: rgba(15, 118, 110, 0.4);
+  color: var(--accent-strong);
+}
+
+.compact-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.compact-card .library-actions {
+  justify-content: end;
+}
+
+.learning-chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.learning-chip.practicing {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: #dff4ef;
+  color: var(--accent-strong);
+}
+
+.learning-chip.learned {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.filter-row button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 0 12px;
+  font-weight: 750;
+}
+
+.filter-row button.active {
+  border-color: var(--accent);
+  background: #dff4ef;
+  color: var(--accent-strong);
+}
+
+.library-card audio {
+  margin: 0;
+}
+
+.library-meta {
+  font-size: 0.86rem;
+}
+
+.queue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.queue-card h3 {
+  margin: 0 0 4px;
+}
+
+.queue-copy {
+  min-width: 0;
+}
+
+.queue-percent {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-card .progress-track {
   grid-column: 1 / -1;
 }
 
@@ -217,6 +380,28 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
+.practice-status-group {
+  align-items: center;
+  justify-content: end;
+  flex-wrap: wrap;
+}
+
+.status-control {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.status-control select {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 7px 10px;
+}
+
 audio {
   width: 100%;
   margin: 10px 0 18px;
@@ -260,6 +445,8 @@ audio {
 .stem-toggle:focus-visible,
 .play-button:focus-visible,
 .segmented button:focus-visible,
+.secondary-button:focus-visible,
+.filter-row button:focus-visible,
 .upload-form button:focus-visible {
   outline: 3px solid rgba(15, 118, 110, 0.2);
   outline-offset: 2px;
@@ -339,8 +526,9 @@ audio {
 
 .stem-controls {
   display: grid;
-  grid-template-columns: repeat(2, 82px);
+  grid-template-columns: 120px repeat(2, 82px);
   gap: 8px;
+  align-items: center;
 }
 
 .stem-toggle[aria-pressed="true"] {
@@ -446,5 +634,25 @@ audio {
   .stem-heading,
   .stem-row {
     grid-template-columns: 1fr;
+  }
+
+  .library-card-header,
+  .practice-status-group,
+  .compact-card {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .compact-card {
+    grid-template-columns: 1fr;
+  }
+
+  .stem-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stem-controls input[type="range"] {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }

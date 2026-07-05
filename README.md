@@ -2,7 +2,7 @@
 
 Mock-first prototype for testing whether a screen recording can become a better piano learning workflow.
 
-The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can play stems together, mute/unmute individual stems, solo individual stems, slow playback, loop passages, and show harmonic cues.
+The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can queue multiple files for mock processing, reopen the five most recently opened processed songs from home, browse all processed songs, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
 
 ## Run
 
@@ -37,4 +37,4 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-`npm test` runs the mock backend smoke test. `npm run test:gui` runs the Playwright browser smoke test for the mock upload-to-practice flow.
+`npm test` runs the mock backend smoke tests. `npm run test:gui` runs the Playwright browser smoke tests for the mock upload queue, recent/all-songs library flow, and practice-state persistence.

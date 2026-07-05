@@ -2,7 +2,7 @@
 
 ## Goal
 
-Demonstrate that a user can choose a screen recording, process it, hear separated stems, mute/unmute or solo stems, slow playback down, loop a passage, and view approximate harmonic information.
+Demonstrate that a user can choose a screen recording, process it, return to the processed song from a library, hear separated stems, mute/unmute or solo stems, slow playback down, loop a passage, save practice state, and view approximate harmonic information.
 
 ## Current Demo Mode
 
@@ -14,7 +14,7 @@ PIPELINE_MODE=mock
 
 Mock mode does not perform real stem separation or transcription. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, it returns piano and accompaniment stems from those files so piano mute/unmute can be evaluated by ear. If those files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems plus plausible harmonic metadata.
 
-In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising job creation, processing status, synchronized stem playback, per-stem mute/solo controls, looping, and harmonic display.
+In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
 ## Prerequisites
 
@@ -62,25 +62,31 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, file selection, job completion, per-stem mute/solo controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, multi-file selection, per-file queue progress, job completion without automatically opening practice, recent and all-songs library reopening, status filtering, preview before opening the full practice view, rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
 ## Demo Steps
 
 1. Open the local web app.
-2. Choose a screen recording or small media file.
-3. Upload it.
-4. Wait for the mock processing job to complete.
-5. Play the stem mix.
-6. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
-7. Mute the piano stem so the non-piano backing remains while the piano drops out.
-8. Solo the piano stem and confirm other stems drop out.
-9. Confirm mute and solo cannot remain active at the same time on the piano stem.
-10. Change playback speed.
-11. Set a loop start and loop end.
-12. Enable looping and confirm playback repeats the selected passage.
-13. Inspect detected key, chord names, and roman numerals.
+2. Choose one or more screen recordings or small media files.
+3. Add them to the processing queue.
+4. Confirm each file has its own queue row and progress bar.
+5. Wait for mock processing to complete and confirm the app remains on home.
+6. Open All songs and confirm the completed songs appear there without a `complete` badge.
+7. Use Preview on a library item without opening the full practice view.
+8. Open the library item and play the stem mix.
+9. Use Back to songs and confirm the app returns to the All songs list, then open the item again.
+10. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
+11. Mute the piano stem so the non-piano backing remains while the piano drops out.
+12. Solo the piano stem and confirm other stems drop out.
+13. Confirm mute and solo cannot remain active at the same time on the piano stem.
+14. Change playback speed, stem volume, loop start/end, loop enabled state, and learning status.
+15. Return to home and confirm the song appears in Recently opened songs.
+16. Reload the page, reopen the song from recent or All songs, and confirm those practice settings return.
+17. Rename the processed song.
+18. Delete the processed song and confirm it disappears from All songs and no longer opens.
+19. Inspect detected key, chord names, and roman numerals.
 
 ## Fast Iteration Steps
 
@@ -103,6 +109,7 @@ Do not include commercial recordings in the repository. Use a user-provided test
 - Real drums, bass, guitar, and piano separation is not implemented yet.
 - Real transcription is not implemented yet.
 - Harmonic metadata is mocked.
+- The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.
 - Native iOS Photos import is not implemented yet.
 - Automated browser tests verify the GUI state, but not subjective audio quality.

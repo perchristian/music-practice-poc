@@ -173,3 +173,47 @@ Medium.
 
 Date:
 2026-07-05
+
+## Decision 9
+
+Decision:
+Store the processed-song library and per-song practice state in each local job's `job.json` file.
+
+Reason:
+Phase 1 needs reusable processed songs and saved practice state, but the POC is still local-first and single-user. Extending the existing filesystem job record keeps the implementation inspectable, dependency-light, and compatible with mock mode.
+
+Alternatives considered:
+- Add SQLite for library and practice state.
+- Store practice state only in browser localStorage.
+- Keep the library in memory only.
+
+Tradeoffs:
+Job JSON storage is simple and persists across browser/server restarts, but it is not suitable for concurrent users, remote sync, or complex queries. SQLite or another database can replace this later if the POC needs multi-user or cloud behavior.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-05
+
+## Decision 10
+
+Decision:
+Track recently opened songs with `lastOpenedAt` in each job's `job.json`, updated only by `POST /api/jobs/:id/opened`.
+
+Reason:
+Home needs to show the five most recently opened songs independent of learning status and independent of processing or practice-state updates. A dedicated timestamp avoids overloading `updatedAt`, which changes for rename and practice-state persistence.
+
+Alternatives considered:
+- Sort recent songs by `updatedAt`.
+- Store recent songs only in browser localStorage.
+- Add a separate library database table.
+
+Tradeoffs:
+The field is simple, durable, and consistent with the local filesystem POC, but it remains single-user and local-only. A future multi-user or synced version should move this into a proper library/practice database.
+
+Confidence:
+High.
+
+Date:
+2026-07-05

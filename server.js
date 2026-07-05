@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -9,7 +9,8 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
 const PIPELINE_MODE = process.env.PIPELINE_MODE || "mock";
-const DATA_DIR = join(__dirname, "data");
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
+const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
@@ -50,6 +51,7 @@ const externalMockStemSources = [
 
 async function ensureBaseDirs() {
   await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(JOBS_DIR, { recursive: true });
 }
 
 function json(res, statusCode, payload) {
@@ -377,7 +379,7 @@ async function saveJob(job) {
 
 async function createJobRecord({ originalFilename, originalSize = null, originalType = null, sourcePath = null, mockUpload = false }) {
   const id = randomUUID();
-  const dir = join(DATA_DIR, "jobs", id);
+  const dir = join(JOBS_DIR, id);
   await mkdir(dir, { recursive: true });
 
   const job = {
@@ -392,13 +394,60 @@ async function createJobRecord({ originalFilename, originalSize = null, original
     mockUpload,
     dir,
     metadata: null,
+    practiceState: {
+      learningStatus: "not_started",
+      playbackRate: 1,
+      loopStart: 0,
+      loopEnd: 4,
+      loopEnabled: false,
+      lastPosition: 0,
+      stemStates: {}
+    },
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    lastOpenedAt: null
   };
 
   jobs.set(id, job);
   await saveJob(job);
   return job;
+}
+
+function defaultStemState(stemId) {
+  return { muted: false, solo: false, volume: 1, stemId };
+}
+
+function clampNumber(value, fallback, min, max) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
+
+function ensurePracticeState(job) {
+  const existingStemStates = job.practiceState?.stemStates || {};
+  const stemStates = {};
+
+  for (const stem of stemsForJob(job)) {
+    stemStates[stem.id] = {
+      muted: false,
+      solo: false,
+      volume: 1,
+      ...(existingStemStates[stem.id] || {})
+    };
+  }
+
+  job.practiceState = {
+    learningStatus: ["not_started", "practicing", "learned"].includes(job.practiceState?.learningStatus)
+      ? job.practiceState.learningStatus
+      : "not_started",
+    playbackRate: clampNumber(Number(job.practiceState?.playbackRate), 1, 0.25, 2),
+    loopStart: clampNumber(Number(job.practiceState?.loopStart), 0, 0, 60 * 60),
+    loopEnd: clampNumber(Number(job.practiceState?.loopEnd), 4, 0, 60 * 60),
+    loopEnabled: Boolean(job.practiceState?.loopEnabled),
+    lastPosition: clampNumber(Number(job.practiceState?.lastPosition), 0, 0, 60 * 60),
+    stemStates
+  };
+
+  return job.practiceState;
 }
 
 function publicJob(job) {
@@ -411,9 +460,11 @@ function publicJob(job) {
     progress: job.progress,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
+    lastOpenedAt: job.lastOpenedAt || null,
     originalFilename: job.originalFilename,
     originalSize: job.originalSize,
     mockUpload: job.mockUpload,
+    practiceState: ensurePracticeState(job),
     result: job.status === "complete"
       ? {
           audioUrl: `/api/jobs/${job.id}/piano.wav`,
@@ -428,7 +479,7 @@ async function availableExternalMockStems() {
   const resolved = [];
 
   for (const stem of externalMockStemSources) {
-    const sourcePath = join(DATA_DIR, "jobs", stem.sourceFilename);
+    const sourcePath = join(JOBS_DIR, stem.sourceFilename);
     try {
       await access(sourcePath);
     } catch {
@@ -577,10 +628,125 @@ async function handleGetProcessedDemoJob(res) {
   json(res, 200, publicJob(job));
 }
 
+async function handleListLibrary(res) {
+  try {
+    const entries = [];
+    const jobDirs = await readdir(JOBS_DIR, { withFileTypes: true });
+
+    for (const jobDir of jobDirs) {
+      if (!jobDir.isDirectory()) continue;
+      const job = await readJobFromDisk(jobDir.name);
+      if (!job || job.status !== "complete") continue;
+      entries.push(publicJob(job));
+    }
+
+    entries.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+    json(res, 200, entries);
+  } catch (error) {
+    console.error(error);
+    json(res, 500, { error: "Could not load processed song library." });
+  }
+}
+
+async function handleUpdatePracticeState(req, id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job) {
+    notFound(res);
+    return;
+  }
+
+  const payload = await readJsonBody(req);
+  const practiceState = ensurePracticeState(job);
+
+  if (typeof payload.learningStatus === "string" && ["not_started", "practicing", "learned"].includes(payload.learningStatus)) {
+    practiceState.learningStatus = payload.learningStatus;
+  }
+  if (typeof payload.playbackRate === "number") {
+    practiceState.playbackRate = clampNumber(payload.playbackRate, practiceState.playbackRate, 0.25, 2);
+  }
+  if (typeof payload.loopStart === "number") {
+    practiceState.loopStart = clampNumber(payload.loopStart, practiceState.loopStart, 0, 60 * 60);
+  }
+  if (typeof payload.loopEnd === "number") {
+    practiceState.loopEnd = clampNumber(payload.loopEnd, practiceState.loopEnd, 0, 60 * 60);
+  }
+  if (typeof payload.loopEnabled === "boolean") {
+    practiceState.loopEnabled = payload.loopEnabled;
+  }
+  if (typeof payload.lastPosition === "number") {
+    practiceState.lastPosition = clampNumber(payload.lastPosition, practiceState.lastPosition, 0, 60 * 60);
+  }
+  if (payload.stemStates && typeof payload.stemStates === "object") {
+    practiceState.stemStates = {
+      ...practiceState.stemStates,
+      ...Object.fromEntries(
+        Object.entries(payload.stemStates).map(([stemId, state]) => [
+          stemId,
+          {
+            ...(practiceState.stemStates[stemId] || defaultStemState(stemId)),
+            muted: Boolean(state?.muted),
+            solo: Boolean(state?.solo),
+            volume: clampNumber(Number(state?.volume), practiceState.stemStates[stemId]?.volume ?? 1, 0, 1)
+          }
+        ])
+      )
+    };
+  }
+
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
+async function handleDeleteJob(id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job) {
+    notFound(res);
+    return;
+  }
+
+  jobs.delete(id);
+  await rm(join(JOBS_DIR, id), { recursive: true, force: true });
+  json(res, 200, { ok: true, id });
+}
+
+async function handleRenameJob(req, id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job) {
+    notFound(res);
+    return;
+  }
+
+  const payload = await readJsonBody(req);
+  const label = typeof payload.originalFilename === "string" ? payload.originalFilename.trim() : "";
+  if (!label) {
+    badRequest(res, "A filename is required.");
+    return;
+  }
+
+  job.originalFilename = label;
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
+async function handleMarkJobOpened(id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+
+  job.lastOpenedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
 async function readJobFromDisk(id) {
   if (jobs.has(id)) return jobs.get(id);
   try {
-    const job = JSON.parse(await readFile(join(DATA_DIR, "jobs", id, "job.json"), "utf8"));
+    const job = JSON.parse(await readFile(join(JOBS_DIR, id, "job.json"), "utf8"));
+    job.dir = join(JOBS_DIR, id);
     jobs.set(id, job);
     return job;
   } catch {
@@ -665,9 +831,38 @@ async function route(req, res) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/library") {
+    await handleListLibrary(res);
+    return;
+  }
+
   const jobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)$/);
   if (req.method === "GET" && jobMatch) {
     await handleGetJob(jobMatch[1], res);
+    return;
+  }
+
+  const practiceStateMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/practice-state$/);
+  if (req.method === "PUT" && practiceStateMatch) {
+    await handleUpdatePracticeState(req, practiceStateMatch[1], res);
+    return;
+  }
+
+  const renameJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/rename$/);
+  if (req.method === "PUT" && renameJobMatch) {
+    await handleRenameJob(req, renameJobMatch[1], res);
+    return;
+  }
+
+  const openedJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/opened$/);
+  if (req.method === "POST" && openedJobMatch) {
+    await handleMarkJobOpened(openedJobMatch[1], res);
+    return;
+  }
+
+  const deleteJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)$/);
+  if (req.method === "DELETE" && deleteJobMatch) {
+    await handleDeleteJob(deleteJobMatch[1], res);
     return;
   }
 

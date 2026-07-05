@@ -2,9 +2,9 @@
 
 ## Current Status
 
-The first mock-mode vertical slice is implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, upload a media file, wait for mock processing, receive local piano/accompaniment demo stems when `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` exist, mute/unmute stems, solo stems, use playback controls, and inspect harmonic cues. If the local M4A demo stems are missing, mock mode falls back to generated drums/bass/guitar/piano WAV stems.
+The first mock-mode vertical slice and Phase 1 processed-song library are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, queue one or more media files for mock processing, stay on home while jobs complete, reopen the five most recently opened processed songs, browse All songs, preview and reopen songs without reprocessing, rename/delete them, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems.
 
-Phase 0 / baseline demo closure is complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
+Phase 0 and Phase 1 are complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
 
 ## Current Architecture
 
@@ -15,6 +15,9 @@ Local web POC:
 - local filesystem storage under `data/`
 - `PIPELINE_MODE=mock` by default
 - processed results represented as stems, with piano as the primary practice target
+- completed jobs exposed as a reusable processed-song library
+- home view shows upload queue plus five most recently opened processed songs
+- per-song practice state stored in local `job.json`
 - future `PIPELINE_MODE=real` behind the same pipeline boundary
 
 ## Completed Work
@@ -64,14 +67,38 @@ Local web POC:
   - Phase 5: expanded practice targets.
   - Phase 6: native iOS feasibility spike.
 - Documented native iOS transition criteria in `ARCHITECTURE.md`.
+- Added processed-song library API:
+  - `GET /api/library`
+  - `PUT /api/jobs/:id/practice-state`
+  - `POST /api/jobs/:id/opened`
+  - `PUT /api/jobs/:id/rename`
+  - `DELETE /api/jobs/:id`
+- Added local `DATA_DIR` override support for isolated backend tests.
+- Added processed-song library UI listing completed jobs.
+- Added library preview playback before opening the full practice view.
+- Added library open, rename, and delete actions.
+- Added per-song learning status values: `not_started`, `practicing`, and `learned`.
+- Added per-stem volume sliders.
+- Added persisted practice state for mute/solo, volume, playback speed, loop points, loop enabled state, learning status, and last playback position.
+- Fixed saved loop-end restoration so audio metadata loading does not overwrite a user's persisted loop end.
+- Added backend coverage for library listing, practice-state persistence, rename, reopen, and delete.
+- Added Playwright coverage for processing a song, reloading into the library, previewing before opening, reopening, persisting state, renaming, and deleting.
+- Documented the Phase 1 storage decision in `DECISIONS.md`.
+- Added home/all-songs/practice view separation so upload and library controls do not distract inside the practice view.
+- Added multi-file upload queue UI with per-file progress; completed uploads stay on home instead of opening practice automatically.
+- Added `lastOpenedAt` tracking so home shows the five most recently opened songs regardless of learning status.
+- Added All songs learning-status filters for `All`, `Not started`, `Practicing`, and `Learned`.
+- Removed redundant `complete` status badges from completed library cards.
+- Fixed practice-view back navigation so songs opened from All songs return to the processed-song list, while songs opened from Recent still return home.
+- Refined `VISION.md` validation criteria into an OKR-style objective with key results for learning speed, perceived value, motivation, empowerment, transfer learning, error tolerance, return intent, and adoption threshold.
 
 ## In Progress
 
-- Phase 1 planning: processed-song library and saved practice state.
+- No implementation task is currently in progress.
 
 ## Next Recommended Task
 
-Add a processed-song library API and UI that lists existing completed jobs and reopens one without reprocessing. Include persisted per-song practice state early because it directly supports repeated learning sessions.
+Start Phase 2: problem areas and practice notes. Add multiple saved loops per song with a name, note, and loop status while keeping the existing Phase 1 library and practice-state flow working.
 
 ## Skills Used
 
@@ -89,6 +116,21 @@ No Codex skills used.
 
 ## Verification Log
 
+- `node --check server.js`: passed after home/queue/library flow changes.
+- Documentation-only validation criteria update in `VISION.md`; no code verification run.
+- `node --check public/app.js`: passed after home/queue/library flow changes.
+- `npm test`: passed on 2026-07-05 with 3 backend tests covering mock job creation, processed demo shortcut, processed-song library/practice-state persistence, and `lastOpenedAt`.
+- `npm run test:gui`: passed on 2026-07-05 with 5 Playwright tests covering mock upload-to-practice, processed demo shortcut, library persistence, multi-file upload queue, recent songs, and All songs status filters.
+- `node --check public/app.js`: passed after All songs back-navigation fix.
+- `node --check tests/gui.spec.js`: passed after All songs back-navigation coverage.
+- `npm run test:gui`: passed on 2026-07-05 with 5 Playwright tests, including All songs -> Open -> Back to songs navigation.
+- `node --check server.js`: passed after Phase 1 library/state changes.
+- `node --check public/app.js`: passed after Phase 1 library/state changes.
+- `node --check tests/backend.test.js`: passed after Phase 1 backend coverage.
+- `node --check tests/gui.spec.js`: passed after Phase 1 GUI coverage.
+- `npm test`: passed on 2026-07-05 with 3 backend tests covering mock job creation, processed demo shortcut, and processed-song library/practice-state persistence.
+- `npm run test:gui`: initially failed because saved `loopEnd` was overwritten by audio metadata loading; fixed by preserving saved loop points.
+- `npm run test:gui`: passed on 2026-07-05 with 3 Playwright tests covering mock upload-to-practice, processed demo shortcut, and processed-song library/practice-state persistence.
 - `npm install`: initially failed inside the sandbox due blocked DNS to `registry.npmjs.org`; passed after approved network execution and created `package-lock.json`.
 - `node --check server.js`: passed after adding automated verification.
 - `node --check public/app.js`: passed after adding automated verification.

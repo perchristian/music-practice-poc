@@ -24,12 +24,31 @@ Given a user-selected screen recording, the prototype should produce a practice 
 
 ## Validation Criteria
 
-The prototype is useful for validation when a tester can compare:
+### Objective
 
-- learning from the original screen recording alone
-- learning from the processed practice view
+Validate whether the app gives piano learners a significantly better way to learn new songs than their current approach.
 
-The primary question is whether the AI-assisted workflow helps them learn faster or with less friction.
+The real baseline is not only the original recording. It is the user's existing workflow, such as Spotify, YouTube, tutorials, slowdown tools, looping, and learning by ear. The app has to clear a meaningful adoption threshold because stem separation, analysis, hosting, upload time, and learning a new tool all create cost or friction.
+
+The primary validation question is:
+
+> Does this workflow help piano players learn songs significantly faster, with less friction, and with a stronger sense of musical understanding than their existing approach?
+
+### Key Results
+
+The prototype is useful for validation when testers can show or report that:
+
+- **Learning speed:** They can learn a selected piano passage faster with the processed practice view than with their existing workflow.
+- **Perceived value:** They describe the app as a significant improvement, not merely a nice-to-have.
+- **Practice usefulness:** They naturally use piano mute/unmute, slowed playback, looping, and harmonic cues while practising.
+- **Motivation:** The app makes the song feel more approachable and makes them want to keep practising.
+- **Empowerment:** The user feels more capable of learning the song themselves, not dependent on a tutorial or note-by-note instruction.
+- **Reduced cognitive load:** The app reduces simultaneous guessing about chords, timing, voicings, song form, and tempo.
+- **Aha moments:** The user discovers reusable musical patterns such as chord progressions, repeated voicings, section structure, or accompaniment figures.
+- **Transferable learning:** The user becomes better able to recognize similar progressions or patterns in future songs, even without the app.
+- **Error tolerance:** The experience remains useful even when stem separation, chord labels, or melody cues are imperfect.
+- **Return intent:** The user would want to use the workflow on another song they care about.
+- **Adoption threshold:** The improvement feels strong enough to justify uploading a recording, waiting for processing, learning a new tool, and potentially paying for analysis.
 
 ## Non-Goals
 

@@ -92,6 +92,9 @@ Goal: A user can return to previously processed songs without processing them ag
 
 Demonstrable outcome:
 - Processed songs are listed in the UI.
+- Home shows the five most recently opened songs, independent of learning status.
+- All completed songs are available from an All songs view.
+- Multiple uploads can be queued at once with per-file processing progress.
 - A song can be opened without creating a new processing job.
 - A song can be previewed before loading into the full practice view.
 - A song can be renamed and deleted.
@@ -105,10 +108,13 @@ Demonstrable outcome:
 
 Verification:
 - Process a mock song, reload the browser, and reopen it from the library.
+- Queue two mock uploads and confirm the app stays on home after processing completes.
+- Open six processed songs and confirm home shows only the five most recently opened.
+- Filter All songs by learning status.
 - Change speed, stem mix, volume, loop points, and status; reload and confirm the values persist.
 - Delete a processed song and confirm it disappears from the library and no longer opens.
 
-Status: Planned next.
+Status: Complete in mock mode. `npm test` and `npm run test:gui` pass as of 2026-07-05.
 
 ## Phase 2: Problem Areas and Practice Notes
 
@@ -204,4 +210,4 @@ Status: Deferred until entry criteria are met.
 
 ## Next Task
 
-Start Phase 1 by adding a processed-song library API and UI that lists existing completed jobs and reopens one without reprocessing.
+Start Phase 2 by adding saved problem areas / practice loops with a name, note, and learning status per loop.

@@ -40,10 +40,15 @@ Local filesystem storage
 ## API Surface
 
 - `GET /api/health`: returns mode and service status.
-- `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates a simulated upload job; in future real mode, accepts one uploaded media file and creates a processing job.
+- `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in future real mode, accepts one uploaded media file and creates a processing job. The browser can create multiple jobs from one multi-file selection.
 - `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
+- `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
+- `POST /api/jobs/:id/opened`: records that a completed processed song was intentionally opened in the practice view, powering the home view's five most recently opened songs.
+- `PUT /api/jobs/:id/practice-state`: persists per-song learning status, stem mute/solo/volume state, playback speed, loop points, and last playback position.
+- `PUT /api/jobs/:id/rename`: renames a processed song for the local library.
+- `DELETE /api/jobs/:id`: deletes a processed song and its local files.
 
 ## Alternative 1: Native iOS App First
 
@@ -107,11 +112,11 @@ Decision: Rejected because it misses key backend flow assumptions.
 
 ## Storage Strategy
 
-Use local filesystem storage under `data/` for the POC. Store uploaded files and generated outputs per job. This is easy to inspect and sufficient for local demos.
+Use local filesystem storage under `data/` for the POC. Store uploaded files, generated outputs, job metadata, and per-song practice state per job. This is easy to inspect and sufficient for local demos.
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The next web milestone should add a processed-song library over the same local storage. The library should treat completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, notes, and last position should be stored per song.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 2.
 
 ## Pipeline Strategy
 
