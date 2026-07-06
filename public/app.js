@@ -75,6 +75,7 @@ const statusLabels = {
 const pipelineStageLabels = {
   "source-audio-extraction": "Extracting audio",
   "piano-focused-separation": "Separating stems",
+  "audio-analysis": "Analyzing harmony",
   "piano-focused-separated": "Preparing result"
 };
 
@@ -85,8 +86,34 @@ function formatTime(seconds) {
   return `${minutes}:${wholeSeconds}`;
 }
 
+function formatCueTime(seconds) {
+  if (!Number.isFinite(seconds)) return "0:00";
+  const bounded = Math.max(0, seconds);
+  const minutes = Math.floor(bounded / 60);
+  const remainingSeconds = bounded - minutes * 60;
+  const roundedSeconds = Math.round(remainingSeconds);
+  if (Math.abs(remainingSeconds - roundedSeconds) < 0.05) {
+    return `${minutes}:${String(roundedSeconds).padStart(2, "0")}`;
+  }
+
+  return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, "0")}`;
+}
+
 function formatDuration(seconds) {
   return Number.isFinite(seconds) && seconds > 0 ? formatTime(seconds) : "--";
+}
+
+function tempoLabel(metadata) {
+  const bpm = Number(metadata?.beatGrid?.bpm);
+  if (!Number.isFinite(bpm) || bpm <= 0) return "";
+  const rounded = Math.round(bpm * 10) / 10;
+  return `${Number.isInteger(rounded) ? Math.round(rounded) : rounded} BPM`;
+}
+
+function keyTempoLabel(metadata) {
+  const key = `${metadata.key.tonic} ${metadata.key.mode}`;
+  const tempo = tempoLabel(metadata);
+  return tempo ? `${key} · ${tempo}` : key;
 }
 
 function statusLabel(status) {
@@ -446,7 +473,7 @@ function renderCompletedJob(job) {
   showSelectedHeader({
     eyebrow: "Ready",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(job.result.metadata)}`,
     actions: true
   });
   renderStemPlayers(stems);
@@ -462,15 +489,16 @@ function renderCompletedJob(job) {
 
 function renderMetadata(metadata) {
   currentMetadata = metadata;
-  keyBadge.textContent = `${metadata.key.tonic} ${metadata.key.mode}`;
+  keyBadge.textContent = keyTempoLabel(metadata);
 
   chordList.replaceChildren(
     ...metadata.chords.map((chord, index) => {
       const card = document.createElement("div");
       card.className = "chord-card";
       card.dataset.index = String(index);
+      const cuePrefix = Number.isFinite(Number(chord.bar)) ? `Bar ${chord.bar} · ` : "";
       card.innerHTML = `
-        <span class="cue-time">${formatTime(chord.start)}-${formatTime(chord.end)}</span>
+        <span class="cue-time">${cuePrefix}${formatCueTime(chord.start)}-${formatCueTime(chord.end)}</span>
         <span class="cue-name">${chord.name}</span>
         <span class="cue-roman">${chord.roman}</span>
       `;
@@ -890,7 +918,7 @@ function renderReadyJob(job) {
   showSelectedHeader({
     eyebrow: "Ready",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(job.result.metadata)}`,
     actions: true
   });
   showDetailPane("ready");

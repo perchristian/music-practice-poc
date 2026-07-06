@@ -9,7 +9,7 @@ The backend owns uploads, job status, pipeline mode, generated mock stem assets,
 ## Runtime Modes
 
 - `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
-- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, and runs a narrow FFmpeg spectral split that creates `piano.wav` and `accompaniment.wav`. Harmonic analysis is still mocked.
+- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, runs Demucs `htdemucs_6s` by default to create drums, bass, guitar, piano, vocals, and other stems, then runs first-pass bar-aligned harmonic analysis over the extracted full mix. The old FFmpeg spectral piano/accompaniment split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 The browser topbar can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the startup default, and existing jobs retain the mode they were created with.
 
@@ -44,7 +44,7 @@ Local filesystem storage
 - `GET /api/health`: returns active mode, startup mode, FFmpeg path, and service status.
 - `PUT /api/settings/pipeline-mode`: switches active local pipeline mode for new jobs between `mock` and `real`.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in real mode, accepts one multipart media file, stores it in the job directory, and creates a processing job. The browser can create multiple jobs from one multi-file selection.
-- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains heuristic piano and accompaniment WAV stems.
+- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains Demucs stems by default and approximate bar-aligned harmonic metadata.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
@@ -142,11 +142,11 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
-Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, then runs `ffmpeg-spectral-piano-v1`, a lightweight non-ML split that writes `stems/piano.wav` and `stems/accompaniment.wav`. This is a spike to exercise the product flow and metadata contract, not a final separation strategy. The accompaniment removes much of the midrange, so it may also remove guitars, vocals, synths, and other learning-relevant material. Real harmonic analysis is not implemented yet. Real mode should next replace:
+Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `bar-aligned-chroma-v1` over the full mix plus usable separated stems to estimate tempo, first downbeat, beat/bar grid, key, chord names, and roman numerals. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it favors conservative one-chord-per-bar labels and can still pick the wrong tempo, downbeat, key, or chord quality on real recordings. Real mode should next improve:
 
-1. transcription or chord extraction
-2. harmonic analysis
-3. the heuristic separator with a better real separator if listening tests show the current split is not practice-useful
+1. manual validation and hardening of beat/bar and chord accuracy on real screen recordings
+2. melody or piano transcription
+3. separator setup/runtime UX if Demucs remains the default real path
 
 one subsystem at a time.
 
@@ -170,7 +170,7 @@ source-audio.wav + optional stems
 
 The first implementation should use a conservative vocabulary: major/minor triads, dominant 7, minor 7, major 7, sus chords, and diminished chords. Extensions such as 9, 11, 13, altered dominants, slash chords, and borrowed chords should only be displayed when confidence is high. If the evidence is ambiguous, the app should show the simpler musically useful label, such as `C7`, instead of a more specific but weakly supported label such as `C13`.
 
-The result metadata should record which evidence streams were used, the chord vocabulary level, per-cue confidence where practical, and known limitations. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
+The implemented Phase 2H spike currently records `harmonySource: "real-audio-analysis-v1"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, and analyzer limitations. It emits one chord cue per detected bar, even when adjacent bars repeat the same chord. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
 
 ## Native iOS Transition Criteria
 
@@ -192,11 +192,11 @@ The first iOS spike should stay narrow: choose a video from Photos, upload it to
 | Assumption | Confidence | Evidence | Remaining uncertainty |
 | --- | --- | --- | --- |
 | Screen recording audio quality is sufficient | Low | Not tested yet | Need real iOS screen recordings from target apps |
-| Piano stems can be isolated accurately enough | Low | Phase 2G creates heuristic FFmpeg piano/accompaniment stems from a generated sample, but this is not ML separation | Need human listening on real screen recordings and likely a stronger separator |
+| Piano stems can be isolated accurately enough | Medium | Demucs `htdemucs_6s` was accepted for the MakeYouFeelMyLovePart2 play-along use case, though solo piano has artifacts | Need more songs and longer screen recordings |
 | Muting piano while keeping other stems useful helps practice | Medium | Strong learning rationale; mock mixer now demonstrates flow | Need tester feedback |
 | Transcription can produce useful cues | Low | Dense piano is difficult | Need Basic Pitch or alternative benchmark |
-| Harmonic cues remain useful despite errors | Medium | Approximate chords can still orient learners | Need user feedback |
-| Processing time is acceptable | Low to medium | Phase 2G direct FFmpeg smoke on a 6-second generated sample took about 0.06s for extraction and 0.05s for spectral splitting | Need measurement on longer real screen recordings and any future ML separator |
+| Harmonic cues remain useful despite errors | Medium | Phase 2H produces downbeat-aligned C/Am/F/G cues on generated known-chord media with pre-roll before first downbeat | Need manual inspection on real screen recordings and user feedback |
+| Processing time is acceptable | Low to medium | Phase 2G/2H short generated samples pass automated tests; Demucs completed the local bakeoff clip | Need measurement on longer real screen recordings |
 | Local backend is practical | Medium | Simple local web flow should work | Need run-through on MacBook |
 | Web upload is enough before native iOS | Medium | AGENTS.md allows web/local uploader first | Need tester feedback on friction |
 

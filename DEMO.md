@@ -16,7 +16,7 @@ Mock mode does not perform real stem separation or transcription. If local demo 
 
 In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
-In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav` as uncompressed PCM WAV, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. Harmonic analysis remains mocked. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
+In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav` as uncompressed PCM WAV, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. It also runs a first-pass dependency-free harmonic analysis on `source-audio.wav`: broad onset energy estimates tempo, first downbeat, and a beat/bar grid; chroma scoring estimates one conservative chord per bar; and roman numerals are generated from the estimated key. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
 
 Real-mode progress is approximate. FFmpeg extraction moves the job to the separation stage, and Demucs stderr percentages are mapped into the overall progress bar so stem separation should advance beyond 55% before completion when Demucs emits progress output.
 
@@ -138,14 +138,15 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 ## Real-Mode Separation Smoke
 
 1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
-2. Upload `test-media/phase-2g-piano-mix.wav` or another short audio/video file.
+2. Upload `test-media/phase-2h-bar-grid.wav`, `test-media/phase-2g-piano-mix.wav`, or another short audio/video file.
 3. Wait for the job to complete. During Demucs separation, the selected song should show `Separating stems` and progress should advance past 55% before the job reaches 100%.
 4. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
 5. Play the result and confirm the browser can load all stems.
-6. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
-7. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
-8. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
-9. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
+6. Confirm the chord list shows bar-aligned cue times such as `Bar 1 · 0:00-0:04` when the analysis can estimate a grid.
+7. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
+8. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+9. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
+10. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
 
 `source-audio.wav` is intentionally kept in each real-mode job directory so it can be compared against the original upload and the separated stems. The FFmpeg extraction step writes uncompressed `pcm_s16le` WAV rather than MP3/AAC, so compression artifacts heard after separation are more likely from the original screen recording or the separator than from FFmpeg's source-audio extraction.
 
@@ -193,13 +194,13 @@ Open the app, select each entry from the song list, mute or solo the piano stem,
 
 ## Expected Result
 
-The user should experience the intended learning workflow end to end, even though the stems and harmonic data are mocked.
+The user should experience the intended learning workflow end to end. Mock mode remains the lightweight default, while real mode now exercises upload, extraction, stem separation, and approximate bar-aligned harmonic analysis.
 
 ## Demo Media and Copyright
 
 Do not include commercial recordings in the repository. Use a user-provided test file or a generated/local sample. The local demo stem files under `data/` are ignored by git and must be replaced with material the tester is allowed to process. The mock pipeline does not depend on the uploaded file content yet.
 
-The Phase 2A/2G real-pipeline spikes use generated safe local test inputs. Generate or refresh them with:
+The Phase 2A/2G/2H real-pipeline spikes use generated safe local test inputs. Generate or refresh them with:
 
 ```bash
 npm run generate:test-media
@@ -209,16 +210,16 @@ This creates:
 
 - `test-media/phase-2a-source.wav`: synthesized sine-wave chord tones for upload/extraction smoke.
 - `test-media/phase-2g-piano-mix.wav`: synthesized piano-band chords plus low bass and high accompaniment content for the separator smoke.
+- `test-media/phase-2h-bar-grid.wav`: synthesized four-bar C, Am, F, G material with a clear 4/4 pulse and 0.65 seconds of pre-roll before the first downbeat for beat/bar-grid and chord-analysis smoke.
 
 These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that the backend creates and serves `piano.wav` and `accompaniment.wav`; it cannot prove quality on real screen recordings.
 
 ## Known Limitations
 
-- Real piano isolation is only a lightweight FFmpeg spectral split, not ML source separation.
-- Real drums, bass, guitar, and piano separation is not implemented yet.
+- Real mode uses Demucs by default for drums, bass, guitar, piano, vocals, and other stems, but quality is still only validated on a small number of local examples.
 - Real transcription is not implemented yet.
-- Real-mode upload storage, FFmpeg source-audio extraction, and heuristic piano/accompaniment splitting are implemented, but no real transcription runs after separation.
-- Harmonic metadata is mocked, including for real-mode extracted-audio jobs.
+- Real-mode harmonic analysis is a first-pass bar-aligned chroma heuristic. It can estimate the wrong tempo, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings.
+- Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.
 - Native iOS Photos import is not implemented yet.

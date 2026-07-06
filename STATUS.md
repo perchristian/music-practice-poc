@@ -2,19 +2,19 @@
 
 ## Current Status
 
-The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, and Phase 2G-QA Demucs bakeoff are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav` and then separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration; and the song list prefers media duration over the fixed harmonic cue length.
+The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, Phase 2G-QA Demucs bakeoff, and the initial Phase 2H real harmonic-analysis spike are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav`, separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default, then analyzed for approximate bar-aligned harmonic cues. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration; and the song list prefers media duration over the fixed harmonic cue length.
 
-Phase 0, Phase 1, Phase 1B, and Phase 2A through Phase 2G-QA are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue.
+Phase 0, Phase 1, Phase 1B, and Phase 2A through the initial Phase 2H spike are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media and the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings is still required.
 
-The next planned iteration is Phase 2H: first real audio/harmonic analysis, unless the team chooses to harden Demucs install/runtime UX first. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
+The next planned iteration is manual Phase 2H validation on real screen recordings, then either harden the timing/chord analysis if labels are misleading or move to Phase 3 problem areas and practice notes. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 Phase 2A spike frame:
 
 - FFmpeg availability: installed locally on 2026-07-06 through Homebrew. `which ffmpeg` returns `/opt/homebrew/bin/ffmpeg`; `ffmpeg -version` reports `ffmpeg version 8.1.2`.
-- Local test media: `test-media/phase-2a-source.wav`, a 6-second mono 44.1 kHz WAV generated by `npm run generate:test-media`, plus `test-media/phase-2g-piano-mix.wav`, a generated 6-second piano/accompaniment mix for the separator spike.
+- Local test media: `test-media/phase-2a-source.wav`, a 6-second mono 44.1 kHz WAV generated by `npm run generate:test-media`; `test-media/phase-2g-piano-mix.wav`, a generated 6-second piano/accompaniment mix for the separator spike; and `test-media/phase-2h-bar-grid.wav`, a generated 16-second four-bar C, Am, F, G fixture for beat/bar-grid and chord-analysis smoke.
 - Copyright/source status: generated in-repo from synthesized sine-wave chord tones; no third-party recording or composition is bundled.
 - Exact real-mode output asset: `source-audio.wav` stored inside each real-mode job directory and served at `/api/jobs/<job-id>/source-audio.wav` after completion.
-- Real-mode upload/extraction/separation contract: `PIPELINE_MODE=real` accepts multipart media through `POST /api/jobs`, stores the uploaded source as `source.<original extension>`, runs FFmpeg extraction to uncompressed `pcm_s16le` `source-audio.wav`, runs Demucs `htdemucs_6s` by default to write `drums`, `bass`, `guitar`, `piano`, `vocals`, and `other` stem WAVs, returns a completed practice-compatible result when processing succeeds, and persists API-visible failures in `job.json` when FFmpeg or the separator fails.
+- Real-mode upload/extraction/separation/analysis contract: `PIPELINE_MODE=real` accepts multipart media through `POST /api/jobs`, stores the uploaded source as `source.<original extension>`, runs FFmpeg extraction to uncompressed `pcm_s16le` `source-audio.wav`, runs Demucs `htdemucs_6s` by default to write `drums`, `bass`, `guitar`, `piano`, `vocals`, and `other` stem WAVs, analyzes `source-audio.wav` for approximate beat/bar grid, key, bar-aligned chords, and roman numerals, returns a completed practice-compatible result when processing succeeds, and persists API-visible failures in `job.json` when FFmpeg, the separator, or analysis fails.
 - Real-mode progress reporting: API job responses include `pipelineStage`; Demucs stderr percentages are mapped from the separation stage into overall job progress from about 56% to 96%, with completion still reserved for 100%. This is approximate progress, not a reliable ETA.
 - Real-mode separator switch: `REAL_SEPARATOR=demucs` is the default; `REAL_SEPARATOR=ffmpeg-spectral` keeps the old FFmpeg spectral split available for lightweight fallback/testing.
 - Real-mode dependency setup: `requirements-real.txt` contains optional heavy dependencies; local verification used `.venv-real/bin/demucs`, `demucs==4.0.1`, `torchcodec==0.14.0`, and `TORCH_HOME=.cache/torch`.
@@ -171,6 +171,24 @@ Local web POC:
 - Made the practice grid stack by available detail width, so processed-result is no longer squeezed beside harmony when the sidebar is still visible.
 - Kept stem controls in a consistent name/volume/mute/solo row at desktop and mobile widths, with narrower minimums to avoid mobile overflow.
 - Moved each stem volume slider and M/S controls below the stem title to prevent overlap with longer stem names.
+- Completed the initial Phase 2H real harmonic-analysis spike:
+  - Added a dependency-free PCM16 WAV reader for `source-audio.wav`.
+  - Added broad onset-energy beat estimation with a conservative half-time correction to avoid over-fine subdivision grids.
+  - Added a 4/4 beat/bar grid contract in result metadata.
+  - Added downbeat-phase estimation so bar 1 can start after file start when the recording has pre-roll before the first downbeat.
+  - Added bar-length chroma scoring with low-frequency root evidence against a conservative vocabulary: major, minor, dominant 7, minor 7, major 7, sus2, sus4, and diminished.
+  - Added key estimation and roman-numeral generation from the estimated key.
+  - Real-mode jobs now return `harmonySource: "real-audio-analysis-v1"` instead of mock harmonic metadata.
+  - Chord metadata now includes `bar`, `beat`, `confidence`, and `source`; job metadata includes `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, `analysisSource`, and `analysis`.
+  - The chord list displays bar-aware cue timing when `bar` is present.
+  - `npm run generate:test-media` now generates `test-media/phase-2h-bar-grid.wav` with 0.65 seconds of pre-roll before the first downbeat.
+  - Real-mode backend tests generate missing synthetic test media automatically before upload, so ignored generated fixtures do not break a clean checkout.
+- Hardened Phase 2H against local calibration job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`:
+  - Short clips that start with audio and fit an integer number of 4/4 bars can now win tempo selection over false subharmonic onset correlations.
+  - The analyzer uses non-drum stems as supporting evidence: bass/accompaniment for root evidence and other/accompaniment/guitar/piano for chord-quality evidence, with quiet stems ignored.
+  - Weakly supported 7/maj7 chord extensions are simplified back to useful triad labels.
+  - Real analysis now emits one chord cue per bar instead of merging repeated adjacent chord names.
+  - The same local job's persisted `job.json` was refreshed so reopening it shows 106 BPM, 4/4, downbeat 0:00, and C, Dm, Am, Am, C, Dm, Am, Am.
 - Aligned Markdown phase references after the Phase 2 / Phase 3 roadmap order change:
   - earlier stale references were corrected when notes and multiple named practice loops were still deferred to Phase 3.
   - `TASKS.md` was updated at that time to point the next task at Phase 2B instead of the already-completed Phase 2A.
@@ -181,7 +199,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Start Phase 2H for first real audio/harmonic analysis, using `source-audio.wav` as the full-mix source and Demucs stems as supporting evidence. If implementation time is short, first harden the Demucs setup path and error messaging for another developer following `DEMO.md`.
+Manually inspect Phase 2H real harmonic-analysis output on at least one real screen recording. If beat/bar placement or chord labels are misleading, harden the analyzer before user testing; otherwise move to Phase 3 problem areas and practice notes.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
@@ -204,7 +222,21 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Verification Log
 
+- `node --check server.js` and `node --check tests/real-mode-upload.test.js`: passed on 2026-07-07 after hardening Phase 2H against the local `f9e9cf9d` calibration job.
+- Direct analyzer check on `data/jobs/f9e9cf9d-0998-494d-82cf-3dc89fcf4d76/source-audio.wav`: returned 106 BPM, 4/4, downbeat 0:00, and C, Dm, Am, Am, C, Dm, Am, Am.
+- `npm test`: passed on 2026-07-07 with 8 backend tests, including the generated pre-roll bar-grid regression and a local-skip calibration regression for `f9e9cf9d`.
 - `npm run generate:test-media`: generated both `test-media/phase-2a-source.wav` and `test-media/phase-2g-piano-mix.wav` after adding the Phase 2G synthetic piano/accompaniment sample.
+- `npm run generate:test-media`: generated `test-media/phase-2a-source.wav`, `test-media/phase-2g-piano-mix.wav`, and `test-media/phase-2h-bar-grid.wav` after adding the Phase 2H bar-grid/chord-analysis fixture.
+- `node --check server.js`, `node --check public/app.js`, `node --check scripts/generate-phase2a-test-media.js`, and `node --check tests/real-mode-upload.test.js`: passed after adding Phase 2H analysis code, UI bar labels, generated test media, and backend coverage.
+- `npm test`: passed on 2026-07-06 with 7 backend tests after adding first-pass real harmonic analysis and bar-grid regression coverage.
+- `npm run test:gui`: passed on 2026-07-06 with 10 Playwright tests after adding bar-aware chord cue display.
+- `node --check server.js`, `node --check scripts/generate-phase2a-test-media.js`, and `node --check tests/real-mode-upload.test.js`: passed on 2026-07-07 after adding downbeat-offset estimation and pre-roll test media.
+- `npm run generate:test-media`: regenerated the Phase 2H fixture on 2026-07-07 with 0.65 seconds of pre-roll before first downbeat.
+- `npm test`: passed on 2026-07-07 with 7 backend tests, including a regression that expects `downbeatOffsetSeconds` near 0.65 and the first chord cue to start at the downbeat instead of 0:00.
+- `node --check public/app.js` and `node --check tests/gui.spec.js`: passed on 2026-07-07 after adding BPM display and sub-second chord cue formatting.
+- `npx playwright test tests/gui.spec.js -g "harmony panel shows analysis tempo"`: passed on 2026-07-07.
+- `npm test`: passed on 2026-07-07 with 7 backend tests after the BPM/cue-time UI change.
+- `npm run test:gui`: passed on 2026-07-07 with 11 Playwright tests, including coverage that analysis BPM is visible and `0.65s` cue starts display as `0:00.7` instead of `0:00`.
 - `npm run bakeoff:stems`: created/updated Logic baseline and FFmpeg spectral bakeoff jobs for `test-media/MakeYouFeelMyLovePart2.mov`.
 - `.venv-real/bin/python -m pip install demucs`: installed Demucs 4.0.1 plus Torch/Torchaudio in local `.venv-real` after network approval.
 - Demucs first run downloaded `htdemucs_6s` model weights to `.cache/torch`; initial WAV saving failed until `torchcodec` was installed.

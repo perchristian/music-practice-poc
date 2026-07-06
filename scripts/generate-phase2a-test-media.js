@@ -6,13 +6,16 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(__dirname, "..");
 const outputPath = join(repoRoot, "test-media", "phase-2a-source.wav");
 const phase2gOutputPath = join(repoRoot, "test-media", "phase-2g-piano-mix.wav");
+const phase2hOutputPath = join(repoRoot, "test-media", "phase-2h-bar-grid.wav");
 const sampleRate = 44100;
 const durationSeconds = 6;
+const phase2hDownbeatOffsetSeconds = 0.65;
 const channels = 1;
 const bitsPerSample = 16;
 
-function createWavBuffer(sampleFn) {
-  const totalSamples = sampleRate * durationSeconds;
+function createWavBuffer(sampleFn, options = {}) {
+  const outputDurationSeconds = options.durationSeconds || durationSeconds;
+  const totalSamples = Math.round(sampleRate * outputDurationSeconds);
   const dataBytes = totalSamples * channels * (bitsPerSample / 8);
   const buffer = Buffer.alloc(44 + dataBytes);
 
@@ -32,7 +35,7 @@ function createWavBuffer(sampleFn) {
 
   for (let sample = 0; sample < totalSamples; sample += 1) {
     const time = sample / sampleRate;
-    const envelope = Math.min(1, time / 0.03, (durationSeconds - time) / 0.08);
+    const envelope = Math.min(1, time / 0.03, (outputDurationSeconds - time) / 0.08);
     const value = Math.max(-1, Math.min(1, sampleFn(time) * envelope));
     const intSample = Math.round(value * 32767);
     buffer.writeInt16LE(intSample, 44 + sample * 2);
@@ -96,8 +99,43 @@ function phase2gSample(time) {
   return pianoBandSample(time) + bassSample(time) + highPercussionSample(time) + brightPadSample(time);
 }
 
+function phase2hChordIndex(time) {
+  return Math.min(3, Math.floor(time / 4));
+}
+
+function phase2hPulse(time) {
+  const beat = time % 1;
+  if (beat > 0.055) return 0;
+  const downbeat = time % 4 < 0.08 ? 1.5 : 0.75;
+  const click = Math.sin(2 * Math.PI * 95 * time) + Math.sin(2 * Math.PI * 190 * time) * 0.35;
+  return click * Math.exp(-beat * 55) * 0.2 * downbeat;
+}
+
+function phase2hSample(time) {
+  const musicalTime = time - phase2hDownbeatOffsetSeconds;
+  if (musicalTime < 0) {
+    const pickup = time > 0.22 && time < 0.32
+      ? Math.sin(2 * Math.PI * 392 * time) * Math.exp(-(time - 0.22) * 18) * 0.08
+      : 0;
+    return pickup;
+  }
+
+  const chord = chordFrequencies[phase2hChordIndex(musicalTime)];
+  const bassFrequencies = [65.41, 55.0, 43.65, 49.0];
+  const bassFrequency = bassFrequencies[phase2hChordIndex(musicalTime)];
+  const beat = musicalTime % 1;
+  const chordEnvelope = 0.65 + 0.35 * Math.exp(-beat * 2.5);
+  const harmony = chord.reduce((sum, frequency) => {
+    return sum + Math.sin(2 * Math.PI * frequency * time) * 0.13 * chordEnvelope;
+  }, 0);
+  const bass = Math.sin(2 * Math.PI * bassFrequency * time) * 0.24;
+  return harmony + bass + phase2hPulse(musicalTime);
+}
+
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, createWavBuffer(phase2aSample));
 console.log(`Generated ${outputPath}`);
 await writeFile(phase2gOutputPath, createWavBuffer(phase2gSample));
 console.log(`Generated ${phase2gOutputPath}`);
+await writeFile(phase2hOutputPath, createWavBuffer(phase2hSample, { durationSeconds: 16 + phase2hDownbeatOffsetSeconds }));
+console.log(`Generated ${phase2hOutputPath}`);

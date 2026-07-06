@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { spawn } from "node:child_process";
-import { extname, join, normalize } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +26,21 @@ const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MOCK_DURATION_SECONDS = 16;
+const DEFAULT_BEATS_PER_BAR = 4;
+const ANALYSIS_MAX_SECONDS = 120;
+const ANALYSIS_SAMPLE_RATE = 8000;
+const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const MIN_ANALYSIS_STEM_RMS = 0.001;
+const HARMONIC_STEM_WEIGHTS = {
+  other: 1.4,
+  accompaniment: 1.2,
+  guitar: 0.9,
+  piano: 0.7
+};
+const BASS_STEM_WEIGHTS = {
+  bass: 1.6,
+  accompaniment: 0.4
+};
 
 const jobs = new Map();
 
@@ -169,6 +184,624 @@ async function wavDurationSecondsFromFile(filePath) {
   } catch {
     return null;
   }
+}
+
+function readPcm16Wav(buffer) {
+  if (
+    buffer.length < 44 ||
+    buffer.toString("ascii", 0, 4) !== "RIFF" ||
+    buffer.toString("ascii", 8, 12) !== "WAVE"
+  ) {
+    throw new Error("Audio analysis currently requires an uncompressed WAV source.");
+  }
+
+  let channels = null;
+  let sampleRate = null;
+  let bitsPerSample = null;
+  let dataStart = null;
+  let dataBytes = null;
+  let offset = 12;
+
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    if (chunkStart + chunkSize > buffer.length) break;
+
+    if (chunkId === "fmt " && chunkSize >= 16) {
+      const audioFormat = buffer.readUInt16LE(chunkStart);
+      channels = buffer.readUInt16LE(chunkStart + 2);
+      sampleRate = buffer.readUInt32LE(chunkStart + 4);
+      bitsPerSample = buffer.readUInt16LE(chunkStart + 14);
+      if (audioFormat !== 1 || bitsPerSample !== 16) {
+        throw new Error("Audio analysis currently supports PCM16 WAV input only.");
+      }
+    } else if (chunkId === "data") {
+      dataStart = chunkStart;
+      dataBytes = chunkSize;
+    }
+
+    offset = chunkStart + chunkSize + (chunkSize % 2);
+  }
+
+  if (!channels || !sampleRate || !dataStart || !dataBytes) {
+    throw new Error("Could not read WAV audio data for analysis.");
+  }
+
+  const frameCount = Math.floor(dataBytes / (channels * 2));
+  const durationSeconds = frameCount / sampleRate;
+  const maxFrames = Math.min(frameCount, Math.floor(ANALYSIS_MAX_SECONDS * sampleRate));
+  const samples = new Float32Array(maxFrames);
+
+  for (let frame = 0; frame < maxFrames; frame += 1) {
+    let sum = 0;
+    const frameOffset = dataStart + frame * channels * 2;
+    for (let channel = 0; channel < channels; channel += 1) {
+      sum += buffer.readInt16LE(frameOffset + channel * 2) / 32768;
+    }
+    samples[frame] = sum / channels;
+  }
+
+  return {
+    sampleRate,
+    channels,
+    durationSeconds,
+    samples,
+    analyzedDurationSeconds: samples.length / sampleRate
+  };
+}
+
+async function readPcm16WavFromFile(filePath) {
+  return readPcm16Wav(await readFile(filePath));
+}
+
+function rmsEnvelope(audio, frameSeconds = 0.05) {
+  const frameSize = Math.max(1, Math.round(audio.sampleRate * frameSeconds));
+  const envelope = [];
+
+  for (let start = 0; start < audio.samples.length; start += frameSize) {
+    let sumSquares = 0;
+    let count = 0;
+    for (let index = start; index < Math.min(start + frameSize, audio.samples.length); index += 1) {
+      sumSquares += audio.samples[index] * audio.samples[index];
+      count += 1;
+    }
+    envelope.push(Math.sqrt(sumSquares / Math.max(1, count)));
+  }
+
+  return { values: envelope, frameSeconds };
+}
+
+function onsetEnvelope(rmsValues) {
+  const flux = [];
+  for (let index = 0; index < rmsValues.length; index += 1) {
+    const previous = index > 0 ? rmsValues[index - 1] : rmsValues[index];
+    flux.push(Math.max(0, rmsValues[index] - previous));
+  }
+  return flux;
+}
+
+function envelopeCorrelation(values, lagFrames) {
+  let sum = 0;
+  let leftEnergy = 0;
+  let rightEnergy = 0;
+
+  for (let index = 0; index + lagFrames < values.length; index += 1) {
+    const left = values[index];
+    const right = values[index + lagFrames];
+    sum += left * right;
+    leftEnergy += left * left;
+    rightEnergy += right * right;
+  }
+
+  if (!leftEnergy || !rightEnergy) return 0;
+  return sum / Math.sqrt(leftEnergy * rightEnergy);
+}
+
+function segmentRms(audio, startSeconds = 0, endSeconds = audio.analyzedDurationSeconds || audio.durationSeconds) {
+  const start = Math.max(0, Math.floor(startSeconds * audio.sampleRate));
+  const end = Math.min(audio.samples.length, Math.floor(endSeconds * audio.sampleRate));
+  let sumSquares = 0;
+  let count = 0;
+
+  for (let index = start; index < end; index += 1) {
+    sumSquares += audio.samples[index] * audio.samples[index];
+    count += 1;
+  }
+
+  return count ? Math.sqrt(sumSquares / count) : 0;
+}
+
+function localOnsetStrength(onsets, frame, radius = 1) {
+  let strength = 0;
+  for (let offset = -radius; offset <= radius; offset += 1) {
+    strength += onsets[frame + offset] || 0;
+  }
+  return strength;
+}
+
+function beatStrengths(onsets, firstBeatFrame, beatFrames) {
+  const strengths = [];
+  for (let frame = firstBeatFrame; frame < onsets.length; frame += beatFrames) {
+    strengths.push(localOnsetStrength(onsets, frame));
+  }
+  return strengths;
+}
+
+function estimateDownbeatPhase(strengths, beatsPerBar = DEFAULT_BEATS_PER_BAR) {
+  let bestPhase = 0;
+  let bestScore = -Infinity;
+  const scores = [];
+
+  for (let phase = 0; phase < beatsPerBar; phase += 1) {
+    let score = 0;
+    let count = 0;
+    for (let beatIndex = phase; beatIndex < strengths.length; beatIndex += beatsPerBar) {
+      const nextBeat = strengths[beatIndex + 1] || 0;
+      const previousBeat = strengths[beatIndex - 1] || 0;
+      score += strengths[beatIndex] * 1.4 - Math.max(nextBeat, previousBeat) * 0.15;
+      count += 1;
+    }
+    const normalizedScore = count ? score / count : 0;
+    scores.push(normalizedScore);
+    if (normalizedScore > bestScore) {
+      bestScore = normalizedScore;
+      bestPhase = phase;
+    }
+  }
+
+  const sorted = [...scores].sort((left, right) => right - left);
+  const margin = (sorted[0] || 0) - (sorted[1] || 0);
+  const confidence = Math.max(0.1, Math.min(0.95, 0.35 + margin * 8));
+  return { phase: bestPhase, confidence };
+}
+
+function tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds) {
+  const lag = Math.max(1, Math.round(beatDurationSeconds / frameSeconds));
+  return (
+    envelopeCorrelation(onsets, lag) +
+    envelopeCorrelation(onsets, lag * 2) * 0.45 +
+    envelopeCorrelation(onsets, lag * DEFAULT_BEATS_PER_BAR) * 0.25
+  );
+}
+
+function estimateBeatGrid(audio) {
+  const { values, frameSeconds } = rmsEnvelope(audio);
+  const onsets = onsetEnvelope(values);
+  const minBeatSeconds = 60 / 170;
+  const maxBeatSeconds = 60 / 60;
+  let best = {
+    beatDurationSeconds: 1,
+    bpm: 60,
+    score: 0
+  };
+
+  for (let beatSeconds = minBeatSeconds; beatSeconds <= maxBeatSeconds; beatSeconds += frameSeconds) {
+    const score = tempoScoreForBeatDuration(onsets, frameSeconds, beatSeconds);
+    if (score > best.score) {
+      best = {
+        beatDurationSeconds: beatSeconds,
+        bpm: 60 / beatSeconds,
+        score
+      };
+    }
+  }
+
+  const wholeClipRms = segmentRms(audio);
+  const openingRms = segmentRms(audio, 0, Math.min(0.25, audio.analyzedDurationSeconds));
+  const startsWithAudio = openingRms > 0.005 && openingRms > wholeClipRms * 0.2;
+  if (startsWithAudio) {
+    const maxBars = Math.floor(audio.analyzedDurationSeconds / (minBeatSeconds * DEFAULT_BEATS_PER_BAR));
+    for (let barCount = 2; barCount <= Math.min(64, maxBars); barCount += 1) {
+      const beatDurationSeconds = audio.analyzedDurationSeconds / (barCount * DEFAULT_BEATS_PER_BAR);
+      if (beatDurationSeconds < minBeatSeconds || beatDurationSeconds > maxBeatSeconds) continue;
+
+      const rawScore = tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds);
+      const boundaryBonus = 0.65;
+      const shortClipBarPenalty = Math.max(0, 8 - barCount) * 0.03;
+      const score = rawScore + boundaryBonus - shortClipBarPenalty;
+      if (score > best.score) {
+        best = {
+          beatDurationSeconds,
+          bpm: 60 / beatDurationSeconds,
+          score,
+          rawScore,
+          startAligned: true,
+          barCount
+        };
+      }
+    }
+  }
+
+  const halfTimeBeatSeconds = best.beatDurationSeconds * 2;
+  if (best.bpm > 110 && best.bpm / 2 >= 55 && halfTimeBeatSeconds <= 60 / 55) {
+    best = {
+      beatDurationSeconds: halfTimeBeatSeconds,
+      bpm: best.bpm / 2,
+      score: best.score * 0.9,
+      rawScore: best.rawScore,
+      startAligned: best.startAligned,
+      barCount: best.barCount
+    };
+  }
+
+  const beatFrames = Math.max(1, Math.round(best.beatDurationSeconds / frameSeconds));
+  let bestPhase = 0;
+  if (!best.startAligned) {
+    let bestPhaseScore = -Infinity;
+    for (let phase = 0; phase < beatFrames; phase += 1) {
+      let score = 0;
+      for (let frame = phase; frame < values.length; frame += beatFrames) {
+        score += onsets[frame] || 0;
+      }
+      if (score > bestPhaseScore) {
+        bestPhaseScore = score;
+        bestPhase = phase;
+      }
+    }
+  }
+
+  const offsetSeconds = bestPhase * frameSeconds;
+  const beatDurationSeconds = best.beatDurationSeconds;
+  const strengths = beatStrengths(onsets, bestPhase, beatFrames);
+  const downbeat = best.startAligned ? { phase: 0, confidence: 0.75 } : estimateDownbeatPhase(strengths);
+  const downbeatOffsetSeconds = offsetSeconds + downbeat.phase * beatDurationSeconds;
+  const barDurationSeconds = beatDurationSeconds * DEFAULT_BEATS_PER_BAR;
+  const confidence = Math.max(0.1, Math.min(0.95, best.score));
+  const beats = [];
+  for (let time = offsetSeconds, index = 0; time < audio.analyzedDurationSeconds; time += beatDurationSeconds, index += 1) {
+    const relativeBeatIndex = index - downbeat.phase;
+    beats.push({
+      time: Number(time.toFixed(3)),
+      beat: ((relativeBeatIndex % DEFAULT_BEATS_PER_BAR) + DEFAULT_BEATS_PER_BAR) % DEFAULT_BEATS_PER_BAR + 1,
+      bar: Math.floor(relativeBeatIndex / DEFAULT_BEATS_PER_BAR) + 1,
+      downbeat: relativeBeatIndex >= 0 && relativeBeatIndex % DEFAULT_BEATS_PER_BAR === 0
+    });
+  }
+
+  const bars = [];
+  for (let start = downbeatOffsetSeconds; start < audio.analyzedDurationSeconds; start += barDurationSeconds) {
+    const end = Math.min(audio.durationSeconds, start + barDurationSeconds);
+    if (end - start < Math.min(1, barDurationSeconds * 0.35)) continue;
+    bars.push({
+      bar: bars.length + 1,
+      start: Number(Math.max(0, start).toFixed(3)),
+      end: Number(end.toFixed(3))
+    });
+  }
+
+  return {
+    bpm: Number(best.bpm.toFixed(1)),
+    beatDurationSeconds: Number(beatDurationSeconds.toFixed(3)),
+    beatsPerBar: DEFAULT_BEATS_PER_BAR,
+    barDurationSeconds: Number(barDurationSeconds.toFixed(3)),
+    offsetSeconds: Number(offsetSeconds.toFixed(3)),
+    beatOffsetSeconds: Number(offsetSeconds.toFixed(3)),
+    downbeatOffsetSeconds: Number(downbeatOffsetSeconds.toFixed(3)),
+    downbeatConfidence: Number(downbeat.confidence.toFixed(2)),
+    confidence: Number(confidence.toFixed(2)),
+    beats,
+    bars
+  };
+}
+
+function pitchClassEnergyDetails(audio, startSeconds, endSeconds, options = {}) {
+  const {
+    minMidi = 36,
+    maxMidi = 83,
+    stride = Math.max(1, Math.floor(audio.sampleRate / ANALYSIS_SAMPLE_RATE))
+  } = options;
+  const start = Math.max(0, Math.floor(startSeconds * audio.sampleRate));
+  const end = Math.min(audio.samples.length, Math.floor(endSeconds * audio.sampleRate));
+  const chroma = Array(12).fill(0);
+
+  if (end <= start) return { chroma, peak: 0 };
+
+  for (let midi = minMidi; midi <= maxMidi; midi += 1) {
+    const frequency = 440 * Math.pow(2, (midi - 69) / 12);
+    const angular = (2 * Math.PI * frequency * stride) / audio.sampleRate;
+    let real = 0;
+    let imaginary = 0;
+    let count = 0;
+
+    for (let index = start; index < end; index += stride) {
+      const phase = angular * count;
+      const sample = audio.samples[index];
+      real += sample * Math.cos(phase);
+      imaginary -= sample * Math.sin(phase);
+      count += 1;
+    }
+
+    chroma[midi % 12] += Math.sqrt(real * real + imaginary * imaginary) / Math.max(1, count);
+  }
+
+  const peak = Math.max(...chroma);
+  return {
+    chroma: peak > 0 ? chroma.map((value) => value / peak) : chroma,
+    peak
+  };
+}
+
+function pitchClassEnergy(audio, startSeconds, endSeconds, options = {}) {
+  return pitchClassEnergyDetails(audio, startSeconds, endSeconds, options).chroma;
+}
+
+function addWeightedChroma(target, chroma, weight) {
+  for (let index = 0; index < target.length; index += 1) {
+    target[index] += chroma[index] * weight;
+  }
+}
+
+function normalizeChroma(chroma) {
+  const max = Math.max(...chroma);
+  return max > 0 ? chroma.map((value) => value / max) : chroma;
+}
+
+async function loadAnalysisStemAudios(extracted, separation) {
+  const stemsDir = join(dirname(extracted.path), "stems");
+  const loaded = [];
+
+  for (const stem of separation.outputs || []) {
+    const harmonicWeight = HARMONIC_STEM_WEIGHTS[stem.id] || 0;
+    const bassWeight = BASS_STEM_WEIGHTS[stem.id] || 0;
+    if (!harmonicWeight && !bassWeight) continue;
+    if (extname(stem.filename || "").toLowerCase() !== ".wav") continue;
+
+    try {
+      loaded.push({
+        id: stem.id,
+        audio: await readPcm16WavFromFile(join(stemsDir, stem.filename)),
+        harmonicWeight,
+        bassWeight
+      });
+    } catch {
+      // Stem-specific analysis is opportunistic; the full mix remains the fallback.
+    }
+  }
+
+  return loaded;
+}
+
+function chromaEvidenceForBar(audio, stemAudios, bar) {
+  const chroma = Array(12).fill(0);
+  const bassChroma = Array(12).fill(0);
+  let harmonicWeight = 0;
+  let bassWeight = 0;
+
+  const sourceChroma = pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
+  const sourceBassChroma = pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
+  addWeightedChroma(chroma, sourceChroma, 0.45);
+  addWeightedChroma(bassChroma, sourceBassChroma, 0.7);
+  harmonicWeight += 0.45;
+  bassWeight += 0.7;
+
+  for (const stem of stemAudios) {
+    if (segmentRms(stem.audio, bar.start, bar.end) < MIN_ANALYSIS_STEM_RMS) continue;
+
+    if (stem.harmonicWeight) {
+      const stemChroma = pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
+      addWeightedChroma(chroma, stemChroma, stem.harmonicWeight);
+      harmonicWeight += stem.harmonicWeight;
+    }
+
+    if (stem.bassWeight) {
+      const stemBassChroma = pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
+      addWeightedChroma(bassChroma, stemBassChroma, stem.bassWeight);
+      bassWeight += stem.bassWeight;
+    }
+  }
+
+  return {
+    chroma: normalizeChroma(harmonicWeight ? chroma.map((value) => value / harmonicWeight) : chroma),
+    bassChroma: normalizeChroma(bassWeight ? bassChroma.map((value) => value / bassWeight) : bassChroma)
+  };
+}
+
+const chordQualities = [
+  { suffix: "", romanSuffix: "", intervals: [0, 4, 7], label: "major" },
+  { suffix: "m", romanSuffix: "", intervals: [0, 3, 7], label: "minor" },
+  { suffix: "7", romanSuffix: "7", intervals: [0, 4, 7, 10], label: "dominant7" },
+  { suffix: "m7", romanSuffix: "7", intervals: [0, 3, 7, 10], label: "minor7" },
+  { suffix: "maj7", romanSuffix: "maj7", intervals: [0, 4, 7, 11], label: "major7" },
+  { suffix: "sus2", romanSuffix: "sus2", intervals: [0, 2, 7], label: "sus2" },
+  { suffix: "sus4", romanSuffix: "sus4", intervals: [0, 5, 7], label: "sus4" },
+  { suffix: "dim", romanSuffix: "dim", intervals: [0, 3, 6], label: "diminished" }
+];
+
+function scoreChord(chroma, bassChroma, root, quality) {
+  const template = new Set(quality.intervals.map((interval) => (root + interval) % 12));
+  const templateEnergy = [...template].reduce((sum, pitchClass) => sum + chroma[pitchClass], 0);
+  const outsideEnergy = chroma.reduce((sum, value, pitchClass) => {
+    return template.has(pitchClass) ? sum : sum + value;
+  }, 0);
+  const rootBonus = chroma[root] * 0.8 + bassChroma[root] * 1.1;
+  const thirdOrSuspensionBonus = quality.intervals.some((interval) => [2, 3, 4, 5].includes(interval))
+    ? Math.max(...quality.intervals.filter((interval) => [2, 3, 4, 5].includes(interval)).map((interval) => chroma[(root + interval) % 12])) * 0.5
+    : 0;
+  return templateEnergy + rootBonus + thirdOrSuspensionBonus - outsideEnergy * 0.08;
+}
+
+function chordName(root, quality) {
+  return `${NOTE_NAMES[root]}${quality.suffix}`;
+}
+
+function simplifyWeakExtension(root, quality, chroma) {
+  const simpleQualityByLabel = {
+    dominant7: "major",
+    major7: "major",
+    minor7: "minor"
+  };
+  const simpleLabel = simpleQualityByLabel[quality.label];
+  if (!simpleLabel) return quality;
+
+  const seventhInterval = quality.label === "major7" ? 11 : 10;
+  const triadIntervals = simpleLabel === "minor" ? [0, 3, 7] : [0, 4, 7];
+  const triadEnergy = Math.max(...triadIntervals.map((interval) => chroma[(root + interval) % 12]));
+  const seventhEnergy = chroma[(root + seventhInterval) % 12];
+  if (seventhEnergy >= triadEnergy * 0.55) return quality;
+
+  return chordQualities.find((candidate) => candidate.label === simpleLabel) || quality;
+}
+
+function estimateChord(chroma, bassChroma) {
+  let best = null;
+  let secondBestScore = -Infinity;
+
+  for (let root = 0; root < 12; root += 1) {
+    for (const quality of chordQualities) {
+      const score = scoreChord(chroma, bassChroma, root, quality);
+      if (!best || score > best.score) {
+        secondBestScore = best?.score ?? -Infinity;
+        best = { root, quality, score };
+      } else if (score > secondBestScore) {
+        secondBestScore = score;
+      }
+    }
+  }
+
+  const margin = best ? best.score - secondBestScore : 0;
+  const confidence = Math.max(0.15, Math.min(0.92, 0.35 + margin / 4));
+  return {
+    root: best?.root ?? 0,
+    quality: best ? simplifyWeakExtension(best.root, best.quality, chroma) : chordQualities[0],
+    confidence: Number(confidence.toFixed(2))
+  };
+}
+
+function keyProfileScore(chroma, tonic, mode) {
+  const majorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+  const minorProfile = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+  const profile = mode === "minor" ? minorProfile : majorProfile;
+  return profile.reduce((sum, weight, index) => sum + weight * chroma[(tonic + index) % 12], 0);
+}
+
+function estimateKey(aggregateChroma) {
+  let best = { tonic: 0, mode: "major", score: -Infinity };
+  let secondBestScore = -Infinity;
+
+  for (let tonic = 0; tonic < 12; tonic += 1) {
+    for (const mode of ["major", "minor"]) {
+      const score = keyProfileScore(aggregateChroma, tonic, mode);
+      if (score > best.score) {
+        secondBestScore = best.score;
+        best = { tonic, mode, score };
+      } else if (score > secondBestScore) {
+        secondBestScore = score;
+      }
+    }
+  }
+
+  const margin = best.score - secondBestScore;
+  return {
+    tonic: NOTE_NAMES[best.tonic],
+    mode: best.mode,
+    confidence: Number(Math.max(0.2, Math.min(0.9, 0.4 + margin / 8)).toFixed(2)),
+    tonicPitchClass: best.tonic
+  };
+}
+
+function adjustKeyWithChordSequence(key, chordDrafts) {
+  const firstChord = chordDrafts[0];
+  if (!firstChord || key.mode !== "minor") return key;
+
+  const relativeMajor = (key.tonicPitchClass + 3) % 12;
+  const startsOnRelativeMajor =
+    firstChord.root === relativeMajor &&
+    firstChord.quality.label === "major";
+  if (!startsOnRelativeMajor) return key;
+
+  return {
+    tonic: NOTE_NAMES[relativeMajor],
+    mode: "major",
+    confidence: Number(Math.min(key.confidence, 0.58).toFixed(2)),
+    tonicPitchClass: relativeMajor
+  };
+}
+
+function romanNumeral(root, quality, key) {
+  const majorScale = [0, 2, 4, 5, 7, 9, 11];
+  const minorScale = [0, 2, 3, 5, 7, 8, 10];
+  const numerals = ["I", "II", "III", "IV", "V", "VI", "VII"];
+  const scale = key.mode === "minor" ? minorScale : majorScale;
+  const tonic = key.tonicPitchClass ?? NOTE_NAMES.indexOf(key.tonic);
+  const relative = (root - tonic + 12) % 12;
+  const degree = scale.indexOf(relative);
+  const base = degree === -1 ? NOTE_NAMES[root] : numerals[degree];
+  const minorish = quality.label === "minor" || quality.label === "minor7" || quality.label === "diminished";
+  const numeral = degree === -1 ? base : minorish ? base.toLowerCase() : base;
+  return `${numeral}${quality.romanSuffix}`;
+}
+
+async function analyzeHarmonyFromAudio(extracted, separation) {
+  const startedAt = Date.now();
+  const audio = await readPcm16WavFromFile(extracted.path);
+  const stemAudios = await loadAnalysisStemAudios(extracted, separation);
+  const beatGrid = estimateBeatGrid(audio);
+  const bars = beatGrid.bars.length
+    ? beatGrid.bars
+    : [{ bar: 1, start: 0, end: audio.durationSeconds }];
+  const aggregateChroma = Array(12).fill(0);
+  const chordDrafts = [];
+
+  for (const bar of bars) {
+    const { chroma, bassChroma } = chromaEvidenceForBar(audio, stemAudios, bar);
+    for (let index = 0; index < 12; index += 1) {
+      aggregateChroma[index] += chroma[index];
+    }
+    const estimated = estimateChord(chroma, bassChroma);
+    chordDrafts.push({ ...bar, ...estimated });
+  }
+
+  const aggregateMax = Math.max(...aggregateChroma);
+  const normalizedAggregate = aggregateMax > 0
+    ? aggregateChroma.map((value) => value / aggregateMax)
+    : aggregateChroma;
+  const key = adjustKeyWithChordSequence(estimateKey(normalizedAggregate), chordDrafts);
+  const chords = chordDrafts.map((chord) => ({
+    start: chord.start,
+    end: chord.end,
+    bar: chord.bar,
+    beat: 1,
+    name: chordName(chord.root, chord.quality),
+    roman: romanNumeral(chord.root, chord.quality, key),
+    confidence: chord.confidence,
+    source: "bar-aligned-chroma"
+  }));
+  const { tonicPitchClass, ...publicKey } = key;
+
+  return {
+    durationSeconds: extracted.durationSeconds || audio.durationSeconds,
+    harmonySource: "real-audio-analysis-v1",
+    analysisSource: "source-audio.wav",
+    key: publicKey,
+    chords,
+    melody: [],
+    beatGrid,
+    analysis: {
+      name: "bar-aligned-chroma-v1",
+      available: true,
+      durationMs: Date.now() - startedAt,
+      sources: {
+        fullMix: SOURCE_AUDIO_FILENAME,
+        stems: separation.outputs?.map((stem) => stem.id) || []
+      },
+      vocabulary: [
+        "major",
+        "minor",
+        "dominant7",
+        "minor7",
+        "major7",
+        "sus2",
+        "sus4",
+        "diminished"
+      ],
+      limitations: [
+        "Beat, downbeat, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
+        "Chord labels are scored once per bar so brief chromatic passing chords are intentionally de-emphasized.",
+        "The first pass favors useful conservative labels over precise extensions."
+      ]
+    }
+  };
 }
 
 function contentTypeForPath(path, fallback = "application/octet-stream") {
@@ -1085,7 +1718,7 @@ async function runRealPipeline(job) {
       REAL_SEPARATOR === "ffmpeg-spectral"
         ? "The separator is a heuristic spike, not production-quality source separation."
         : "Demucs output is accepted for play-along piano removal in the POC, but solo piano may contain artifacts.",
-      "Harmony cues are mocked so the practice UI remains usable."
+      "Harmony cues are estimated from bar-aligned full-mix audio analysis and should be treated as approximate."
     ]
   };
   job.updatedAt = new Date().toISOString();
@@ -1111,6 +1744,10 @@ async function runRealPipeline(job) {
     await saveJob(job);
 
     const separation = await runSelectedSeparator(job, extracted);
+    await updateProcessingProgress(job, 98, {
+      pipelineStage: "audio-analysis"
+    });
+    const harmonicMetadata = await analyzeHarmonyFromAudio(extracted, separation);
     job.stems = separation.outputs.map((stem) => ({
       id: stem.id,
       name: stem.name,
@@ -1122,12 +1759,9 @@ async function runRealPipeline(job) {
     job.progress = 100;
     job.metadata = {
       ...job.metadata,
+      ...harmonicMetadata,
       pipelineStage: "piano-focused-separated",
-      harmonySource: "mock",
-      durationSeconds: extracted.durationSeconds,
-      key: createMockMetadata().key,
-      chords: createMockMetadata().chords,
-      melody: createMockMetadata().melody,
+      durationSeconds: extracted.durationSeconds || harmonicMetadata.durationSeconds,
       ffmpeg: {
         command: extracted.command,
         available: true,
@@ -1567,14 +2201,23 @@ async function route(req, res) {
   notFound(res);
 }
 
-await ensureBaseDirs();
+export { analyzeHarmonyFromAudio, estimateBeatGrid, readPcm16WavFromFile };
 
-createServer((req, res) => {
-  route(req, res).catch((error) => {
-    console.error(error);
-    json(res, 500, { error: "Internal server error" });
+async function startServer() {
+  await ensureBaseDirs();
+
+  return createServer((req, res) => {
+    route(req, res).catch((error) => {
+      console.error(error);
+      json(res, 500, { error: "Internal server error" });
+    });
+  }).listen(PORT, HOST, () => {
+    console.log(`Piano Practice POC running at http://${HOST}:${PORT}`);
+    console.log(`PIPELINE_MODE=${activePipelineMode}`);
   });
-}).listen(PORT, HOST, () => {
-  console.log(`Piano Practice POC running at http://${HOST}:${PORT}`);
-  console.log(`PIPELINE_MODE=${activePipelineMode}`);
-});
+}
+
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (isMainModule) {
+  await startServer();
+}

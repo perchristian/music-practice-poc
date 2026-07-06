@@ -367,6 +367,63 @@ test("song duration labels prefer media metadata over harmonic cue length", asyn
   await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("0:16");
 });
 
+test("harmony panel shows analysis tempo and sub-second cue times", async ({ page }) => {
+  const jobId = "22222222-2222-4222-8222-222222222222";
+  const job = {
+    id: jobId,
+    mode: "real",
+    status: "complete",
+    progress: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    originalFilename: "downbeat-offset.mov",
+    practiceState: { learningStatus: "not_started", stemStates: {} },
+    result: {
+      stems: [{ id: "piano", name: "Piano", audioUrl: `/api/jobs/${jobId}/stems/piano.wav` }],
+      metadata: {
+        durationSeconds: 16.65,
+        key: { tonic: "C", mode: "major" },
+        beatGrid: {
+          bpm: 72.5,
+          beatOffsetSeconds: 0.15,
+          downbeatOffsetSeconds: 0.65,
+          downbeatConfidence: 0.72
+        },
+        chords: [{ bar: 1, start: 0.65, end: 4.65, name: "C", roman: "I" }],
+        melody: []
+      }
+    }
+  };
+
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16.65;
+      }
+    });
+  });
+
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([job])
+    });
+  });
+  await page.route(`**/api/jobs/${jobId}`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
+
+  await page.goto("/");
+  await page.getByTestId(`song-row-${jobId}`).click();
+
+  await expect(page.getByTestId("key-badge")).toHaveText("C major · 72.5 BPM");
+  await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 72.5 BPM");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:00.7-0:04.7");
+});
+
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];

@@ -419,3 +419,26 @@ High.
 
 Date:
 2026-07-06
+
+## Decision 18
+
+Decision:
+Implement the first real harmonic-analysis spike as dependency-free downbeat/bar-aligned chroma analysis over `source-audio.wav`.
+
+Reason:
+Chord labels are only useful for practice if they sit on a musical grid. Real screen recordings often start before or after the first downbeat, so the first analysis pass should estimate tempo and downbeat placement before emitting chord cues, and it should de-emphasize brief chromatic passing material by scoring one conservative chord per bar. Keeping the implementation in Node over PCM16 WAV avoids adding Basic Pitch, librosa, Essentia, TensorFlow, or other heavy dependencies before the product value of approximate harmonic cues has been tested.
+
+Alternatives considered:
+- Start with piano transcription through Basic Pitch or another transcription model.
+- Add a Python audio-analysis stack such as librosa or Essentia immediately.
+- Keep fixed-time chord windows without a downbeat/bar grid.
+- Analyze only the isolated piano stem.
+
+Tradeoffs:
+The dependency-free analyzer is intentionally approximate. It may pick the wrong tempo, downbeat, key, or chord quality, especially on dense mixes, swing, rubato, weak percussion, or noisy screen recordings. It also does not produce melody or note-level transcription. The benefit is that real-mode jobs now produce inspectable, bar-aligned harmonic cues without new setup risk, and mock mode remains lightweight.
+
+Confidence:
+Medium for generated test media and integration value; low-to-medium for accuracy on arbitrary real songs until manual listening/inspection is done.
+
+Date:
+2026-07-06

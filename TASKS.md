@@ -268,7 +268,7 @@ Verification:
 Result:
 - Completed real-mode extraction jobs appear in the unified song list.
 - Selecting a real-mode completed job opens the same practice/detail panel with one `Extracted source audio` stem.
-- Harmonic metadata remains mocked and is marked as `harmonySource: "mock"` in job metadata.
+- At the time of the extraction-only spike, harmonic metadata remained mocked and was marked as `harmonySource: "mock"` in job metadata. Phase 2H later replaced this for current real-mode jobs.
 - The GUI includes a Mock/Real pipeline mode switch in the topbar; `PIPELINE_MODE` remains the startup default, and the switch affects new uploads in the current server session.
 
 Status: Complete on 2026-07-06.
@@ -439,7 +439,17 @@ Verification:
 - Confirm the metadata records whether bass, piano, accompaniment, and full mix were used as evidence.
 - Document accuracy, failure modes, dependency/install cost, and processing time.
 
-Status: Planned after Phase 2G-QA. Demucs stems are now available as supporting evidence, but `source-audio.wav` should remain the full-mix truth source.
+Result:
+- Real mode now emits `harmonySource: "real-audio-analysis-v1"` instead of mock harmonic metadata.
+- `source-audio.wav` is analyzed as the full-mix truth source with a dependency-free PCM16 WAV reader.
+- The first-pass analyzer estimates broad onset energy, applies a conservative half-time correction to avoid over-fine subdivision grids, estimates first downbeat separately from file start, builds a 4/4 beat/bar grid from that downbeat, scores bar-length chroma windows against a conservative chord vocabulary, estimates key, and generates roman numerals.
+- Analysis now uses available bass/accompaniment stems for root evidence and other/accompaniment/guitar/piano stems for chord-quality evidence, ignoring very quiet stems and keeping `source-audio.wav` as the fallback.
+- Weakly supported 7/maj7 extensions are simplified back to triads, and real analysis emits one cue per bar rather than merging repeated adjacent chord names.
+- Chord cues preserve the existing UI metadata shape and add `bar`, `beat`, `confidence`, `source`, `beatGrid`, `analysisSource`, and `analysis` metadata.
+- The UI displays bar-aware cue timing when available, for example `Bar 1 · 0:00-0:04`.
+- `npm run generate:test-media` now creates `test-media/phase-2h-bar-grid.wav`, a safe four-bar C, Am, F, G test fixture with a clear pulse and 0.65 seconds of pre-roll before the first downbeat.
+
+Status: Initial implementation complete on 2026-07-06, downbeat-offset hardening added on 2026-07-07, and local calibration added on 2026-07-07 for job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`. `npm test` covers real-derived bar-aligned harmonic analysis on generated test media that does not start exactly on the first downbeat and, when the local calibration job is present, expects 106 BPM, 4/4, and C, Dm, Am, Am, C, Dm, Am, Am. Manual listening/inspection on more real screen recordings is still required before treating the analysis as user-test ready.
 
 ## Phase 3: Problem Areas and Practice Notes
 
@@ -548,4 +558,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Start Phase 2H: first real audio/harmonic analysis. Use `source-audio.wav` as the full-mix truth source and Demucs drums/bass/guitar/piano/other stems as supporting evidence where useful.
+Manually inspect Phase 2H real harmonic-analysis output on at least one real screen recording, then either harden the analysis if timing/chord labels are misleading or move to Phase 3: problem areas and practice notes.

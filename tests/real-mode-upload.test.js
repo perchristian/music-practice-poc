@@ -4,6 +4,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { analyzeHarmonyFromAudio } from "../server.js";
 
 const port = Number(process.env.REAL_BACKEND_TEST_PORT || 3211);
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -92,7 +93,7 @@ async function waitForProgressAtLeast(jobId, minimum, url = baseUrl) {
 
 async function uploadSample(url = baseUrl, filename = "phase-2a-source.wav") {
   const formData = new FormData();
-  const mediaBytes = await readFile(join(process.cwd(), "test-media", filename));
+  const mediaBytes = await readTestMedia(filename);
   formData.append("media", new Blob([mediaBytes], { type: "audio/wav" }), filename);
 
   const createResponse = await fetch(`${url}/api/jobs`, {
@@ -102,6 +103,31 @@ async function uploadSample(url = baseUrl, filename = "phase-2a-source.wav") {
 
   assert.equal(createResponse.status, 202);
   return { job: await createResponse.json(), mediaBytes };
+}
+
+async function readTestMedia(filename) {
+  const mediaPath = join(process.cwd(), "test-media", filename);
+  if (filename === "phase-2h-bar-grid.wav") {
+    const generated = spawnSync(process.execPath, ["scripts/generate-phase2a-test-media.js"], {
+      cwd: process.cwd(),
+      stdio: "ignore"
+    });
+    assert.equal(generated.status, 0, "test media generation should succeed");
+    return readFile(mediaPath);
+  }
+
+  try {
+    return await readFile(mediaPath);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+
+  const generated = spawnSync(process.execPath, ["scripts/generate-phase2a-test-media.js"], {
+    cwd: process.cwd(),
+    stdio: "ignore"
+  });
+  assert.equal(generated.status, 0, "test media generation should succeed");
+  return readFile(mediaPath);
 }
 
 describe("real-mode upload contract with missing FFmpeg", () => {
@@ -221,7 +247,12 @@ describe("real-mode FFmpeg extraction", () => {
     assert.ok(completedJob.result.metadata.separator.durationMs >= 0);
     assert.equal(completedJob.result.metadata.separator.outputs.length, 2);
     assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
-    assert.equal(completedJob.result.metadata.harmonySource, "mock");
+    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
+    assert.equal(completedJob.result.metadata.analysis.name, "bar-aligned-chroma-v1");
+    assert.equal(completedJob.result.metadata.analysis.sources.fullMix, "source-audio.wav");
+    assert.ok(completedJob.result.metadata.beatGrid.bpm > 0);
+    assert.ok(completedJob.result.metadata.beatGrid.bars.length >= 1);
+    assert.ok(completedJob.result.metadata.chords.every((chord) => Number.isFinite(chord.bar)));
 
     const jobDir = join(extractionDataDir, "jobs", createdJob.id);
     const output = await stat(join(jobDir, "source-audio.wav"));
@@ -246,6 +277,34 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(sourceAudioResponse.status, 200);
     assert.match(sourceAudioResponse.headers.get("content-type"), /^audio\/wav/);
     assert.ok((await sourceAudioResponse.arrayBuffer()).byteLength > 44);
+  });
+
+  it("aligns first-pass real chord cues to an estimated bar grid", async (t) => {
+    const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
+    if (ffmpegCheck.status !== 0) {
+      t.skip("FFmpeg is not available; skipping real-mode harmonic analysis smoke.");
+      return;
+    }
+
+    const { job: createdJob } = await uploadSample(extractionBaseUrl, "phase-2h-bar-grid.wav");
+    const completedJob = await waitForComplete(createdJob.id, extractionBaseUrl);
+    const metadata = completedJob.result.metadata;
+
+    assert.equal(metadata.harmonySource, "real-audio-analysis-v1");
+    assert.equal(metadata.analysisSource, "source-audio.wav");
+    assert.equal(metadata.beatGrid.beatsPerBar, 4);
+    assert.ok(metadata.beatGrid.confidence >= 0.1);
+    assert.ok(Math.abs(metadata.beatGrid.bpm - 60) <= 8, JSON.stringify(metadata.beatGrid));
+    assert.ok(Math.abs(metadata.beatGrid.downbeatOffsetSeconds - 0.65) <= 0.25, JSON.stringify(metadata.beatGrid));
+    assert.ok(metadata.chords.length >= 3);
+    assert.equal(metadata.chords[0].bar, 1);
+    assert.ok(Math.abs(metadata.chords[0].start - metadata.beatGrid.downbeatOffsetSeconds) <= 0.25);
+    assert.ok(Math.abs(metadata.chords[0].end - 4.65) <= 0.75);
+    assert.ok(metadata.chords.slice(0, 4).every((chord) => chord.source === "bar-aligned-chroma"));
+    assert.ok(metadata.chords.some((chord) => chord.name.startsWith("C")));
+    assert.ok(metadata.chords.some((chord) => chord.name.startsWith("A")));
+    assert.ok(metadata.chords.some((chord) => chord.name.startsWith("F")));
+    assert.ok(metadata.chords.some((chord) => chord.name.startsWith("G")));
   });
 });
 
@@ -349,6 +408,8 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
     assert.equal(completedJob.result.metadata.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
+    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
+    assert.equal(completedJob.result.metadata.analysis.name, "bar-aligned-chroma-v1");
 
     const jobDir = join(demucsDataDir, "jobs", createdJob.id);
     for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
@@ -358,5 +419,44 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
       assert.equal(audioResponse.status, 200);
       assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
     }
+  });
+});
+
+describe("local harmonic-analysis calibration", () => {
+  it("matches the f9e9cf9d known 106 BPM C Dm Am fixture when present", async (t) => {
+    const jobDir = join(process.cwd(), "data", "jobs", "f9e9cf9d-0998-494d-82cf-3dc89fcf4d76");
+    const sourcePath = join(jobDir, "source-audio.wav");
+    try {
+      await stat(sourcePath);
+    } catch (error) {
+      if (error.code === "ENOENT") {
+        t.skip("Local calibration job f9e9cf9d is not available.");
+        return;
+      }
+      throw error;
+    }
+
+    const outputs = ["drums", "bass", "guitar", "piano", "vocals", "other"].map((id) => ({
+      id,
+      filename: `${id}.wav`
+    }));
+    const metadata = await analyzeHarmonyFromAudio(
+      { path: sourcePath, durationSeconds: 18.113208333333333, filename: "source-audio.wav" },
+      { outputs }
+    );
+
+    assert.equal(metadata.beatGrid.bpm, 106);
+    assert.equal(metadata.beatGrid.beatsPerBar, 4);
+    assert.equal(metadata.beatGrid.downbeatOffsetSeconds, 0);
+    assert.deepEqual(metadata.chords.slice(0, 8).map((chord) => chord.name), [
+      "C",
+      "Dm",
+      "Am",
+      "Am",
+      "C",
+      "Dm",
+      "Am",
+      "Am"
+    ]);
   });
 });
