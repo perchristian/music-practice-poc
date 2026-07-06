@@ -104,17 +104,11 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   const jobId = await libraryJobId(page, filename);
   await expect(page.getByTestId("home-view")).toBeVisible();
   await expect(page.getByTestId("practice-view")).toBeHidden();
-  await page.getByTestId("all-songs-button").click();
-  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
-  await expect(page.getByTestId(`library-card-${jobId}`)).not.toContainText("complete");
-  await page.getByTestId(`library-open-${jobId}`).click();
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText(filename);
+  await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("complete");
+  await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("practice-view")).toBeVisible();
-  await expect(page.getByTestId("back-to-home-button")).toHaveText("Back to songs");
-  await page.getByTestId("back-to-home-button").click();
-  await expect(page.getByTestId("all-songs-view")).toBeVisible();
-  await expect(page.getByTestId("practice-view")).toBeHidden();
-  await page.getByTestId(`library-open-${jobId}`).click();
-  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("selected-song-title")).toHaveText(filename);
 
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect(page.getByTestId("full-mix-button")).toHaveCount(0);
@@ -314,22 +308,16 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("home-view")).toBeVisible();
   await expect(page.getByTestId("practice-view")).toBeHidden();
 
-  await page.getByTestId("all-songs-button").click();
-  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
-  await expect(page.getByTestId(`library-card-${jobId}`)).not.toContainText("complete");
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText(filename);
+  await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("complete");
 
   await page.reload();
   await expect(page.getByTestId("practice-view")).toBeHidden();
-  await page.getByTestId("all-songs-button").click();
-  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText(filename);
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText(filename);
 
-  await page.getByTestId(`library-preview-${jobId}`).click();
-  await expect(page.getByTestId(`library-preview-audio-${jobId}`)).toBeVisible();
-  await expect(page.getByTestId("practice-view")).toBeHidden();
-
-  await page.getByTestId(`library-open-${jobId}`).click();
+  await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("practice-view")).toBeVisible();
-  await expect(page.getByTestId("all-songs-view")).toBeHidden();
+  await expect(page.getByTestId("selected-song-title")).toHaveText(filename);
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect
     .poll(async () => {
@@ -382,8 +370,8 @@ test("processed song library reopens songs and persists practice state", async (
     });
 
   await page.reload();
-  await expect(page.getByTestId(`recent-card-${jobId}`)).toContainText("Practicing");
-  await page.getByTestId(`recent-open-${jobId}`).click();
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("Practicing");
+  await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("learning-status")).toHaveValue("practicing");
   await expect(page.getByTestId("speed-075")).toHaveClass(/active/);
@@ -393,19 +381,16 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);
   await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");
   await expect(page.locator("#scrubber")).toHaveValue("3.2");
-  await page.getByTestId("back-to-home-button").click();
-  await expect(page.getByTestId("home-view")).toBeVisible();
-  await expect(page.getByTestId("practice-view")).toBeHidden();
-  await page.getByTestId("all-songs-button").click();
 
   page.once("dialog", (dialog) => dialog.accept("Renamed Phase 1 song"));
-  await page.getByTestId(`library-rename-${jobId}`).click();
-  await expect(page.getByTestId(`library-card-${jobId}`)).toContainText("Renamed Phase 1 song");
+  await page.getByTestId("selected-rename-button").click();
+  await expect(page.getByTestId("selected-song-title")).toHaveText("Renamed Phase 1 song");
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("Renamed Phase 1 song");
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByTestId(`library-delete-${jobId}`).click();
-  await expect(page.getByTestId(`library-card-${jobId}`)).toHaveCount(0);
-  await expect(page.getByTestId("all-songs-view")).toBeVisible();
+  await page.getByTestId("selected-delete-button").click();
+  await expect(page.getByTestId(`song-row-${jobId}`)).toHaveCount(0);
+  await expect(page.getByTestId("empty-detail")).toBeVisible();
 
   const deletedStatus = await page.evaluate(async (id) => {
     const response = await fetch(`/api/jobs/${id}`);
@@ -435,24 +420,21 @@ test("home upload queue processes multiple files without opening practice", asyn
   await expect(page.getByTestId("file-label")).toHaveText("2 recordings selected");
 
   await page.getByTestId("upload-button").click();
-  await expect(page.locator('[data-testid^="queue-card-"]')).toHaveCount(2);
-  await expect(page.getByTestId("queue-list")).toContainText(firstFilename);
-  await expect(page.getByTestId("queue-list")).toContainText(secondFilename);
+  await expect(page.getByTestId("song-list")).toContainText(firstFilename);
+  await expect(page.getByTestId("song-list")).toContainText(secondFilename);
 
   const firstJobId = await libraryJobId(page, firstFilename);
   const secondJobId = await libraryJobId(page, secondFilename);
   await expect(page.getByTestId("home-view")).toBeVisible();
   await expect(page.getByTestId("practice-view")).toBeHidden();
-  await expect(page.getByTestId("queue-panel")).toBeHidden();
 
-  await page.getByTestId("all-songs-button").click();
-  await expect(page.getByTestId(`library-card-${firstJobId}`)).toContainText(firstFilename);
-  await expect(page.getByTestId(`library-card-${secondJobId}`)).toContainText(secondFilename);
-  await expect(page.getByTestId(`library-card-${firstJobId}`)).not.toContainText("complete");
-  await expect(page.getByTestId(`library-card-${secondJobId}`)).not.toContainText("complete");
+  await expect(page.getByTestId(`song-row-${firstJobId}`)).toContainText(firstFilename);
+  await expect(page.getByTestId(`song-row-${secondJobId}`)).toContainText(secondFilename);
+  await expect(page.getByTestId(`song-row-${firstJobId}`)).not.toContainText("complete");
+  await expect(page.getByTestId(`song-row-${secondJobId}`)).not.toContainText("complete");
 });
 
-test("home shows five most recently opened songs and all songs filters by learning status", async ({ page }) => {
+test("unified song list shows completed songs and filters by learning status", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
 
@@ -478,33 +460,50 @@ test("home shows five most recently opened songs and all songs filters by learni
   }, jobIds);
 
   await page.reload();
-  await expect(page.getByTestId("recent-list").locator(".library-card")).toHaveCount(5);
-  await expect(page.getByTestId(`recent-card-${jobIds[5]}`)).toBeVisible();
-  await expect(page.getByTestId(`recent-card-${jobIds[4]}`)).toBeVisible();
-  await expect(page.getByTestId(`recent-card-${jobIds[3]}`)).toBeVisible();
-  await expect(page.getByTestId(`recent-card-${jobIds[2]}`)).toBeVisible();
-  await expect(page.getByTestId(`recent-card-${jobIds[1]}`)).toBeVisible();
-  await expect(page.getByTestId(`recent-card-${jobIds[0]}`)).toHaveCount(0);
-  await expect(page.getByTestId(`recent-card-${jobIds[5]}`)).toContainText("Learned");
-  await expect(page.getByTestId(`recent-card-${jobIds[4]}`)).toContainText("Practicing");
-  await expect(page.getByTestId(`recent-card-${jobIds[3]}`)).toContainText("Not started");
-
-  await page.getByTestId("all-songs-button").click();
-  await expect(page.getByTestId("all-songs-view")).toBeVisible();
-  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(6);
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(6);
+  await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[0]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toContainText("Learned");
+  await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toContainText("Practicing");
+  await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toContainText("Ready");
 
   await page.getByTestId("filter-practicing").click();
-  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
-  await expect(page.getByTestId(`library-card-${jobIds[1]}`)).toBeVisible();
-  await expect(page.getByTestId(`library-card-${jobIds[4]}`)).toBeVisible();
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`song-row-${jobIds[1]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toBeVisible();
 
   await page.getByTestId("filter-learned").click();
-  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
-  await expect(page.getByTestId(`library-card-${jobIds[2]}`)).toBeVisible();
-  await expect(page.getByTestId(`library-card-${jobIds[5]}`)).toBeVisible();
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`song-row-${jobIds[2]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toBeVisible();
 
   await page.getByTestId("filter-not-started").click();
-  await expect(page.getByTestId("library-list").locator(".library-card").filter({ hasText: prefix })).toHaveCount(2);
-  await expect(page.getByTestId(`library-card-${jobIds[0]}`)).toBeVisible();
-  await expect(page.getByTestId(`library-card-${jobIds[3]}`)).toBeVisible();
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(page.getByTestId(`song-row-${jobIds[0]}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toBeVisible();
+});
+
+test("mobile uses a list-first song workspace stack", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto("/");
+  const filename = `mobile-workspace-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await expect(page.getByTestId("song-sidebar")).toBeVisible();
+  await expect(page.getByTestId("song-detail")).toBeHidden();
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText(filename);
+
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("song-sidebar")).toBeHidden();
+  await expect(page.getByTestId("song-detail")).toBeVisible();
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("selected-song-title")).toHaveText(filename);
+
+  await page.getByTestId("back-to-home-button").click();
+  await expect(page.getByTestId("song-sidebar")).toBeVisible();
+  await expect(page.getByTestId("song-detail")).toBeHidden();
+  await expect(page.getByTestId(`song-row-${jobId}`)).toBeVisible();
 });

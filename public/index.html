@@ -17,132 +17,148 @@
           <div class="status-pill" id="serviceStatus" data-testid="service-status">Checking backend</div>
         </header>
 
-        <section id="homeView" data-testid="home-view">
-          <section class="panel upload-panel" aria-labelledby="uploadTitle">
-            <div>
-              <h2 id="uploadTitle">Upload recordings</h2>
-              <p class="muted">Choose one or more video or audio files. Mock mode creates a separate processing job for each file.</p>
-            </div>
-            <form id="uploadForm" class="upload-form">
-              <label class="file-drop">
-                <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" multiple required>
-                <span id="fileLabel" data-testid="file-label">Select screen recordings</span>
-              </label>
-              <button type="submit" id="uploadButton" data-testid="upload-button">Add to processing queue</button>
-            </form>
-          </section>
-
-          <section class="panel queue-panel" id="queuePanel" aria-labelledby="queueTitle" data-testid="queue-panel" hidden>
-            <div class="section-heading compact">
+        <section class="song-workspace" id="homeView" data-testid="home-view">
+          <aside class="panel song-sidebar" aria-labelledby="songsTitle" data-testid="song-sidebar">
+            <div class="song-sidebar-header">
               <div>
-                <p class="eyebrow">Processing</p>
-                <h2 id="queueTitle">Queue</h2>
+                <p class="eyebrow">Library</p>
+                <h2 id="songsTitle">Songs</h2>
               </div>
-            </div>
-            <div id="queueList" class="queue-list" data-testid="queue-list"></div>
-          </section>
-
-          <section class="panel library-panel" aria-labelledby="recentTitle">
-            <div class="section-heading compact">
-              <div>
-                <p class="eyebrow">Recent</p>
-                <h2 id="recentTitle">Recently opened songs</h2>
-              </div>
-              <button type="button" class="secondary-button" id="allSongsButton" data-testid="all-songs-button">All songs</button>
-            </div>
-            <p id="recentEmpty" class="muted" data-testid="recent-empty">Open a processed song to pin it here.</p>
-            <div id="recentList" class="library-list" data-testid="recent-list"></div>
-          </section>
-        </section>
-
-        <section class="panel library-panel" id="allSongsView" aria-labelledby="libraryTitle" data-testid="all-songs-view" hidden>
-          <div class="section-heading compact">
-            <div>
-              <p class="eyebrow">Processed songs</p>
-              <h2 id="libraryTitle">All songs</h2>
-            </div>
-            <button type="button" class="secondary-button" id="homeButton" data-testid="home-button">Home</button>
-          </div>
-          <div class="filter-row" id="libraryFilters" data-testid="library-filters" role="group" aria-label="Filter songs by learning status">
-            <button type="button" class="active" data-filter="all" data-testid="filter-all">All</button>
-            <button type="button" data-filter="not_started" data-testid="filter-not-started">Not started</button>
-            <button type="button" data-filter="practicing" data-testid="filter-practicing">Practicing</button>
-            <button type="button" data-filter="learned" data-testid="filter-learned">Learned</button>
-          </div>
-          <p id="libraryEmpty" class="muted" data-testid="library-empty">No completed songs yet.</p>
-          <div id="libraryList" class="library-list" data-testid="library-list"></div>
-        </section>
-
-        <section class="practice-grid" id="practiceView" data-testid="practice-view" hidden>
-          <section class="panel player-panel" aria-labelledby="playerTitle">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Processed result</p>
-                <h2 id="playerTitle">Stem practice mix</h2>
-              </div>
-              <div class="practice-status-group">
-                <button type="button" class="secondary-button" id="backToHomeButton" data-testid="back-to-home-button">Back to home</button>
-                <label class="status-control" for="learningStatus">
-                  <span>Learning status</span>
-                  <select id="learningStatus" data-testid="learning-status">
-                    <option value="not_started">Not started</option>
-                    <option value="practicing">Practicing</option>
-                    <option value="learned">Learned</option>
-                  </select>
+              <form id="uploadForm" class="add-form">
+                <label class="add-button">
+                  <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" multiple required>
+                  <span id="fileLabel" data-testid="file-label">Add</span>
                 </label>
-                <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
+                <button type="submit" id="uploadButton" data-testid="upload-button">Upload</button>
+              </form>
+            </div>
+            <label class="search-field">
+              <span>Search</span>
+              <input id="songSearch" data-testid="song-search" type="search" placeholder="Search songs">
+            </label>
+            <div class="filter-row" id="libraryFilters" data-testid="library-filters" role="group" aria-label="Filter songs by learning status">
+              <button type="button" class="active" data-filter="all" data-testid="filter-all">All</button>
+              <button type="button" data-filter="not_started" data-testid="filter-not-started">Not started</button>
+              <button type="button" data-filter="practicing" data-testid="filter-practicing">Practicing</button>
+              <button type="button" data-filter="learned" data-testid="filter-learned">Learned</button>
+            </div>
+            <p id="songListEmpty" class="muted song-empty" data-testid="song-list-empty">Add a screen recording to start.</p>
+            <div id="songList" class="song-list" data-testid="song-list"></div>
+          </aside>
+
+          <section class="song-detail" data-testid="song-detail">
+            <section class="detail-header panel" id="selectedSongHeader" data-testid="selected-song-header" hidden>
+              <button type="button" class="secondary-button mobile-back-button" id="backToHomeButton" data-testid="back-to-home-button">Songs</button>
+              <div class="selected-copy">
+                <p class="eyebrow" id="selectedSongEyebrow">Selected song</p>
+                <h2 id="selectedSongTitle" data-testid="selected-song-title">Song</h2>
+                <p class="muted" id="selectedSongMeta" data-testid="selected-song-meta"></p>
               </div>
-            </div>
-
-            <div id="stemDeck" class="stem-deck" aria-label="Processed stems"></div>
-
-            <div class="transport">
-              <button type="button" id="playButton" class="play-button">Play</button>
-              <input id="scrubber" type="range" min="0" max="16" step="0.1" value="0" aria-label="Playback position">
-            </div>
-
-            <div>
-              <div class="control-row stem-heading">
-                <span class="control-label">Stems</span>
+              <div class="detail-actions" id="selectedSongActions">
+                <button type="button" class="secondary-button" id="selectedRenameButton" data-testid="selected-rename-button">Rename</button>
+                <button type="button" class="secondary-button danger" id="selectedDeleteButton" data-testid="selected-delete-button">Delete</button>
               </div>
-              <div id="stemMixer" class="stem-mixer" aria-label="Stem controls"></div>
-            </div>
+            </section>
 
-            <div class="control-row">
-              <span class="control-label">Speed</span>
-              <div class="segmented" id="speedControls" role="group" aria-label="Playback speed">
-                <button type="button" data-speed="0.5" data-testid="speed-05">0.5x</button>
-                <button type="button" data-speed="0.75" data-testid="speed-075">0.75x</button>
-                <button type="button" data-speed="1" data-testid="speed-1" class="active">1x</button>
-                <button type="button" data-speed="1.25" data-testid="speed-125">1.25x</button>
+            <section class="panel empty-detail" id="emptyDetail" data-testid="empty-detail">
+              <p class="eyebrow">Ready</p>
+              <h2>Select a song</h2>
+              <p class="muted">Uploads, processing jobs, and completed songs stay in the list.</p>
+            </section>
+
+            <section class="panel processing-detail" id="processingDetail" data-testid="processing-detail" hidden>
+              <div class="progress-copy">
+                <span id="processingStatus">Processing</span>
+                <span id="processingPercent">0%</span>
               </div>
-            </div>
-
-            <div class="loop-grid">
-              <label>
-                <span>Loop start</span>
-                <input id="loopStart" data-testid="loop-start" type="number" min="0" step="0.1" value="0">
-              </label>
-              <label>
-                <span>Loop end</span>
-                <input id="loopEnd" data-testid="loop-end" type="number" min="0" step="0.1" value="4">
-              </label>
-              <label class="toggle">
-                <input id="loopEnabled" data-testid="loop-enabled" type="checkbox">
-                <span>Loop</span>
-              </label>
-            </div>
-          </section>
-
-          <section class="panel harmony-panel" aria-labelledby="harmonyTitle">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Learning cues</p>
-                <h2 id="harmonyTitle">Harmony</h2>
+              <div class="progress-track">
+                <div class="progress-bar" id="processingProgress"></div>
               </div>
-              <div class="key-badge" id="keyBadge" data-testid="key-badge">Key</div>
-            </div>
-            <div class="chord-list" id="chordList"></div>
+            </section>
+
+            <section class="panel empty-detail" id="readyDetail" data-testid="ready-detail" hidden>
+              <p class="eyebrow">Ready</p>
+              <h2>Open from the song row</h2>
+              <p class="muted">The processed song is ready and remains in the list.</p>
+            </section>
+
+            <section class="panel empty-detail failed-detail" id="failedDetail" data-testid="failed-detail" hidden>
+              <p class="eyebrow">Failed</p>
+              <h2>Processing failed</h2>
+              <p class="muted" id="failedMessage">The job could not be processed.</p>
+            </section>
+
+            <section class="practice-grid" id="practiceView" data-testid="practice-view" hidden>
+              <section class="panel player-panel" aria-labelledby="playerTitle">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Processed result</p>
+                    <h2 id="playerTitle">Stem practice mix</h2>
+                  </div>
+                  <div class="practice-status-group">
+                    <label class="status-control" for="learningStatus">
+                      <span>Learning status</span>
+                      <select id="learningStatus" data-testid="learning-status">
+                        <option value="not_started">Not started</option>
+                        <option value="practicing">Practicing</option>
+                        <option value="learned">Learned</option>
+                      </select>
+                    </label>
+                    <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
+                  </div>
+                </div>
+
+                <div id="stemDeck" class="stem-deck" aria-label="Processed stems"></div>
+
+                <div class="transport">
+                  <button type="button" id="playButton" class="play-button">Play</button>
+                  <input id="scrubber" type="range" min="0" max="16" step="0.1" value="0" aria-label="Playback position">
+                </div>
+
+                <div>
+                  <div class="control-row stem-heading">
+                    <span class="control-label">Stems</span>
+                  </div>
+                  <div id="stemMixer" class="stem-mixer" aria-label="Stem controls"></div>
+                </div>
+
+                <div class="control-row">
+                  <span class="control-label">Speed</span>
+                  <div class="segmented" id="speedControls" role="group" aria-label="Playback speed">
+                    <button type="button" data-speed="0.5" data-testid="speed-05">0.5x</button>
+                    <button type="button" data-speed="0.75" data-testid="speed-075">0.75x</button>
+                    <button type="button" data-speed="1" data-testid="speed-1" class="active">1x</button>
+                    <button type="button" data-speed="1.25" data-testid="speed-125">1.25x</button>
+                  </div>
+                </div>
+
+                <div class="loop-grid">
+                  <label>
+                    <span>Loop start</span>
+                    <input id="loopStart" data-testid="loop-start" type="number" min="0" step="0.1" value="0">
+                  </label>
+                  <label>
+                    <span>Loop end</span>
+                    <input id="loopEnd" data-testid="loop-end" type="number" min="0" step="0.1" value="4">
+                  </label>
+                  <label class="toggle">
+                    <input id="loopEnabled" data-testid="loop-enabled" type="checkbox">
+                    <span>Loop</span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="panel harmony-panel" aria-labelledby="harmonyTitle">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Learning cues</p>
+                    <h2 id="harmonyTitle">Harmony</h2>
+                  </div>
+                  <div class="key-badge" id="keyBadge" data-testid="key-badge">Key</div>
+                </div>
+                <div class="chord-list" id="chordList"></div>
+              </section>
+            </section>
           </section>
         </section>
       </section>

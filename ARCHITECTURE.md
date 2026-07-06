@@ -45,7 +45,7 @@ Local filesystem storage
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
-- `POST /api/jobs/:id/opened`: records that a completed processed song was intentionally opened in the practice view, powering the home view's five most recently opened songs.
+- `POST /api/jobs/:id/opened`: records that a completed processed song was intentionally opened in the practice view, powering recently-opened sorting inside the unified song list.
 - `PUT /api/jobs/:id/practice-state`: persists per-song learning status, stem mute/solo/volume state, playback speed, loop points, and last playback position.
 - `PUT /api/jobs/:id/rename`: renames a processed song for the local library.
 - `DELETE /api/jobs/:id`: deletes a processed song and its local files.
@@ -118,9 +118,9 @@ Cloud/object storage is deferred until remote demos or larger files require it.
 
 The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 2.
 
-## Planned Library UX Direction
+## Library UX
 
-The next frontend iteration should move from the current home/recent/all-songs split toward the Voice Memos-inspired song workspace documented in `UX_FLOOR_PLANS.md`.
+The frontend uses the Voice Memos-inspired song workspace documented in `UX_FLOOR_PLANS.md`.
 
 The backend API and storage model should remain the same. This is primarily a client layout and navigation change:
 

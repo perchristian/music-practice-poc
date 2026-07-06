@@ -4,10 +4,25 @@ const mediaInput = document.querySelector("#mediaInput");
 const fileLabel = document.querySelector("#fileLabel");
 const uploadButton = document.querySelector("#uploadButton");
 const homeView = document.querySelector("#homeView");
-const allSongsView = document.querySelector("#allSongsView");
 const practiceView = document.querySelector("#practiceView");
-const queuePanel = document.querySelector("#queuePanel");
-const queueList = document.querySelector("#queueList");
+const songList = document.querySelector("#songList");
+const songListEmpty = document.querySelector("#songListEmpty");
+const songSearch = document.querySelector("#songSearch");
+const selectedSongHeader = document.querySelector("#selectedSongHeader");
+const selectedSongEyebrow = document.querySelector("#selectedSongEyebrow");
+const selectedSongTitle = document.querySelector("#selectedSongTitle");
+const selectedSongMeta = document.querySelector("#selectedSongMeta");
+const selectedSongActions = document.querySelector("#selectedSongActions");
+const selectedRenameButton = document.querySelector("#selectedRenameButton");
+const selectedDeleteButton = document.querySelector("#selectedDeleteButton");
+const emptyDetail = document.querySelector("#emptyDetail");
+const processingDetail = document.querySelector("#processingDetail");
+const processingStatus = document.querySelector("#processingStatus");
+const processingPercent = document.querySelector("#processingPercent");
+const processingProgress = document.querySelector("#processingProgress");
+const readyDetail = document.querySelector("#readyDetail");
+const failedDetail = document.querySelector("#failedDetail");
+const failedMessage = document.querySelector("#failedMessage");
 const stemDeck = document.querySelector("#stemDeck");
 const stemMixer = document.querySelector("#stemMixer");
 const playButton = document.querySelector("#playButton");
@@ -19,14 +34,8 @@ const loopEnabled = document.querySelector("#loopEnabled");
 const timeReadout = document.querySelector("#timeReadout");
 const keyBadge = document.querySelector("#keyBadge");
 const chordList = document.querySelector("#chordList");
-const recentList = document.querySelector("#recentList");
-const recentEmpty = document.querySelector("#recentEmpty");
-const libraryList = document.querySelector("#libraryList");
-const libraryEmpty = document.querySelector("#libraryEmpty");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
-const allSongsButton = document.querySelector("#allSongsButton");
-const homeButton = document.querySelector("#homeButton");
 const backToHomeButton = document.querySelector("#backToHomeButton");
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -46,8 +55,8 @@ let transportFrame = null;
 let currentJob = null;
 let currentJobId = null;
 let persistTimer = null;
-let currentPreviewAudio = null;
-let practiceReturnView = "home";
+let selectedQueueLocalId = null;
+let selectedReadyJobId = null;
 const loadProcessedDemo =
   urlParams.get("demo") === "processed" ||
   urlParams.get("skipUpload") === "1";
@@ -65,27 +74,96 @@ function formatTime(seconds) {
   return `${minutes}:${wholeSeconds}`;
 }
 
-function showView(viewName) {
-  homeView.hidden = viewName !== "home";
-  allSongsView.hidden = viewName !== "allSongs";
-  practiceView.hidden = viewName !== "practice";
-
-  if (viewName !== "practice") {
-    pauseAll();
-  }
-}
-
-function setPracticeReturnView(viewName) {
-  practiceReturnView = viewName === "allSongs" ? "allSongs" : "home";
-  backToHomeButton.textContent = practiceReturnView === "allSongs" ? "Back to songs" : "Back to home";
-}
-
 function statusLabel(status) {
   return statusLabels[status] || "Not started";
 }
 
-function sortByDateField(fieldName) {
-  return (left, right) => new Date(right[fieldName] || 0) - new Date(left[fieldName] || 0);
+function formatActivityTime(value) {
+  if (!value) return "Now";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Now";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs >= 0 && diffMs < 60_000) return "Now";
+
+  const sameDay = date.toDateString() === now.toDateString();
+  const time = new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+  if (sameDay) return `Today ${time}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+  const dayMonth = new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short"
+  }).format(date);
+  if (date.getFullYear() === now.getFullYear()) return dayMonth;
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
+function jobDurationLabel(job) {
+  const chords = job?.result?.metadata?.chords || [];
+  const duration = Math.max(0, ...chords.map((chord) => Number(chord.end) || 0));
+  return duration > 0 ? formatTime(duration) : "--";
+}
+
+function queueStatusLabel(queueJob) {
+  if (queueJob.status === "queued") return "Queued";
+  if (queueJob.status === "processing") return "Processing stems";
+  if (queueJob.status === "complete") return "Ready";
+  if (queueJob.status === "failed") return "Failed";
+  return queueJob.status || "Processing";
+}
+
+function completedStatusLabel(entry) {
+  const learningStatus = entry.practiceState?.learningStatus || "not_started";
+  return learningStatus === "not_started" ? "Ready" : statusLabel(learningStatus);
+}
+
+function showDetailPane(paneName) {
+  emptyDetail.hidden = paneName !== "empty";
+  processingDetail.hidden = paneName !== "processing";
+  readyDetail.hidden = paneName !== "ready";
+  failedDetail.hidden = paneName !== "failed";
+  practiceView.hidden = paneName !== "practice";
+
+  if (paneName !== "practice") {
+    pauseAll();
+  }
+}
+
+function showSelectedHeader({ eyebrow, title, meta, actions = false }) {
+  selectedSongHeader.hidden = false;
+  selectedSongEyebrow.textContent = eyebrow;
+  selectedSongTitle.textContent = title;
+  selectedSongMeta.textContent = meta;
+  selectedSongActions.hidden = !actions;
+}
+
+function clearSelection() {
+  selectedQueueLocalId = null;
+  selectedReadyJobId = null;
+  currentJobId = null;
+  currentJob = null;
+  selectedSongHeader.hidden = true;
+  homeView.classList.remove("detail-open");
+  showDetailPane("empty");
+  renderSongList();
+}
+
+function openMobileDetail() {
+  homeView.classList.add("detail-open");
 }
 
 function setActiveSpeedButton() {
@@ -180,164 +258,113 @@ function applySavedPracticeState(job) {
   highlightCurrentChord();
 }
 
-function renderLibraryCard(entry, { compact = false, testPrefix = "library" } = {}) {
-  const card = document.createElement("article");
-  card.className = compact ? "library-card compact-card" : "library-card";
-  card.dataset.testid = `${testPrefix}-card-${entry.id}`;
+function songSearchValue() {
+  return (songSearch?.value || "").trim().toLowerCase();
+}
 
-  const header = document.createElement("div");
-  header.className = "library-card-header";
+function queueRowItem(queueJob) {
+  const active = !["complete", "failed"].includes(queueJob.status);
+  return {
+    type: active ? "active" : "failed",
+    key: queueJob.localId,
+    id: queueJob.jobId || queueJob.localId,
+    title: queueJob.filename,
+    activityAt: queueJob.updatedAt || queueJob.createdAt,
+    status: queueStatusLabel(queueJob),
+    duration: "--",
+    progress: queueJob.progress,
+    queueJob
+  };
+}
 
-  const titleGroup = document.createElement("div");
-  const title = document.createElement("h3");
-  title.textContent = entry.originalFilename;
-  const meta = document.createElement("p");
-  meta.className = "library-meta muted";
-  meta.textContent = entry.lastOpenedAt
-    ? `Opened ${new Date(entry.lastOpenedAt).toLocaleString()}`
-    : `Updated ${new Date(entry.updatedAt).toLocaleString()}`;
-  titleGroup.append(title, meta);
+function completedRowItem(entry) {
+  return {
+    type: "complete",
+    key: entry.id,
+    id: entry.id,
+    title: entry.originalFilename,
+    activityAt: entry.lastOpenedAt || entry.updatedAt || entry.createdAt,
+    status: completedStatusLabel(entry),
+    duration: jobDurationLabel(entry),
+    entry
+  };
+}
 
-  const state = document.createElement("span");
-  const learningStatus = entry.practiceState?.learningStatus || "not_started";
-  state.className = `learning-chip ${learningStatus}`;
-  state.textContent = statusLabel(learningStatus);
-  state.dataset.testid = `${testPrefix}-status-${entry.id}`;
-  header.append(titleGroup, state);
+function orderedSongItems() {
+  const query = songSearchValue();
+  const queueItems = [...queueJobs.values()].map(queueRowItem);
+  const completedItems = libraryEntries
+    .filter((entry) => activeLibraryFilter === "all" || (entry.practiceState?.learningStatus || "not_started") === activeLibraryFilter)
+    .map(completedRowItem);
 
-  const actions = document.createElement("div");
-  actions.className = "library-actions";
+  return [...queueItems, ...completedItems]
+    .filter((item) => !query || item.title.toLowerCase().includes(query))
+    .sort((left, right) => {
+      const rank = { active: 0, complete: 1, failed: 2 };
+      const rankDiff = rank[left.type] - rank[right.type];
+      if (rankDiff !== 0) return rankDiff;
 
-  const openButton = document.createElement("button");
-  openButton.type = "button";
-  openButton.textContent = "Open";
-  openButton.dataset.testid = `${testPrefix}-open-${entry.id}`;
-  openButton.addEventListener("click", () => {
-    const returnView = allSongsView.hidden ? "home" : "allSongs";
-    void loadJob(entry.id, { markOpened: true, returnView });
-  });
-  actions.append(openButton);
-
-  let previewAudio = null;
-
-  if (!compact) {
-    previewAudio = document.createElement("audio");
-    previewAudio.controls = true;
-    previewAudio.preload = "metadata";
-    previewAudio.hidden = true;
-    previewAudio.dataset.testid = `${testPrefix}-preview-audio-${entry.id}`;
-    previewAudio.src = entry.result?.stems?.[0]?.audioUrl || entry.result?.audioUrl || "";
-
-    const previewButton = document.createElement("button");
-    previewButton.type = "button";
-    previewButton.textContent = "Preview";
-    previewButton.dataset.testid = `${testPrefix}-preview-${entry.id}`;
-    previewButton.addEventListener("click", () => {
-      if (currentPreviewAudio && currentPreviewAudio !== previewAudio) {
-        currentPreviewAudio.pause();
-        currentPreviewAudio.hidden = true;
-      }
-      const nextHidden = !previewAudio.hidden;
-      previewAudio.hidden = nextHidden;
-      previewButton.textContent = nextHidden ? "Preview" : "Hide preview";
-      currentPreviewAudio = nextHidden ? null : previewAudio;
-    });
-
-    const renameButton = document.createElement("button");
-    renameButton.type = "button";
-    renameButton.textContent = "Rename";
-    renameButton.dataset.testid = `${testPrefix}-rename-${entry.id}`;
-    renameButton.addEventListener("click", async () => {
-      const nextName = window.prompt("Rename processed song", entry.originalFilename);
-      if (!nextName) return;
-      const response = await fetch(`/api/jobs/${entry.id}/rename`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ originalFilename: nextName })
-      });
-      if (response.ok) {
-        await loadLibrary();
-      }
-    });
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
-    deleteButton.dataset.testid = `${testPrefix}-delete-${entry.id}`;
-    deleteButton.addEventListener("click", async () => {
-      if (!window.confirm(`Delete ${entry.originalFilename}?`)) return;
-      const response = await fetch(`/api/jobs/${entry.id}`, { method: "DELETE" });
-      if (response.ok) {
-        await loadLibrary();
-        if (currentJobId === entry.id) {
-          currentJobId = null;
-          currentJob = null;
-          if (!practiceView.hidden) {
-            showView("home");
-          }
+      if (left.type === "complete" && right.type === "complete") {
+        if (left.entry.lastOpenedAt && right.entry.lastOpenedAt) {
+          return new Date(right.entry.lastOpenedAt) - new Date(left.entry.lastOpenedAt);
         }
+        if (left.entry.lastOpenedAt) return -1;
+        if (right.entry.lastOpenedAt) return 1;
       }
+
+      return new Date(right.activityAt || 0) - new Date(left.activityAt || 0);
     });
+}
 
-    actions.append(previewButton, renameButton, deleteButton);
-  }
+function renderSongRow(item) {
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = `song-row ${item.type}`;
+  row.dataset.testid = `song-row-${item.id}`;
+  row.classList.toggle("selected", item.id === currentJobId || item.key === selectedQueueLocalId || item.id === selectedReadyJobId);
 
-  card.append(header, actions);
-  if (previewAudio) {
-    card.append(previewAudio);
+  const art = document.createElement("span");
+  art.className = "song-art";
+  art.textContent = item.title.slice(0, 1).toUpperCase();
+
+  const copy = document.createElement("span");
+  copy.className = "song-row-copy";
+  const title = document.createElement("span");
+  title.className = "song-row-title";
+  title.textContent = item.title;
+  const meta = document.createElement("span");
+  meta.className = "song-row-meta";
+  meta.textContent = `${formatActivityTime(item.activityAt)} - ${item.status}`;
+  copy.append(title, meta);
+
+  const side = document.createElement("span");
+  side.className = "song-row-side";
+  side.textContent = item.type === "active" ? `${item.progress}%` : item.duration;
+
+  row.append(art, copy, side);
+  row.addEventListener("click", () => {
+    if (item.type === "complete") {
+      void loadJob(item.id, { markOpened: true });
+      return;
+    }
+    selectQueueJob(item.queueJob);
+  });
+
+  return row;
+}
+
+function renderSongList() {
+  const items = orderedSongItems();
+  songList.replaceChildren(...items.map(renderSongRow));
+  songListEmpty.hidden = items.length > 0;
+  if (!items.length) {
+    songListEmpty.textContent = songSearchValue() ? "No songs match this search." : "Add a screen recording to start.";
   }
-  return card;
 }
 
 function renderLibraryEntries(entries) {
-  if (currentPreviewAudio) {
-    currentPreviewAudio.pause();
-    currentPreviewAudio = null;
-  }
-
   libraryEntries = entries;
-  renderRecentEntries(entries);
-  renderAllSongsEntries(entries);
-}
-
-function renderRecentEntries(entries) {
-  const recentEntries = entries
-    .filter((entry) => entry.lastOpenedAt)
-    .sort(sortByDateField("lastOpenedAt"))
-    .slice(0, 5);
-
-  recentList.replaceChildren();
-  recentEmpty.textContent = "Open a processed song to pin it here.";
-
-  if (!recentEntries.length) {
-    recentEmpty.hidden = false;
-    return;
-  }
-
-  recentEmpty.hidden = true;
-  recentList.replaceChildren(
-    ...recentEntries.map((entry) => renderLibraryCard(entry, { compact: true, testPrefix: "recent" }))
-  );
-}
-
-function renderAllSongsEntries(entries) {
-  libraryList.replaceChildren();
-  libraryEmpty.textContent = "No completed songs yet.";
-
-  const filteredEntries = activeLibraryFilter === "all"
-    ? entries
-    : entries.filter((entry) => (entry.practiceState?.learningStatus || "not_started") === activeLibraryFilter);
-
-  if (!filteredEntries.length) {
-    libraryEmpty.hidden = false;
-    libraryEmpty.textContent = entries.length
-      ? "No songs match this filter."
-      : "No completed songs yet.";
-    return;
-  }
-
-  libraryEmpty.hidden = true;
-  libraryList.replaceChildren(...filteredEntries.map((entry) => renderLibraryCard(entry)));
+  renderSongList();
 }
 
 async function loadLibrary() {
@@ -351,21 +378,14 @@ async function loadLibrary() {
     renderLibraryEntries(entries);
   } catch (error) {
     console.error(error);
-    libraryList.replaceChildren();
-    recentList.replaceChildren();
-    libraryEmpty.hidden = false;
-    recentEmpty.hidden = false;
-    libraryEmpty.textContent = error.message || "Could not load the processed song library.";
-    recentEmpty.textContent = error.message || "Could not load the processed song library.";
+    libraryEntries = [];
+    songList.replaceChildren();
+    songListEmpty.hidden = false;
+    songListEmpty.textContent = error.message || "Could not load the processed song library.";
   }
 }
 
-async function loadJob(jobId, { markOpened = false, returnView = "home" } = {}) {
-  if (currentPreviewAudio) {
-    currentPreviewAudio.pause();
-    currentPreviewAudio = null;
-  }
-  setPracticeReturnView(returnView);
+async function loadJob(jobId, { markOpened = false } = {}) {
   const response = await fetch(markOpened ? `/api/jobs/${jobId}/opened` : `/api/jobs/${jobId}`, {
     method: markOpened ? "POST" : "GET"
   });
@@ -373,6 +393,8 @@ async function loadJob(jobId, { markOpened = false, returnView = "home" } = {}) 
   const job = await response.json();
   currentJob = job;
   currentJobId = job.id;
+  selectedQueueLocalId = null;
+  selectedReadyJobId = null;
   renderCompletedJob(job);
   await loadLibrary();
 }
@@ -380,16 +402,26 @@ async function loadJob(jobId, { markOpened = false, returnView = "home" } = {}) 
 function renderCompletedJob(job) {
   currentJob = job;
   currentJobId = job.id;
+  selectedQueueLocalId = null;
+  selectedReadyJobId = null;
   const stems = job.result.stems?.length
     ? job.result.stems
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
+  showSelectedHeader({
+    eyebrow: "Ready",
+    title: job.originalFilename,
+    meta: `${formatActivityTime(job.lastOpenedAt || job.updatedAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    actions: true
+  });
   renderStemPlayers(stems);
   renderMetadata(job.result.metadata);
   applySavedPracticeState(job);
-  showView("practice");
+  showDetailPane("practice");
+  openMobileDetail();
   if (learningStatusSelect) {
     learningStatusSelect.value = job.practiceState?.learningStatus || "not_started";
   }
+  renderSongList();
 }
 
 function renderMetadata(metadata) {
@@ -718,60 +750,13 @@ function renderStemPlayers(stems) {
   }
 }
 
-function updateQueuePanelVisibility() {
-  queuePanel.hidden = queueJobs.size === 0;
-}
-
-function renderQueueJob(queueJob) {
-  const row = document.createElement("article");
-  row.className = "queue-card";
-  row.dataset.testid = `queue-card-${queueJob.localId}`;
-
-  const copy = document.createElement("div");
-  copy.className = "queue-copy";
-
-  const title = document.createElement("h3");
-  title.textContent = queueJob.filename;
-
-  const status = document.createElement("p");
-  status.className = "muted";
-  status.dataset.testid = `queue-status-${queueJob.localId}`;
-  status.textContent = queueJob.status;
-  copy.append(title, status);
-
-  const percent = document.createElement("span");
-  percent.className = "queue-percent";
-  percent.dataset.testid = `queue-percent-${queueJob.localId}`;
-  percent.textContent = `${queueJob.progress}%`;
-
-  const progressTrack = document.createElement("div");
-  progressTrack.className = "progress-track";
-  const progressBar = document.createElement("div");
-  progressBar.className = "progress-bar";
-  progressBar.style.width = `${queueJob.progress}%`;
-  progressBar.dataset.testid = `queue-progress-${queueJob.localId}`;
-  progressTrack.append(progressBar);
-
-  row.append(copy, percent, progressTrack);
-  queueJob.row = row;
-  queueJob.statusElement = status;
-  queueJob.percentElement = percent;
-  queueJob.progressElement = progressBar;
-  queueList.prepend(row);
-  updateQueuePanelVisibility();
-}
-
 function updateQueueJob(queueJob, job) {
   queueJob.status = job.status;
   queueJob.progress = job.progress;
-  if (queueJob.statusElement) {
-    queueJob.statusElement.textContent = job.status;
-  }
-  if (queueJob.percentElement) {
-    queueJob.percentElement.textContent = `${job.progress}%`;
-  }
-  if (queueJob.progressElement) {
-    queueJob.progressElement.style.width = `${job.progress}%`;
+  queueJob.updatedAt = new Date().toISOString();
+  renderSongList();
+  if (selectedQueueLocalId === queueJob.localId) {
+    renderProcessingJob(queueJob);
   }
 }
 
@@ -779,9 +764,52 @@ function removeQueueJob(localId) {
   const queueJob = queueJobs.get(localId);
   if (!queueJob) return;
   window.clearInterval(queueJob.timer);
-  queueJob.row?.remove();
   queueJobs.delete(localId);
-  updateQueuePanelVisibility();
+  renderSongList();
+}
+
+function selectQueueJob(queueJob) {
+  selectedQueueLocalId = queueJob.localId;
+  selectedReadyJobId = null;
+  currentJobId = null;
+  currentJob = null;
+  openMobileDetail();
+  renderProcessingJob(queueJob);
+  renderSongList();
+}
+
+function renderProcessingJob(queueJob) {
+  showSelectedHeader({
+    eyebrow: queueJob.status === "failed" ? "Failed" : "Processing",
+    title: queueJob.filename,
+    meta: `${formatActivityTime(queueJob.updatedAt || queueJob.createdAt)} - ${queueStatusLabel(queueJob)}`,
+    actions: false
+  });
+
+  if (queueJob.status === "failed") {
+    failedMessage.textContent = queueJob.error || "The job could not be processed.";
+    showDetailPane("failed");
+    return;
+  }
+
+  processingStatus.textContent = queueStatusLabel(queueJob);
+  processingPercent.textContent = `${queueJob.progress}%`;
+  processingProgress.style.width = `${queueJob.progress}%`;
+  showDetailPane("processing");
+}
+
+function renderReadyJob(job) {
+  selectedQueueLocalId = null;
+  selectedReadyJobId = job.id;
+  showSelectedHeader({
+    eyebrow: "Ready",
+    title: job.originalFilename,
+    meta: `${formatActivityTime(job.updatedAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    actions: true
+  });
+  showDetailPane("ready");
+  openMobileDetail();
+  renderSongList();
 }
 
 async function pollQueueJob(localId) {
@@ -791,17 +819,25 @@ async function pollQueueJob(localId) {
   const response = await fetch(`/api/jobs/${queueJob.jobId}`);
   if (!response.ok) throw new Error("Could not fetch job status.");
   const job = await response.json();
-  updateQueueJob(queueJob, job);
 
   if (job.status === "complete") {
+    const wasSelected = selectedQueueLocalId === localId;
     removeQueueJob(localId);
     await loadLibrary();
+    if (wasSelected) {
+      renderReadyJob(job);
+    }
+    return;
   }
 
   if (job.status === "failed") {
     window.clearInterval(queueJob.timer);
+    queueJob.error = job.error || "Processing failed.";
     updateQueueJob(queueJob, job);
+    return;
   }
+
+  updateQueueJob(queueJob, job);
 }
 
 async function createJob(file) {
@@ -857,7 +893,6 @@ async function checkHealth() {
 
 async function showProcessedDemo() {
   pauseAll();
-  setPracticeReturnView("home");
   uploadButton.disabled = true;
   uploadButton.textContent = "Demo loaded";
   fileLabel.textContent = "Processed demo";
@@ -872,7 +907,7 @@ async function showProcessedDemo() {
   renderCompletedJob(job);
   await loadLibrary();
   uploadButton.disabled = false;
-  uploadButton.textContent = "Add to processing queue";
+  uploadButton.textContent = "Upload";
 }
 
 mediaInput.addEventListener("change", () => {
@@ -902,10 +937,13 @@ uploadForm.addEventListener("submit", async (event) => {
       status: pipelineMode === "mock" ? "simulating upload" : "uploading",
       progress: 3,
       timer: null,
-      jobId: null
+      jobId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      error: null
     };
     queueJobs.set(localId, queueJob);
-    renderQueueJob(queueJob);
+    renderSongList();
 
     try {
       const job = await createJob(file);
@@ -922,15 +960,16 @@ uploadForm.addEventListener("submit", async (event) => {
       }, 500);
       await pollQueueJob(localId);
     } catch (error) {
-      updateQueueJob(queueJob, { status: error.message, progress: queueJob.progress });
+      queueJob.error = error.message;
+      updateQueueJob(queueJob, { status: "failed", progress: queueJob.progress });
     }
   }
 
   mediaInput.value = "";
   fileLabel.textContent = "Select screen recordings";
   uploadButton.disabled = false;
-  uploadButton.textContent = "Add to processing queue";
-  showView("home");
+  uploadButton.textContent = "Upload";
+  homeView.classList.remove("detail-open");
 });
 
 playButton.addEventListener("click", () => {
@@ -990,18 +1029,9 @@ if (learningStatusSelect) {
   learningStatusSelect.addEventListener("change", () => queuePracticeStatePersist(true));
 }
 
-allSongsButton.addEventListener("click", () => {
-  renderAllSongsEntries(libraryEntries);
-  showView("allSongs");
-});
-
-homeButton.addEventListener("click", () => {
-  showView("home");
-});
-
 backToHomeButton.addEventListener("click", async () => {
   await loadLibrary();
-  showView(practiceReturnView);
+  homeView.classList.remove("detail-open");
 });
 
 libraryFilters.addEventListener("click", (event) => {
@@ -1012,7 +1042,49 @@ libraryFilters.addEventListener("click", (event) => {
   for (const filterButton of libraryFilters.querySelectorAll("button[data-filter]")) {
     filterButton.classList.toggle("active", filterButton === button);
   }
-  renderAllSongsEntries(libraryEntries);
+  renderSongList();
+});
+
+songSearch.addEventListener("input", () => {
+  renderSongList();
+});
+
+selectedRenameButton.addEventListener("click", async () => {
+  const jobId = currentJobId || selectedReadyJobId;
+  const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
+  if (!jobId || !entry) return;
+
+  const nextName = window.prompt("Rename processed song", entry.originalFilename);
+  if (!nextName) return;
+  const response = await fetch(`/api/jobs/${jobId}/rename`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ originalFilename: nextName })
+  });
+  if (!response.ok) return;
+
+  const renamed = await response.json();
+  if (currentJobId === jobId) {
+    currentJob = renamed;
+    selectedSongTitle.textContent = renamed.originalFilename;
+  }
+  if (selectedReadyJobId === jobId) {
+    selectedSongTitle.textContent = renamed.originalFilename;
+  }
+  await loadLibrary();
+});
+
+selectedDeleteButton.addEventListener("click", async () => {
+  const jobId = currentJobId || selectedReadyJobId;
+  const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
+  if (!jobId || !entry) return;
+  if (!window.confirm(`Delete ${entry.originalFilename}?`)) return;
+
+  const response = await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
+  if (!response.ok) return;
+
+  await loadLibrary();
+  clearSelection();
 });
 
 async function boot() {
@@ -1025,7 +1097,7 @@ async function boot() {
   } catch (error) {
     console.error(error);
     uploadButton.disabled = false;
-    uploadButton.textContent = "Add to processing queue";
+    uploadButton.textContent = "Upload";
   }
 }
 

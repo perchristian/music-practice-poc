@@ -144,7 +144,7 @@ Verification:
 - Run `npm test`.
 - Run `npm run test:gui`.
 
-Status: Planned next.
+Status: Complete in mock mode. `npm test` and `npm run test:gui` pass as of 2026-07-06.
 
 ## Phase 2: Problem Areas and Practice Notes
 
@@ -238,6 +238,38 @@ Verification:
 
 Status: Deferred until entry criteria are met.
 
+## Process Task: On-Demand Context Overhead Audit
+
+Goal: Determine whether repeated context reconstruction is costly enough to justify a dedicated context agent or stronger startup protocol.
+
+Trigger:
+- Only start logging when explicitly requested by a human.
+- Do not log context overhead continuously during normal implementation.
+
+Logging window:
+- Capture at least three consecutive Codex sessions or implementation iterations after logging is enabled.
+- Keep notes short enough that the logging itself does not become the overhead being measured.
+
+For each logged session, record:
+- Task attempted.
+- Files read before the first implementation or concrete review action.
+- Whether the session reconstructed already-known architecture, decisions, or current state.
+- Whether documentation gaps caused extra context work.
+- Context overhead rating: `low`, `medium`, or `high`.
+
+Audit threshold:
+- Recommend a dedicated context agent only if at least three consecutive logged sessions show repeated medium/high context reconstruction around the same project state, decisions, or file map.
+
+Verification:
+- Produce a short context overhead review with evidence from the logged sessions.
+- Recommend one of:
+  - no change
+  - lighter startup protocol
+  - improved project docs
+  - dedicated context agent
+
+Status: Planned. Logging is off until explicitly requested.
+
 ## Next Task
 
-Implement Phase 1B: unified song workspace UX from `UX_FLOOR_PLANS.md`, before starting Phase 2 problem areas / practice notes.
+Implement Phase 2: problem areas and practice notes.

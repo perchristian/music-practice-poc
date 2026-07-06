@@ -14,7 +14,7 @@ PIPELINE_MODE=mock
 
 Mock mode does not perform real stem separation or transcription. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, it returns piano and accompaniment stems from those files so piano mute/unmute can be evaluated by ear. If those files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems plus plausible harmonic metadata.
 
-In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
+In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, multi-file selection, per-file queue progress, job completion without automatically opening practice, recent and all-songs library reopening, status filtering, preview before opening the full practice view, rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -70,22 +70,22 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 
 1. Open the local web app.
 2. Choose one or more screen recordings or small media files.
-3. Add them to the processing queue.
-4. Confirm each file has its own queue row and progress bar.
-5. Wait for mock processing to complete and confirm the app remains on home.
-6. Open All songs and confirm the completed songs appear there without a `complete` badge.
-7. Use Preview on a library item without opening the full practice view.
-8. Open the library item and play the stem mix.
-9. Use Back to songs and confirm the app returns to the All songs list, then open the item again.
-10. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
-11. Mute the piano stem so the non-piano backing remains while the piano drops out.
-12. Solo the piano stem and confirm other stems drop out.
-13. Confirm mute and solo cannot remain active at the same time on the piano stem.
-14. Change playback speed, stem volume, loop start/end, loop enabled state, and learning status.
-15. Return to home and confirm the song appears in Recently opened songs.
-16. Reload the page, reopen the song from recent or All songs, and confirm those practice settings return.
-17. Rename the processed song.
-18. Delete the processed song and confirm it disappears from All songs and no longer opens.
+3. Upload them from the song list.
+4. Confirm each file appears immediately in the same song list with inline status/progress.
+5. Wait for mock processing to complete and confirm the app does not auto-open practice.
+6. Confirm completed songs remain in the same list with human-readable activity time and duration.
+7. Select a completed song by clicking the whole row.
+8. On desktop, confirm the song list stays visible on the left while practice opens on the right.
+9. On mobile, confirm the list opens first, then the selected song/practice detail, and the Songs button returns to the list.
+10. Play the stem mix.
+11. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
+12. Mute the piano stem so the non-piano backing remains while the piano drops out.
+13. Solo the piano stem and confirm other stems drop out.
+14. Confirm mute and solo cannot remain active at the same time on the piano stem.
+15. Change playback speed, stem volume, loop start/end, loop enabled state, and learning status.
+16. Reload the page, reopen the song from the unified song list, and confirm those practice settings return.
+17. Rename the selected song from the selected-song header.
+18. Delete the selected song and confirm it disappears from the song list and no longer opens.
 19. Inspect detected key, chord names, and roman numerals.
 
 ## Fast Iteration Steps

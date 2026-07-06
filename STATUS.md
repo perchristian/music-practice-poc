@@ -2,11 +2,13 @@
 
 ## Current Status
 
-The first mock-mode vertical slice and Phase 1 processed-song library are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, queue one or more media files for mock processing, stay on home while jobs complete, reopen the five most recently opened processed songs, browse All songs, preview and reopen songs without reprocessing, rename/delete them, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems.
+The first mock-mode vertical slice, Phase 1 processed-song library, and Phase 1B unified song workspace UX are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems.
 
-Phase 0 and Phase 1 are complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
+Phase 0, Phase 1, and Phase 1B are complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
 
-The next planned frontend iteration is Phase 1B: replace the current home/recent/all-songs navigation shape with the Voice Memos-inspired unified song workspace described in `UX_FLOOR_PLANS.md`. This has been planned and documented, but not implemented yet.
+The next planned frontend iteration is Phase 2: problem areas and practice notes.
+
+A process task for on-demand context overhead auditing is documented in `TASKS.md`. Context-overhead logging is off by default and should only be enabled after an explicit human request.
 
 ## Current Architecture
 
@@ -18,10 +20,11 @@ Local web POC:
 - `PIPELINE_MODE=mock` by default
 - processed results represented as stems, with piano as the primary practice target
 - completed jobs exposed as a reusable processed-song library
-- home view shows upload queue plus five most recently opened processed songs
+- unified workspace shows active uploads, processing jobs, failed jobs, and completed songs in one primary song list
 - per-song practice state stored in local `job.json`
 - future `PIPELINE_MODE=real` behind the same pipeline boundary
-- planned library UX direction: unified status-first song list with desktop split view and mobile list-first stack
+- desktop/wide tablet uses a split view with song list on the left and selected detail/practice on the right
+- mobile uses a list-first stack with a back button from detail/practice to the same song list
 
 ## Completed Work
 
@@ -96,6 +99,15 @@ Local web POC:
 - Refined `VISION.md` validation criteria into an OKR-style objective with key results for learning speed, perceived value, motivation, empowerment, transfer learning, error tolerance, return intent, and adoption threshold.
 - Added `UX_FLOOR_PLANS.md` with three floor plans for a Voice Memos-inspired unified song workspace.
 - Documented the unified song workspace direction in `ARCHITECTURE.md`, `TASKS.md`, and `DECISIONS.md`.
+- Implemented Phase 1B unified song workspace UX:
+  - Replaced separate home, Recent, All songs, and practice destinations with one primary song workspace.
+  - Added a status-first song list containing active uploads, processing jobs, failed jobs, and completed songs.
+  - Added desktop split view with the song list on the left and selected detail/practice on the right.
+  - Added mobile list-first stack with a back button from selected detail/practice to the list.
+  - Made full song rows select/open songs.
+  - Moved rename/delete to the selected-song header.
+  - Kept completed uploads from auto-opening after processing.
+  - Preserved saved practice state, learning status, stem controls, speed, loop, and harmonic cue behavior.
 
 ## In Progress
 
@@ -103,7 +115,9 @@ Local web POC:
 
 ## Next Recommended Task
 
-Implement Phase 1B: unified song workspace UX from `UX_FLOOR_PLANS.md`, then continue to Phase 2 problem areas and practice notes.
+Implement Phase 2: problem areas and practice notes.
+
+Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
 ## Skills Used
 
@@ -121,6 +135,10 @@ No Codex skills used.
 
 ## Verification Log
 
+- `node --check public/app.js`: passed after Phase 1B unified workspace changes.
+- `node --check tests/gui.spec.js`: passed after Phase 1B GUI coverage updates.
+- `npm test`: passed on 2026-07-06 with 3 backend tests covering mock job creation, processed demo shortcut, processed-song library/practice-state persistence, rename, reopen, and delete.
+- `npm run test:gui`: passed on 2026-07-06 with 6 Playwright tests covering mock upload-to-practice, processed demo shortcut, persisted practice state, multi-file unified queue/list behavior, learning-status filters, header rename/delete, full-row selection, and mobile list-first navigation.
 - Documentation-only UX planning update on 2026-07-06; no code verification run.
 - `node --check server.js`: passed after home/queue/library flow changes.
 - Documentation-only validation criteria update in `VISION.md`; no code verification run.
