@@ -362,6 +362,40 @@ Result:
 
 Status: Complete for technical spike on 2026-07-06. Human listening on generated and real screen-recorded material remains required before treating the separation as product-useful.
 
+## Phase 2G-QA: Stem Separation Bakeoff
+
+Goal: Compare a high-quality manual Logic Pro baseline, the current FFmpeg spectral split, and a local Demucs `htdemucs_6s` run on the same real screen recording before changing the real pipeline.
+
+Reason:
+- The Phase 2G listening result showed the FFmpeg spectral split sounds like EQ, not useful AI source separation.
+- The next implementation decision should be based on listening to comparable outputs in the actual practice UI.
+- Logic Pro can provide a local quality baseline, while Demucs can test whether an automatable local model is good enough for the POC.
+
+Deliverables:
+- Use `test-media/MakeYouFeelMyLovePart2.mov` as the source clip.
+- Use `test-media/stems from logic/` as the manual Logic baseline.
+- Add a script that creates processed-song library entries for each method.
+- Include at minimum:
+  - `MakeYouFeelMyLovePart2 - Logic baseline`
+  - `MakeYouFeelMyLovePart2 - FFmpeg spectral`
+  - `MakeYouFeelMyLovePart2 - Demucs htdemucs_6s`
+- Keep these as QA artifacts; do not make Demucs a default dependency for mock mode.
+
+Verification:
+- Run `npm run bakeoff:stems`.
+- After Demucs is installed, run `TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs npm run bakeoff:stems -- --demucs`.
+- Open each processed song in the app and listen with piano muted, piano soloed, and full mix active.
+- Score each method for piano removal, accompaniment usefulness, piano recognizability, bleed/artifacts, and runtime.
+- Choose the next implementation path based on listening, not automated test success.
+
+Result:
+- `scripts/build-stem-bakeoff.js` creates the Logic baseline and FFmpeg spectral comparison jobs.
+- With local `.venv-real` Demucs dependencies and `.cache/torch` model cache, the same script creates the Demucs `htdemucs_6s` comparison job.
+- Current created job ids are documented in `STATUS.md`.
+- Stem URL probes returned HTTP 200 for representative Logic, FFmpeg, and Demucs stems.
+
+Status: Ready for human listening on 2026-07-06. Do not start Phase 2H until this QA pass is scored or intentionally skipped.
+
 ## Phase 2H: First Real Audio Analysis Spike
 
 Goal: Replace mocked harmonic metadata with approximate whole-song harmonic cues derived from the extracted audio and, when available, separated stems.
@@ -405,7 +439,7 @@ Verification:
 - Confirm the metadata records whether bass, piano, accompaniment, and full mix were used as evidence.
 - Document accuracy, failure modes, dependency/install cost, and processing time.
 
-Status: Planned after Phase 2G unless stem separation is intentionally deferred.
+Status: Planned after Phase 2G-QA unless stem separation is intentionally deferred.
 
 ## Phase 3: Problem Areas and Practice Notes
 
@@ -514,4 +548,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Start Phase 2H: first real audio/harmonic analysis. Use the Phase 2G outputs only after a human listening pass confirms whether `source-audio.wav`, `stems/piano.wav`, or `stems/accompaniment.wav` is the most useful analysis input.
+Start Phase 2G-QA listening: compare the Logic baseline, FFmpeg spectral, and Demucs `htdemucs_6s` jobs in the app. Start Phase 2H only after a human listening pass confirms whether any separated source is useful enough, or after deciding to analyze `source-audio.wav` before improving separation.

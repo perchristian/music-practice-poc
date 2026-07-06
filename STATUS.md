@@ -6,7 +6,7 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 
 Phase 0, Phase 1, Phase 1B, and Phase 2A through Phase 2G are complete for automated verification. Subjective audio usefulness, especially whether the Phase 2G accompaniment removes enough piano without damaging the backing track, still needs a human listening pass before external user testing.
 
-The next planned iteration is Phase 2H: first real audio/harmonic analysis. The separator remains a lightweight FFmpeg spectral split, not a final ML stem-separation choice.
+The next planned iteration is Phase 2G-QA: manually score Logic, FFmpeg, and Demucs separation quality before implementing a stronger separator as the default real pipeline. The separator remains a lightweight FFmpeg spectral split in app real mode; the bakeoff jobs are local QA artifacts, not a production pipeline decision.
 
 Phase 2A spike frame:
 
@@ -15,6 +15,12 @@ Phase 2A spike frame:
 - Copyright/source status: generated in-repo from synthesized sine-wave chord tones; no third-party recording or composition is bundled.
 - Exact real-mode output asset: `source-audio.wav` stored inside each real-mode job directory.
 - Real-mode upload/extraction/separation contract: `PIPELINE_MODE=real` accepts multipart media through `POST /api/jobs`, stores the uploaded source as `source.<original extension>` inside the job directory, runs FFmpeg extraction to `source-audio.wav`, runs `ffmpeg-spectral-piano-v1` to write `stems/piano.wav` and `stems/accompaniment.wav`, returns a completed practice-compatible result when processing succeeds, and persists API-visible failures in `job.json` when FFmpeg or the separator fails.
+- Stem bakeoff fixture: `test-media/MakeYouFeelMyLovePart2.mov` with manual Logic Pro stems under `test-media/stems from logic/`.
+- Stem bakeoff command: `npm run bakeoff:stems` imports the Logic baseline and creates the FFmpeg spectral comparison job; `TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs npm run bakeoff:stems -- --demucs` also creates the Demucs `htdemucs_6s` comparison job.
+- Current bakeoff library entries:
+  - `MakeYouFeelMyLovePart2 - Logic baseline`, job `bb66948a-c060-4898-b879-320eb4c83a0c`, stems `drums`, `bass`, `guitar`, `piano`, `vocals`, `other`
+  - `MakeYouFeelMyLovePart2 - FFmpeg spectral`, job `aee1bb76-cf09-462b-aed5-50ca602f443c`, stems `piano`, `accompaniment`
+  - `MakeYouFeelMyLovePart2 - Demucs htdemucs_6s`, job `dee5b7c9-aadf-4ff2-9525-2c52cc04c713`, stems `drums`, `bass`, `guitar`, `piano`, `vocals`, `other`
 - Success metrics for the first real-mode extraction spike:
   - processing either completes or fails with a clear API-visible error
   - extracted `source-audio.wav` is playable in the browser
@@ -172,7 +178,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Start Phase 2H for first real audio/harmonic analysis, using either `source-audio.wav`, `stems/piano.wav`, or `stems/accompaniment.wav` from Phase 2G depending on which source proves useful by listening. Defer Phase 3 practice notes until the pipeline risk has been reduced or intentionally set aside.
+Score the Phase 2G-QA stem bakeoff entries by listening in the app before starting Phase 2H. If Demucs or Logic-level output is clearly useful for piano play-along practice, make the next implementation task a real separator interface/default replacement. If none of the alternatives sound useful, pause for human review before investing in harmonic analysis.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
@@ -196,6 +202,12 @@ Optional process task: enable the on-demand context overhead audit only when exp
 ## Verification Log
 
 - `npm run generate:test-media`: generated both `test-media/phase-2a-source.wav` and `test-media/phase-2g-piano-mix.wav` after adding the Phase 2G synthetic piano/accompaniment sample.
+- `npm run bakeoff:stems`: created/updated Logic baseline and FFmpeg spectral bakeoff jobs for `test-media/MakeYouFeelMyLovePart2.mov`.
+- `.venv-real/bin/python -m pip install demucs`: installed Demucs 4.0.1 plus Torch/Torchaudio in local `.venv-real` after network approval.
+- Demucs first run downloaded `htdemucs_6s` model weights to `.cache/torch`; initial WAV saving failed until `torchcodec` was installed.
+- `.venv-real/bin/python -m pip install torchcodec`: installed TorchCodec 0.14.0 in local `.venv-real`.
+- `TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs npm run bakeoff:stems -- --demucs`: created/updated the Demucs `htdemucs_6s` bakeoff job for `test-media/MakeYouFeelMyLovePart2.mov`.
+- Stem URL probes against `http://127.0.0.1:3002` returned HTTP 200 for Logic piano, FFmpeg accompaniment, Demucs piano, and Demucs bass stems.
 - `node --check server.js`: passed after Phase 2G real-mode FFmpeg spectral separator changes.
 - `node --check scripts/generate-phase2a-test-media.js`: passed after extending the generator for Phase 2G media.
 - `node --check tests/real-mode-upload.test.js`: passed after updating real-mode coverage for piano/accompaniment separated stems.

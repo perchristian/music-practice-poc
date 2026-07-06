@@ -119,6 +119,39 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 
 If FFmpeg is unavailable, the job should fail with a clear setup message instead of crashing the server. If the spectral split fails, the job should fail with an API-visible separator error. Mock mode remains usable.
 
+## Stem Separation Bakeoff
+
+Use this when comparing separation quality on the same source recording inside the app.
+
+Input files expected locally:
+
+```text
+test-media/MakeYouFeelMyLovePart2.mov
+test-media/stems from logic/
+```
+
+Create or refresh the Logic baseline and FFmpeg spectral jobs:
+
+```bash
+npm run bakeoff:stems
+```
+
+Create or refresh those jobs plus a Demucs `htdemucs_6s` job after installing Demucs in `.venv-real`:
+
+```bash
+TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs npm run bakeoff:stems -- --demucs
+```
+
+The script creates processed library entries named:
+
+```text
+MakeYouFeelMyLovePart2 - Logic baseline
+MakeYouFeelMyLovePart2 - FFmpeg spectral
+MakeYouFeelMyLovePart2 - Demucs htdemucs_6s
+```
+
+Open the app, select each entry from the song list, mute or solo the piano stem, and compare whether the remaining stems are useful for play-along practice. Harmony cues in these bakeoff jobs are mocked; judge audio quality only.
+
 ## Fast Iteration Steps
 
 1. Start the app with `PIPELINE_MODE=mock npm start`.

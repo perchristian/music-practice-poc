@@ -1,4 +1,7 @@
 node_modules/
 data/
 test-results/
+test-media/
+.cache/
+.venv-real/
 .DS_Store
