@@ -108,6 +108,7 @@ Local web POC:
   - Moved rename/delete to the selected-song header.
   - Kept completed uploads from auto-opening after processing.
   - Preserved saved practice state, learning status, stem controls, speed, loop, and harmonic cue behavior.
+- Fixed Pause -> Play resume behavior so stem audio continues from the paused timeline position instead of restarting near the beginning while the visual playhead continues.
 
 ## In Progress
 
@@ -139,6 +140,12 @@ No Codex skills used.
 - `node --check tests/gui.spec.js`: passed after Phase 1B GUI coverage updates.
 - `npm test`: passed on 2026-07-06 with 3 backend tests covering mock job creation, processed demo shortcut, processed-song library/practice-state persistence, rename, reopen, and delete.
 - `npm run test:gui`: passed on 2026-07-06 with 6 Playwright tests covering mock upload-to-practice, processed demo shortcut, persisted practice state, multi-file unified queue/list behavior, learning-status filters, header rename/delete, full-row selection, and mobile list-first navigation.
+- `node --check public/app.js`: passed after Pause -> Play audio resume fix.
+- `node --check tests/gui.spec.js`: passed after adding Pause -> Play regression coverage.
+- Real-browser Playwright probe against `http://127.0.0.1:3001/?demo=processed`: before the fix, audio resumed near `0.23s` after pausing at about `1.46s`; after the fix, audio resumed at about `1.74s` while the UI timeline was about `1.8s`.
+- `npx playwright test tests/gui.spec.js -g "play after pause resumes"`: passed on 2026-07-06.
+- `npm test`: passed on 2026-07-06 with 3 backend tests.
+- `npm run test:gui`: passed on 2026-07-06 with 7 Playwright tests, including Pause -> Play resume regression coverage.
 - Documentation-only UX planning update on 2026-07-06; no code verification run.
 - `node --check server.js`: passed after home/queue/library flow changes.
 - Documentation-only validation criteria update in `VISION.md`; no code verification run.

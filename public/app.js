@@ -501,6 +501,39 @@ function syncStemTimes(seconds, threshold = 0) {
   }
 }
 
+function seekAudioTo(audio, seconds) {
+  return new Promise((resolve) => {
+    if (Math.abs(audio.currentTime - seconds) <= 0.25) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    let timeoutId = null;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      audio.removeEventListener("seeked", finish);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      resolve();
+    };
+
+    audio.addEventListener("seeked", finish);
+    timeoutId = window.setTimeout(finish, 750);
+
+    try {
+      audio.currentTime = seconds;
+    } catch (error) {
+      console.error(error);
+      finish();
+      return;
+    }
+  });
+}
+
 function setTransportTime(seconds) {
   const bounded = boundTransportTime(seconds);
   anchorTransport(bounded);
@@ -569,9 +602,10 @@ async function playAll() {
   const current = transportTime();
   anchorTransport(current);
   for (const player of stemPlayers) {
-    player.audio.currentTime = current;
     player.audio.playbackRate = playbackRate;
   }
+
+  await Promise.all(stemPlayers.map((player) => seekAudioTo(player.audio, current)));
 
   const results = await Promise.allSettled(stemPlayers.map((player) => player.audio.play()));
   if (results.some((result) => result.status === "fulfilled")) {

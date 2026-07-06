@@ -847,16 +847,14 @@ async function route(req, res) {
     await handleUpdatePracticeState(req, practiceStateMatch[1], res);
     return;
   }
-
+  const openedMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/opened$/);
+  if (req.method === "POST" && openedMatch) {
+    await handleMarkJobOpened(openedMatch[1], res);
+    return;
+  }
   const renameJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/rename$/);
   if (req.method === "PUT" && renameJobMatch) {
     await handleRenameJob(req, renameJobMatch[1], res);
-    return;
-  }
-
-  const openedJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/opened$/);
-  if (req.method === "POST" && openedJobMatch) {
-    await handleMarkJobOpened(openedJobMatch[1], res);
     return;
   }
 

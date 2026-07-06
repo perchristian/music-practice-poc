@@ -263,6 +263,85 @@ test("processed demo shortcut opens practice view without selecting a file", asy
   await expect(page.getByText("Cmaj7")).toBeVisible();
 });
 
+test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__playCalls = [];
+    const currentTimes = new WeakMap();
+    const pausedStates = new WeakMap();
+    const seekingStates = new WeakMap();
+    const seekTimers = new WeakMap();
+
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      get() {
+        return currentTimes.get(this) ?? 0;
+      },
+      set(value) {
+        const nextValue = Number(value) || 0;
+        seekingStates.set(this, true);
+        window.clearTimeout(seekTimers.get(this));
+        seekTimers.set(this, window.setTimeout(() => {
+          currentTimes.set(this, nextValue);
+          seekingStates.set(this, false);
+          this.dispatchEvent(new Event("seeked"));
+        }, 25));
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      get() {
+        return pausedStates.get(this) ?? true;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "seeking", {
+      get() {
+        return seekingStates.get(this) ?? false;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      if (this.seeking) {
+        currentTimes.set(this, 0);
+      }
+      pausedStates.set(this, false);
+      window.__playCalls.push({
+        stemId: this.dataset.stemId,
+        currentTime: this.currentTime
+      });
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      pausedStates.set(this, true);
+    };
+  });
+
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  await page.waitForTimeout(350);
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+
+  const pausedPosition = Number(await page.locator("#scrubber").inputValue());
+  expect(pausedPosition).toBeGreaterThan(0.2);
+
+  await page.evaluate(() => {
+    window.__playCalls = [];
+  });
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+
+  const resumedPlayCalls = await page.evaluate(() => window.__playCalls);
+  expect(resumedPlayCalls.length).toBeGreaterThan(0);
+  for (const call of resumedPlayCalls) {
+    expect(call.currentTime).toBeGreaterThan(pausedPosition - 0.08);
+  }
+});
+
 test("processed song library reopens songs and persists practice state", async ({ page }) => {
   await page.addInitScript(() => {
     const currentTimes = new WeakMap();
