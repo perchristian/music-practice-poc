@@ -27,6 +27,7 @@ const PUBLIC_DIR = join(__dirname, "public");
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MOCK_DURATION_SECONDS = 16;
 const DEFAULT_BEATS_PER_BAR = 4;
+const METER_CANDIDATES = [4, 3];
 const ANALYSIS_MAX_SECONDS = 120;
 const ANALYSIS_SAMPLE_RATE = 8000;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
@@ -328,6 +329,45 @@ function beatStrengths(onsets, firstBeatFrame, beatFrames) {
   return strengths;
 }
 
+function strongestBeatPhase(values, onsets, beatFrames) {
+  let bestPhase = 0;
+  let bestPhaseScore = -Infinity;
+  for (let phase = 0; phase < beatFrames; phase += 1) {
+    let score = 0;
+    for (let frame = phase; frame < values.length; frame += beatFrames) {
+      score += onsets[frame] || 0;
+    }
+    if (score > bestPhaseScore) {
+      bestPhaseScore = score;
+      bestPhase = phase;
+    }
+  }
+  return bestPhase;
+}
+
+function alternatingBeatDominance(strengths) {
+  let evenSum = 0;
+  let evenCount = 0;
+  let oddSum = 0;
+  let oddCount = 0;
+
+  for (let index = 0; index < strengths.length; index += 1) {
+    if (index % 2 === 0) {
+      evenSum += strengths[index];
+      evenCount += 1;
+    } else {
+      oddSum += strengths[index];
+      oddCount += 1;
+    }
+  }
+
+  const evenAverage = evenCount ? evenSum / evenCount : 0;
+  const oddAverage = oddCount ? oddSum / oddCount : 0;
+  const stronger = Math.max(evenAverage, oddAverage);
+  const weaker = Math.max(0.000001, Math.min(evenAverage, oddAverage));
+  return stronger / weaker;
+}
+
 function estimateDownbeatPhase(strengths, beatsPerBar = DEFAULT_BEATS_PER_BAR) {
   let bestPhase = 0;
   let bestScore = -Infinity;
@@ -353,7 +393,42 @@ function estimateDownbeatPhase(strengths, beatsPerBar = DEFAULT_BEATS_PER_BAR) {
   const sorted = [...scores].sort((left, right) => right - left);
   const margin = (sorted[0] || 0) - (sorted[1] || 0);
   const confidence = Math.max(0.1, Math.min(0.95, 0.35 + margin * 8));
-  return { phase: bestPhase, confidence };
+  return { phase: bestPhase, confidence, score: bestScore, scores };
+}
+
+function estimateMeter(strengths) {
+  let best = null;
+  const candidates = [];
+
+  for (const beatsPerBar of METER_CANDIDATES) {
+    const periodicity = envelopeCorrelation(strengths, beatsPerBar);
+    const candidate = {
+      beatsPerBar,
+      periodicity,
+      ...estimateDownbeatPhase(strengths, beatsPerBar)
+    };
+    const prior = beatsPerBar === DEFAULT_BEATS_PER_BAR ? 0.02 : 0;
+    const scoreWithPrior = candidate.score + periodicity * 0.5 + prior;
+    candidates.push({
+      beatsPerBar,
+      phase: candidate.phase,
+      score: Number(candidate.score.toFixed(4)),
+      periodicity: Number(periodicity.toFixed(4)),
+      scoreWithPrior: Number(scoreWithPrior.toFixed(4))
+    });
+    if (!best || scoreWithPrior > best.scoreWithPrior) {
+      best = { ...candidate, scoreWithPrior };
+    }
+  }
+
+  return best ? { ...best, candidates } : {
+    beatsPerBar: DEFAULT_BEATS_PER_BAR,
+    phase: 0,
+    confidence: 0.1,
+    score: 0,
+    scores: [],
+    candidates
+  };
 }
 
 function tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds) {
@@ -391,71 +466,80 @@ function estimateBeatGrid(audio) {
   const openingRms = segmentRms(audio, 0, Math.min(0.25, audio.analyzedDurationSeconds));
   const startsWithAudio = openingRms > 0.005 && openingRms > wholeClipRms * 0.2;
   if (startsWithAudio) {
-    const maxBars = Math.floor(audio.analyzedDurationSeconds / (minBeatSeconds * DEFAULT_BEATS_PER_BAR));
-    for (let barCount = 2; barCount <= Math.min(64, maxBars); barCount += 1) {
-      const beatDurationSeconds = audio.analyzedDurationSeconds / (barCount * DEFAULT_BEATS_PER_BAR);
-      if (beatDurationSeconds < minBeatSeconds || beatDurationSeconds > maxBeatSeconds) continue;
+    for (const beatsPerBar of METER_CANDIDATES) {
+      const maxBars = Math.floor(audio.analyzedDurationSeconds / (minBeatSeconds * beatsPerBar));
+      for (let barCount = 2; barCount <= Math.min(64, maxBars); barCount += 1) {
+        const beatDurationSeconds = audio.analyzedDurationSeconds / (barCount * beatsPerBar);
+        if (beatDurationSeconds < minBeatSeconds || beatDurationSeconds > maxBeatSeconds) continue;
 
-      const rawScore = tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds);
-      const boundaryBonus = 0.65;
-      const shortClipBarPenalty = Math.max(0, 8 - barCount) * 0.03;
-      const score = rawScore + boundaryBonus - shortClipBarPenalty;
-      if (score > best.score) {
-        best = {
-          beatDurationSeconds,
-          bpm: 60 / beatDurationSeconds,
-          score,
-          rawScore,
-          startAligned: true,
-          barCount
-        };
+        const rawScore = tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds);
+        // Keep 3/4 as a narrow POC path; a broad 3/4 prior misread the local 106 BPM calibration clip.
+        const boundaryBonus = beatsPerBar === DEFAULT_BEATS_PER_BAR
+          ? 0.65
+          : barCount <= 5 ? 0.72 : 0.15;
+        const shortClipBarPenalty = Math.max(0, 8 - barCount) * 0.03;
+        const score = rawScore + boundaryBonus - shortClipBarPenalty;
+        if (score > best.score) {
+          best = {
+            beatDurationSeconds,
+            bpm: 60 / beatDurationSeconds,
+            score,
+            rawScore,
+            startAligned: true,
+            barCount,
+            beatsPerBar
+          };
+        }
       }
     }
   }
 
   const halfTimeBeatSeconds = best.beatDurationSeconds * 2;
-  if (best.bpm > 110 && best.bpm / 2 >= 55 && halfTimeBeatSeconds <= 60 / 55) {
+  const bestBeatFrames = Math.max(1, Math.round(best.beatDurationSeconds / frameSeconds));
+  const halfTimePhase = strongestBeatPhase(values, onsets, bestBeatFrames);
+  const halfTimeStrengths = beatStrengths(onsets, halfTimePhase, bestBeatFrames);
+  if (
+    best.bpm > 110 &&
+    best.bpm / 2 >= 55 &&
+    halfTimeBeatSeconds <= 60 / 55 &&
+    alternatingBeatDominance(halfTimeStrengths) >= 1.7
+  ) {
     best = {
       beatDurationSeconds: halfTimeBeatSeconds,
       bpm: best.bpm / 2,
       score: best.score * 0.9,
       rawScore: best.rawScore,
       startAligned: best.startAligned,
-      barCount: best.barCount
+      barCount: best.barCount,
+      beatsPerBar: best.beatsPerBar
     };
   }
 
   const beatFrames = Math.max(1, Math.round(best.beatDurationSeconds / frameSeconds));
   let bestPhase = 0;
   if (!best.startAligned) {
-    let bestPhaseScore = -Infinity;
-    for (let phase = 0; phase < beatFrames; phase += 1) {
-      let score = 0;
-      for (let frame = phase; frame < values.length; frame += beatFrames) {
-        score += onsets[frame] || 0;
-      }
-      if (score > bestPhaseScore) {
-        bestPhaseScore = score;
-        bestPhase = phase;
-      }
-    }
+    bestPhase = strongestBeatPhase(values, onsets, beatFrames);
   }
 
   const offsetSeconds = bestPhase * frameSeconds;
   const beatDurationSeconds = best.beatDurationSeconds;
   const strengths = beatStrengths(onsets, bestPhase, beatFrames);
-  const downbeat = best.startAligned ? { phase: 0, confidence: 0.75 } : estimateDownbeatPhase(strengths);
+  const meter = estimateMeter(strengths);
+  const beatsPerBar = best.beatsPerBar || meter.beatsPerBar || DEFAULT_BEATS_PER_BAR;
+  const downbeat = best.startAligned
+    ? { ...meter, beatsPerBar, phase: 0, confidence: Math.max(0.75, meter.confidence) }
+    : { ...meter, beatsPerBar };
   const downbeatOffsetSeconds = offsetSeconds + downbeat.phase * beatDurationSeconds;
-  const barDurationSeconds = beatDurationSeconds * DEFAULT_BEATS_PER_BAR;
+  const barDurationSeconds = beatDurationSeconds * beatsPerBar;
   const confidence = Math.max(0.1, Math.min(0.95, best.score));
   const beats = [];
   for (let time = offsetSeconds, index = 0; time < audio.analyzedDurationSeconds; time += beatDurationSeconds, index += 1) {
     const relativeBeatIndex = index - downbeat.phase;
     beats.push({
       time: Number(time.toFixed(3)),
-      beat: ((relativeBeatIndex % DEFAULT_BEATS_PER_BAR) + DEFAULT_BEATS_PER_BAR) % DEFAULT_BEATS_PER_BAR + 1,
-      bar: Math.floor(relativeBeatIndex / DEFAULT_BEATS_PER_BAR) + 1,
-      downbeat: relativeBeatIndex >= 0 && relativeBeatIndex % DEFAULT_BEATS_PER_BAR === 0
+      beat: ((relativeBeatIndex % beatsPerBar) + beatsPerBar) % beatsPerBar + 1,
+      bar: Math.floor(relativeBeatIndex / beatsPerBar) + 1,
+      downbeat: relativeBeatIndex >= 0 && relativeBeatIndex % beatsPerBar === 0
     });
   }
 
@@ -473,12 +557,13 @@ function estimateBeatGrid(audio) {
   return {
     bpm: Number(best.bpm.toFixed(1)),
     beatDurationSeconds: Number(beatDurationSeconds.toFixed(3)),
-    beatsPerBar: DEFAULT_BEATS_PER_BAR,
+    beatsPerBar,
     barDurationSeconds: Number(barDurationSeconds.toFixed(3)),
     offsetSeconds: Number(offsetSeconds.toFixed(3)),
     beatOffsetSeconds: Number(offsetSeconds.toFixed(3)),
     downbeatOffsetSeconds: Number(downbeatOffsetSeconds.toFixed(3)),
     downbeatConfidence: Number(downbeat.confidence.toFixed(2)),
+    meterCandidates: meter.candidates,
     confidence: Number(confidence.toFixed(2)),
     beats,
     bars
@@ -614,11 +699,12 @@ function scoreChord(chroma, bassChroma, root, quality) {
   const outsideEnergy = chroma.reduce((sum, value, pitchClass) => {
     return template.has(pitchClass) ? sum : sum + value;
   }, 0);
-  const rootBonus = chroma[root] * 0.8 + bassChroma[root] * 1.1;
+  const rootBonus = chroma[root] * 0.8 + bassChroma[root] * 0.55;
+  const bassChordToneBonus = [...template].reduce((sum, pitchClass) => sum + bassChroma[pitchClass], 0) * 0.22;
   const thirdOrSuspensionBonus = quality.intervals.some((interval) => [2, 3, 4, 5].includes(interval))
     ? Math.max(...quality.intervals.filter((interval) => [2, 3, 4, 5].includes(interval)).map((interval) => chroma[(root + interval) % 12])) * 0.5
     : 0;
-  return templateEnergy + rootBonus + thirdOrSuspensionBonus - outsideEnergy * 0.08;
+  return templateEnergy + rootBonus + bassChordToneBonus + thirdOrSuspensionBonus - outsideEnergy * 0.08;
 }
 
 function chordName(root, quality) {
@@ -732,40 +818,83 @@ function romanNumeral(root, quality, key) {
   return `${numeral}${quality.romanSuffix}`;
 }
 
+function chordSegmentsForBeatGrid(beatGrid, durationSeconds) {
+  if (!beatGrid.bars?.length || !finitePositiveNumber(beatGrid.beatDurationSeconds)) {
+    return [{ bar: 1, beat: 1, start: 0, end: durationSeconds }];
+  }
+
+  const segments = [];
+  for (const bar of beatGrid.bars) {
+    for (let beatIndex = 0; beatIndex < beatGrid.beatsPerBar; beatIndex += 1) {
+      const start = bar.start + beatIndex * beatGrid.beatDurationSeconds;
+      const end = Math.min(bar.end, start + beatGrid.beatDurationSeconds);
+      const segmentDuration = end - start;
+      if (segmentDuration < Math.min(0.28, beatGrid.beatDurationSeconds * 0.5)) continue;
+      segments.push({
+        bar: bar.bar,
+        beat: beatIndex + 1,
+        start: Number(Math.max(0, start).toFixed(3)),
+        end: Number(end.toFixed(3))
+      });
+    }
+  }
+
+  return segments.length ? segments : [{ bar: 1, beat: 1, start: 0, end: durationSeconds }];
+}
+
+function sameChord(left, right) {
+  return left.root === right.root && left.quality.label === right.quality.label;
+}
+
+function mergeAdjacentChordDrafts(chordDrafts) {
+  const merged = [];
+
+  for (const chord of chordDrafts) {
+    const previous = merged[merged.length - 1];
+    if (previous && previous.bar === chord.bar && sameChord(previous, chord)) {
+      previous.end = chord.end;
+      previous.confidence = Number(Math.min(previous.confidence, chord.confidence).toFixed(2));
+      continue;
+    }
+    merged.push({ ...chord });
+  }
+
+  return merged;
+}
+
 async function analyzeHarmonyFromAudio(extracted, separation) {
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
   const stemAudios = await loadAnalysisStemAudios(extracted, separation);
   const beatGrid = estimateBeatGrid(audio);
-  const bars = beatGrid.bars.length
-    ? beatGrid.bars
-    : [{ bar: 1, start: 0, end: audio.durationSeconds }];
+  const segments = chordSegmentsForBeatGrid(beatGrid, audio.durationSeconds);
   const aggregateChroma = Array(12).fill(0);
   const chordDrafts = [];
 
-  for (const bar of bars) {
-    const { chroma, bassChroma } = chromaEvidenceForBar(audio, stemAudios, bar);
+  for (const segment of segments) {
+    const { chroma, bassChroma } = chromaEvidenceForBar(audio, stemAudios, segment);
     for (let index = 0; index < 12; index += 1) {
       aggregateChroma[index] += chroma[index];
     }
     const estimated = estimateChord(chroma, bassChroma);
-    chordDrafts.push({ ...bar, ...estimated });
+    chordDrafts.push({ ...segment, ...estimated });
   }
 
+  const mergedChordDrafts = mergeAdjacentChordDrafts(chordDrafts);
   const aggregateMax = Math.max(...aggregateChroma);
   const normalizedAggregate = aggregateMax > 0
     ? aggregateChroma.map((value) => value / aggregateMax)
     : aggregateChroma;
-  const key = adjustKeyWithChordSequence(estimateKey(normalizedAggregate), chordDrafts);
-  const chords = chordDrafts.map((chord) => ({
+  const key = adjustKeyWithChordSequence(estimateKey(normalizedAggregate), mergedChordDrafts);
+  const chords = mergedChordDrafts.map((chord) => ({
     start: chord.start,
     end: chord.end,
     bar: chord.bar,
-    beat: 1,
+    beat: chord.beat,
     name: chordName(chord.root, chord.quality),
     roman: romanNumeral(chord.root, chord.quality, key),
     confidence: chord.confidence,
-    source: "bar-aligned-chroma"
+    source: "beat-aligned-chroma"
   }));
   const { tonicPitchClass, ...publicKey } = key;
 
@@ -778,7 +907,7 @@ async function analyzeHarmonyFromAudio(extracted, separation) {
     melody: [],
     beatGrid,
     analysis: {
-      name: "bar-aligned-chroma-v1",
+      name: "beat-aware-chroma-v2",
       available: true,
       durationMs: Date.now() - startedAt,
       sources: {
@@ -796,8 +925,8 @@ async function analyzeHarmonyFromAudio(extracted, separation) {
         "diminished"
       ],
       limitations: [
-        "Beat, downbeat, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
-        "Chord labels are scored once per bar so brief chromatic passing chords are intentionally de-emphasized.",
+        "Beat, downbeat, meter, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
+        "Chord labels are scored on beat-aligned segments and adjacent repeated labels are merged within each bar.",
         "The first pass favors useful conservative labels over precise extensions."
       ]
     }

@@ -7,6 +7,9 @@ const repoRoot = join(__dirname, "..");
 const outputPath = join(repoRoot, "test-media", "phase-2a-source.wav");
 const phase2gOutputPath = join(repoRoot, "test-media", "phase-2g-piano-mix.wav");
 const phase2hOutputPath = join(repoRoot, "test-media", "phase-2h-bar-grid.wav");
+const multiChordOutputPath = join(repoRoot, "test-media", "phase-2h-multi-chord-120.wav");
+const threeFourOutputPath = join(repoRoot, "test-media", "phase-2h-three-four-90.wav");
+const inversionOutputPath = join(repoRoot, "test-media", "phase-2h-inversions-100.wav");
 const sampleRate = 44100;
 const durationSeconds = 6;
 const phase2hDownbeatOffsetSeconds = 0.65;
@@ -46,6 +49,25 @@ function createWavBuffer(sampleFn, options = {}) {
 
 function writeString(buffer, offset, value) {
   buffer.write(value, offset, value.length, "ascii");
+}
+
+const noteSemitones = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11
+};
+
+function noteFrequency(note) {
+  const match = /^([A-G])([#b]?)(-?\d+)$/.exec(note);
+  if (!match) throw new Error(`Unsupported note: ${note}`);
+  const [, name, accidental, octaveText] = match;
+  const accidentalOffset = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+  const midi = (Number(octaveText) + 1) * 12 + noteSemitones[name] + accidentalOffset;
+  return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
 const chordFrequencies = [
@@ -132,6 +154,109 @@ function phase2hSample(time) {
   return harmony + bass + phase2hPulse(musicalTime);
 }
 
+const chordVoicings = {
+  C: ["C3", "E3", "G3", "C4"],
+  Dm: ["D3", "F3", "A3", "D4"],
+  F: ["F2", "A2", "C3", "F3"],
+  G: ["G2", "B2", "D3", "G3"],
+  Am: ["A2", "C3", "E3", "A3"]
+};
+
+const chordBassRoots = {
+  C: "C2",
+  Dm: "D2",
+  F: "F2",
+  G: "G1",
+  Am: "A1"
+};
+
+const harmonyFixtures = [
+  {
+    path: multiChordOutputPath,
+    bpm: 120,
+    beatsPerBar: 4,
+    bars: 4,
+    progression: [
+      { bar: 1, beat: 1, beats: 2, chord: "C" },
+      { bar: 1, beat: 3, beats: 2, chord: "G" },
+      { bar: 2, beat: 1, beats: 2, chord: "Am" },
+      { bar: 2, beat: 3, beats: 2, chord: "F" },
+      { bar: 3, beat: 1, beats: 2, chord: "Dm" },
+      { bar: 3, beat: 3, beats: 2, chord: "G" },
+      { bar: 4, beat: 1, beats: 4, chord: "C" }
+    ]
+  },
+  {
+    path: threeFourOutputPath,
+    bpm: 90,
+    beatsPerBar: 3,
+    bars: 5,
+    progression: [
+      { bar: 1, beat: 1, beats: 3, chord: "C" },
+      { bar: 2, beat: 1, beats: 3, chord: "F" },
+      { bar: 3, beat: 1, beats: 3, chord: "G" },
+      { bar: 4, beat: 1, beats: 3, chord: "C" },
+      { bar: 5, beat: 1, beats: 3, chord: "Dm" }
+    ]
+  },
+  {
+    path: inversionOutputPath,
+    bpm: 100,
+    beatsPerBar: 4,
+    bars: 4,
+    progression: [
+      { bar: 1, beat: 1, beats: 4, chord: "C", bass: "E2" },
+      { bar: 2, beat: 1, beats: 4, chord: "F", bass: "A1" },
+      { bar: 3, beat: 1, beats: 4, chord: "G", bass: "B1" },
+      { bar: 4, beat: 1, beats: 4, chord: "C", bass: "G1" }
+    ]
+  }
+];
+
+function fixtureSegmentAt(fixture, musicalTime) {
+  const beatDuration = 60 / fixture.bpm;
+  const absoluteBeat = Math.floor(musicalTime / beatDuration);
+
+  for (const segment of fixture.progression) {
+    const startBeat = (segment.bar - 1) * fixture.beatsPerBar + (segment.beat - 1);
+    const endBeat = startBeat + segment.beats;
+    if (absoluteBeat >= startBeat && absoluteBeat < endBeat) return segment;
+  }
+
+  return fixture.progression[fixture.progression.length - 1];
+}
+
+function fixturePulse(time, fixture) {
+  const beatDuration = 60 / fixture.bpm;
+  const beat = time % beatDuration;
+  if (beat > Math.min(0.045, beatDuration * 0.12)) return 0;
+  const beatIndex = Math.floor(time / beatDuration);
+  const downbeat = beatIndex % fixture.beatsPerBar === 0 ? 3.0 : 0.35;
+  const click = Math.sin(2 * Math.PI * 110 * time) + Math.sin(2 * Math.PI * 220 * time) * 0.35;
+  return click * Math.exp(-beat * 70) * 0.22 * downbeat;
+}
+
+function fixtureSample(fixture) {
+  return (time) => {
+    const segment = fixtureSegmentAt(fixture, time);
+    const chordNotes = chordVoicings[segment.chord];
+    const bassNote = segment.bass || chordBassRoots[segment.chord];
+    const beatDuration = 60 / fixture.bpm;
+    const beat = time % beatDuration;
+    const envelope = 0.7 + 0.3 * Math.exp(-beat * 4);
+    const harmony = chordNotes.reduce((sum, note) => {
+      const frequency = noteFrequency(note);
+      return sum + Math.sin(2 * Math.PI * frequency * time) * 0.11 * envelope;
+    }, 0);
+    const bassFrequency = noteFrequency(bassNote);
+    const bass = (
+      Math.sin(2 * Math.PI * bassFrequency * time) * 0.23 +
+      Math.sin(2 * Math.PI * bassFrequency * 2 * time) * 0.06
+    ) * (0.8 + 0.2 * Math.exp(-beat * 6));
+    return harmony + bass + fixturePulse(time, fixture);
+  };
+}
+
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, createWavBuffer(phase2aSample));
 console.log(`Generated ${outputPath}`);
@@ -139,3 +264,9 @@ await writeFile(phase2gOutputPath, createWavBuffer(phase2gSample));
 console.log(`Generated ${phase2gOutputPath}`);
 await writeFile(phase2hOutputPath, createWavBuffer(phase2hSample, { durationSeconds: 16 + phase2hDownbeatOffsetSeconds }));
 console.log(`Generated ${phase2hOutputPath}`);
+for (const fixture of harmonyFixtures) {
+  const beatDuration = 60 / fixture.bpm;
+  const outputDurationSeconds = fixture.bars * fixture.beatsPerBar * beatDuration;
+  await writeFile(fixture.path, createWavBuffer(fixtureSample(fixture), { durationSeconds: outputDurationSeconds }));
+  console.log(`Generated ${fixture.path}`);
+}

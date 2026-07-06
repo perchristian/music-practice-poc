@@ -9,7 +9,7 @@ The backend owns uploads, job status, pipeline mode, generated mock stem assets,
 ## Runtime Modes
 
 - `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
-- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, runs Demucs `htdemucs_6s` by default to create drums, bass, guitar, piano, vocals, and other stems, then runs first-pass bar-aligned harmonic analysis over the extracted full mix. The old FFmpeg spectral piano/accompaniment split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
+- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, runs Demucs `htdemucs_6s` by default to create drums, bass, guitar, piano, vocals, and other stems, then runs first-pass beat-aware harmonic analysis over the extracted full mix. The old FFmpeg spectral piano/accompaniment split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 The browser topbar can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the startup default, and existing jobs retain the mode they were created with.
 
@@ -44,7 +44,7 @@ Local filesystem storage
 - `GET /api/health`: returns active mode, startup mode, FFmpeg path, and service status.
 - `PUT /api/settings/pipeline-mode`: switches active local pipeline mode for new jobs between `mock` and `real`.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in real mode, accepts one multipart media file, stores it in the job directory, and creates a processing job. The browser can create multiple jobs from one multi-file selection.
-- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains Demucs stems by default and approximate bar-aligned harmonic metadata.
+- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains Demucs stems by default and approximate beat-aware harmonic metadata.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
@@ -142,7 +142,7 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
-Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `bar-aligned-chroma-v1` over the full mix plus usable separated stems to estimate tempo, first downbeat, beat/bar grid, key, chord names, and roman numerals. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it favors conservative one-chord-per-bar labels and can still pick the wrong tempo, downbeat, key, or chord quality on real recordings. Real mode should next improve:
+Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `beat-aware-chroma-v2` over the full mix plus usable separated stems to estimate tempo, meter, first downbeat, beat/bar grid, key, chord names, and roman numerals. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it scores beat-length segments, merges adjacent repeated labels within each bar, and can emit multiple chord cues inside one bar when evidence is strong. It can still pick the wrong tempo, meter, downbeat, key, or chord quality on real recordings. Real mode should next improve:
 
 1. manual validation and hardening of beat/bar and chord accuracy on real screen recordings
 2. melody or piano transcription
@@ -170,7 +170,7 @@ source-audio.wav + optional stems
 
 The first implementation should use a conservative vocabulary: major/minor triads, dominant 7, minor 7, major 7, sus chords, and diminished chords. Extensions such as 9, 11, 13, altered dominants, slash chords, and borrowed chords should only be displayed when confidence is high. If the evidence is ambiguous, the app should show the simpler musically useful label, such as `C7`, instead of a more specific but weakly supported label such as `C13`.
 
-The implemented Phase 2H spike currently records `harmonySource: "real-audio-analysis-v1"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, and analyzer limitations. It emits one chord cue per detected bar, even when adjacent bars repeat the same chord. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
+The implemented Phase 2H spike currently records `harmonySource: "real-audio-analysis-v1"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, and analyzer limitations. It emits beat-aware chord cues and merges repeated labels within a bar, while preserving repeated labels across bar boundaries. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
 
 ## Native iOS Transition Criteria
 

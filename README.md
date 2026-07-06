@@ -27,7 +27,7 @@ Mock mode is the default and requires no heavy ML dependencies:
 PIPELINE_MODE=mock npm start
 ```
 
-Real mode currently validates upload, FFmpeg source-audio extraction, and Demucs `htdemucs_6s` stem separation for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, then exposes `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` WAV stems. The FFmpeg spectral split remains available as a lightweight fallback with `REAL_SEPARATOR=ffmpeg-spectral`. Transcription and real harmonic analysis are not implemented yet.
+Real mode currently validates upload, FFmpeg source-audio extraction, Demucs `htdemucs_6s` stem separation, and first-pass harmonic analysis for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, exposes `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` WAV stems, then emits approximate beat-aware chord cues, key, roman numerals, tempo, meter, and bar/beat metadata. The FFmpeg spectral split remains available as a lightweight fallback with `REAL_SEPARATOR=ffmpeg-spectral`. Melody transcription is not implemented yet.
 
 Heavy real-pipeline dependencies are optional and separate from mock mode:
 

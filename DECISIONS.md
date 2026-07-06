@@ -442,3 +442,26 @@ Medium for generated test media and integration value; low-to-medium for accurac
 
 Date:
 2026-07-06
+
+## Decision 20
+
+Decision:
+Harden the real harmonic-analysis spike to `beat-aware-chroma-v2` with generated known-answer fixtures before switching to a heavier MIR or transcription stack.
+
+Reason:
+Manual inspection found two concrete failures: the analyzer could halve the perceived tempo and miss chord changes because it emitted only one cue per bar. These failures directly reduce learning value. Before adding heavy dependencies, the POC needs deterministic fixtures that prove the lightweight analyzer can handle common learning cases: multiple chords inside a bar, meter variation, and bass notes that do not play the root.
+
+Alternatives considered:
+- Jump immediately to a Python MIR stack such as librosa or Essentia.
+- Start piano transcription with Basic Pitch or another model and derive chords from notes.
+- Keep one-chord-per-bar output and document the limitation only.
+- Hand-label chord timelines for user tests instead of improving automatic analysis.
+
+Tradeoffs:
+The beat-aware Node analyzer remains heuristic and is not a general-purpose chord-recognition system. The 3/4 support is intentionally limited and fixture-verified, not broad meter inference. The benefit is that mock mode stays light, real mode remains reproducible without new heavy dependencies, and regressions are now caught by known-answer tests before user demos.
+
+Confidence:
+Medium for generated fixtures and POC demo readiness; low-to-medium for arbitrary commercial screen recordings until more real clips are manually inspected.
+
+Date:
+2026-07-07

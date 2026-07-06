@@ -442,14 +442,14 @@ Verification:
 Result:
 - Real mode now emits `harmonySource: "real-audio-analysis-v1"` instead of mock harmonic metadata.
 - `source-audio.wav` is analyzed as the full-mix truth source with a dependency-free PCM16 WAV reader.
-- The first-pass analyzer estimates broad onset energy, applies a conservative half-time correction to avoid over-fine subdivision grids, estimates first downbeat separately from file start, builds a 4/4 beat/bar grid from that downbeat, scores bar-length chroma windows against a conservative chord vocabulary, estimates key, and generates roman numerals.
+- The first-pass analyzer estimates broad onset energy, applies a conservative half-time correction to avoid over-fine subdivision grids, estimates first downbeat separately from file start, builds a beat/bar grid from that downbeat, scores beat-length chroma windows against a conservative chord vocabulary, merges adjacent repeated labels within each bar, estimates key, and generates roman numerals.
 - Analysis now uses available bass/accompaniment stems for root evidence and other/accompaniment/guitar/piano stems for chord-quality evidence, ignoring very quiet stems and keeping `source-audio.wav` as the fallback.
-- Weakly supported 7/maj7 extensions are simplified back to triads, and real analysis emits one cue per bar rather than merging repeated adjacent chord names.
-- Chord cues preserve the existing UI metadata shape and add `bar`, `beat`, `confidence`, `source`, `beatGrid`, `analysisSource`, and `analysis` metadata.
+- Weakly supported 7/maj7 extensions are simplified back to triads, and real analysis emits beat-aware cues, including multiple chord changes inside a bar when evidence supports them, while preserving repeated chord labels across bar boundaries.
+- Chord cues preserve the existing UI metadata shape and add `bar`, `beat`, `confidence`, `source`, `beatGrid`, `beatGrid.meterCandidates`, `analysisSource`, and `analysis` metadata.
 - The UI displays bar-aware cue timing when available, for example `Bar 1 · 0:00-0:04`.
-- `npm run generate:test-media` now creates `test-media/phase-2h-bar-grid.wav`, a safe four-bar C, Am, F, G test fixture with a clear pulse and 0.65 seconds of pre-roll before the first downbeat.
+- `npm run generate:test-media` now creates `test-media/phase-2h-bar-grid.wav`, a safe four-bar C, Am, F, G test fixture with a clear pulse and 0.65 seconds of pre-roll before the first downbeat, plus known-answer fixtures for multiple chords per 4/4 bar at 120 BPM, 3/4 at 90 BPM, and inversion bass at 100 BPM.
 
-Status: Initial implementation complete on 2026-07-06, downbeat-offset hardening added on 2026-07-07, and local calibration added on 2026-07-07 for job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`. `npm test` covers real-derived bar-aligned harmonic analysis on generated test media that does not start exactly on the first downbeat and, when the local calibration job is present, expects 106 BPM, 4/4, and C, Dm, Am, Am, C, Dm, Am, Am. Manual listening/inspection on more real screen recordings is still required before treating the analysis as user-test ready.
+Status: Initial implementation complete on 2026-07-06, downbeat-offset hardening added on 2026-07-07, local calibration added on 2026-07-07 for job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`, and beat-aware hardening added on 2026-07-07 after manual inspection found half-tempo and missed-chord behavior. `npm test` covers real-derived harmonic analysis on generated test media that does not start exactly on the first downbeat, multiple chord changes inside 4/4 bars, 3/4 meter, inversion bass, and, when the local calibration job is present, 106 BPM, 4/4, and C, Dm, Am, Am, C, Dm, Am, Am. Manual listening/inspection on more real screen recordings is still required before treating the analysis as user-test ready.
 
 ## Phase 3: Problem Areas and Practice Notes
 

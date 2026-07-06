@@ -130,6 +130,23 @@ async function readTestMedia(filename) {
   return readFile(mediaPath);
 }
 
+function generateTestMedia() {
+  const generated = spawnSync(process.execPath, ["scripts/generate-phase2a-test-media.js"], {
+    cwd: process.cwd(),
+    stdio: "ignore"
+  });
+  assert.equal(generated.status, 0, "test media generation should succeed");
+}
+
+async function analyzeGeneratedHarmony(filename) {
+  generateTestMedia();
+  const sourcePath = join(process.cwd(), "test-media", filename);
+  return analyzeHarmonyFromAudio(
+    { path: sourcePath, filename },
+    { outputs: [] }
+  );
+}
+
 describe("real-mode upload contract with missing FFmpeg", () => {
   before(async () => {
     testDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-backend-"));
@@ -248,7 +265,7 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(completedJob.result.metadata.separator.outputs.length, 2);
     assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
     assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
-    assert.equal(completedJob.result.metadata.analysis.name, "bar-aligned-chroma-v1");
+    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v2");
     assert.equal(completedJob.result.metadata.analysis.sources.fullMix, "source-audio.wav");
     assert.ok(completedJob.result.metadata.beatGrid.bpm > 0);
     assert.ok(completedJob.result.metadata.beatGrid.bars.length >= 1);
@@ -300,7 +317,7 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(metadata.chords[0].bar, 1);
     assert.ok(Math.abs(metadata.chords[0].start - metadata.beatGrid.downbeatOffsetSeconds) <= 0.25);
     assert.ok(Math.abs(metadata.chords[0].end - 4.65) <= 0.75);
-    assert.ok(metadata.chords.slice(0, 4).every((chord) => chord.source === "bar-aligned-chroma"));
+    assert.ok(metadata.chords.slice(0, 4).every((chord) => chord.source === "beat-aligned-chroma"));
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("C")));
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("A")));
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("F")));
@@ -409,7 +426,7 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     assert.equal(completedJob.result.metadata.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
-    assert.equal(completedJob.result.metadata.analysis.name, "bar-aligned-chroma-v1");
+    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v2");
 
     const jobDir = join(demucsDataDir, "jobs", createdJob.id);
     for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
@@ -419,6 +436,42 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
       assert.equal(audioResponse.status, 200);
       assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
     }
+  });
+});
+
+describe("generated harmonic-analysis fixtures", () => {
+  it("detects multiple chord changes inside 4/4 bars at 120 BPM", async () => {
+    const metadata = await analyzeGeneratedHarmony("phase-2h-multi-chord-120.wav");
+
+    assert.equal(metadata.beatGrid.beatsPerBar, 4);
+    assert.ok(Math.abs(metadata.beatGrid.bpm - 120) <= 8, JSON.stringify(metadata.beatGrid));
+    assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "G", "Am", "F", "Dm", "G", "C"]);
+    assert.deepEqual(metadata.chords.map((chord) => [chord.bar, chord.beat]), [
+      [1, 1],
+      [1, 3],
+      [2, 1],
+      [2, 3],
+      [3, 1],
+      [3, 3],
+      [4, 1]
+    ]);
+  });
+
+  it("detects a 3/4 harmonic grid at 90 BPM", async () => {
+    const metadata = await analyzeGeneratedHarmony("phase-2h-three-four-90.wav");
+
+    assert.equal(metadata.beatGrid.beatsPerBar, 3);
+    assert.ok(Math.abs(metadata.beatGrid.bpm - 90) <= 8, JSON.stringify(metadata.beatGrid));
+    assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "F", "G", "C", "Dm"]);
+    assert.deepEqual(metadata.chords.map((chord) => chord.bar), [1, 2, 3, 4, 5]);
+  });
+
+  it("keeps chord roots stable when the bass plays inversions", async () => {
+    const metadata = await analyzeGeneratedHarmony("phase-2h-inversions-100.wav");
+
+    assert.equal(metadata.beatGrid.beatsPerBar, 4);
+    assert.ok(Math.abs(metadata.beatGrid.bpm - 100) <= 8, JSON.stringify(metadata.beatGrid));
+    assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "F", "G", "C"]);
   });
 });
 

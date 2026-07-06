@@ -138,7 +138,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 ## Real-Mode Separation Smoke
 
 1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
-2. Upload `test-media/phase-2h-bar-grid.wav`, `test-media/phase-2g-piano-mix.wav`, or another short audio/video file.
+2. Upload `test-media/phase-2h-bar-grid.wav`, `test-media/phase-2h-multi-chord-120.wav`, `test-media/phase-2h-three-four-90.wav`, `test-media/phase-2h-inversions-100.wav`, `test-media/phase-2g-piano-mix.wav`, or another short audio/video file.
 3. Wait for the job to complete. During Demucs separation, the selected song should show `Separating stems` and progress should advance past 55% before the job reaches 100%.
 4. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
 5. Play the result and confirm the browser can load all stems.
@@ -194,7 +194,7 @@ Open the app, select each entry from the song list, mute or solo the piano stem,
 
 ## Expected Result
 
-The user should experience the intended learning workflow end to end. Mock mode remains the lightweight default, while real mode now exercises upload, extraction, stem separation, and approximate bar-aligned harmonic analysis.
+The user should experience the intended learning workflow end to end. Mock mode remains the lightweight default, while real mode now exercises upload, extraction, stem separation, and approximate beat-aware harmonic analysis.
 
 ## Demo Media and Copyright
 
@@ -211,6 +211,9 @@ This creates:
 - `test-media/phase-2a-source.wav`: synthesized sine-wave chord tones for upload/extraction smoke.
 - `test-media/phase-2g-piano-mix.wav`: synthesized piano-band chords plus low bass and high accompaniment content for the separator smoke.
 - `test-media/phase-2h-bar-grid.wav`: synthesized four-bar C, Am, F, G material with a clear 4/4 pulse and 0.65 seconds of pre-roll before the first downbeat for beat/bar-grid and chord-analysis smoke.
+- `test-media/phase-2h-multi-chord-120.wav`: synthesized 4/4 material at 120 BPM with multiple chord changes inside bars.
+- `test-media/phase-2h-three-four-90.wav`: synthesized 3/4 material at 90 BPM.
+- `test-media/phase-2h-inversions-100.wav`: synthesized 4/4 material at 100 BPM where the bass plays chord tones other than the root.
 
 These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that the backend creates and serves `piano.wav` and `accompaniment.wav`; it cannot prove quality on real screen recordings.
 
@@ -218,7 +221,7 @@ These files are generated in-repo, are not commercial recordings, and do not inc
 
 - Real mode uses Demucs by default for drums, bass, guitar, piano, vocals, and other stems, but quality is still only validated on a small number of local examples.
 - Real transcription is not implemented yet.
-- Real-mode harmonic analysis is a first-pass bar-aligned chroma heuristic. It can estimate the wrong tempo, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings.
+- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings.
 - Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.
