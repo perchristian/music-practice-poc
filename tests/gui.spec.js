@@ -305,6 +305,33 @@ test("processed demo shortcut opens practice view without selecting a file", asy
   await expect(page.getByText("Cmaj7")).toBeVisible();
 });
 
+test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__mediaDuration = Number.NaN;
+    HTMLMediaElement.prototype.load = function () {};
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return window.__mediaDuration;
+      }
+    });
+  });
+
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.locator("#timeReadout")).toHaveText("0:00 / --");
+  await expect(page.locator("#scrubber")).toHaveAttribute("max", "0");
+
+  await page.evaluate(() => {
+    window.__mediaDuration = 74;
+    for (const audio of document.querySelectorAll("audio")) {
+      audio.dispatchEvent(new Event("durationchange"));
+    }
+  });
+
+  await expect(page.locator("#timeReadout")).toHaveText("0:00 / 1:14");
+  await expect(page.locator("#scrubber")).toHaveAttribute("max", "74");
+});
+
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];

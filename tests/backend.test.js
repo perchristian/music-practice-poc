@@ -106,6 +106,14 @@ describe("mock backend", () => {
       assert.match(response.headers.get("content-type"), /^audio\/(mp4|wav)/);
       assert.ok((await response.arrayBuffer()).byteLength > 44);
     }
+
+    const rangeResponse = await fetch(`${baseUrl}${stems[0].audioUrl}`, {
+      headers: { range: "bytes=0-15" }
+    });
+    assert.equal(rangeResponse.status, 206);
+    assert.equal(rangeResponse.headers.get("accept-ranges"), "bytes");
+    assert.match(rangeResponse.headers.get("content-range"), /^bytes 0-15\/\d+$/);
+    assert.equal((await rangeResponse.arrayBuffer()).byteLength, 16);
   });
 
   it("exposes an already processed mock demo job for skipping upload during development", async () => {

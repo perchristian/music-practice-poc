@@ -54,6 +54,7 @@ let isSeeking = false;
 let playbackRate = 1;
 let transportPosition = 0;
 let transportStartedAt = 0;
+let knownTransportDuration = 0;
 let transportFrame = null;
 let currentJob = null;
 let currentJobId = null;
@@ -76,6 +77,10 @@ function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const wholeSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${wholeSeconds}`;
+}
+
+function formatDuration(seconds) {
+  return Number.isFinite(seconds) && seconds > 0 ? formatTime(seconds) : "--";
 }
 
 function statusLabel(status) {
@@ -473,7 +478,10 @@ function transportTime() {
 function transportDuration() {
   const preferredPlayers = [primaryPlayer, ...stemPlayers].filter(Boolean);
   const player = preferredPlayers.find((candidate) => Number.isFinite(candidate.audio.duration) && candidate.audio.duration > 0);
-  return player ? player.audio.duration : 0;
+  if (player) {
+    knownTransportDuration = player.audio.duration;
+  }
+  return knownTransportDuration;
 }
 
 function boundTransportTime(seconds) {
@@ -492,10 +500,12 @@ function anchorTransport(seconds) {
 function updateTimeDisplay() {
   const current = transportTime();
   const duration = transportDuration();
-  timeReadout.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+  timeReadout.textContent = `${formatTime(current)} / ${formatDuration(duration)}`;
 
   if (Number.isFinite(duration) && duration > 0) {
     scrubber.max = String(duration);
+  } else {
+    scrubber.max = String(Math.max(current, 0));
   }
 
   if (!isSeeking) {
@@ -709,6 +719,7 @@ function renderStemPlayers(stems) {
   pauseAll({ persist: false });
   stemPlayers = [];
   primaryPlayer = null;
+  knownTransportDuration = 0;
   anchorTransport(0);
   stemDeck.replaceChildren();
   stemMixer.replaceChildren();
@@ -789,14 +800,17 @@ function renderStemPlayers(stems) {
 
   updateStemAudibility();
   primaryPlayer ||= stemPlayers[0] || null;
+  updateTimeDisplay();
   if (!primaryPlayer) return;
 
+  const updateLoadedDuration = () => {
+    transportDuration();
+    updateTimeDisplay();
+  };
+
   for (const player of stemPlayers) {
-    player.audio.addEventListener("loadedmetadata", () => {
-      const duration = transportDuration();
-      scrubber.max = String(duration || 16);
-      updateTimeDisplay();
-    });
+    player.audio.addEventListener("loadedmetadata", updateLoadedDuration);
+    player.audio.addEventListener("durationchange", updateLoadedDuration);
 
     player.audio.addEventListener("ended", () => {
       const duration = transportDuration();
@@ -805,6 +819,8 @@ function renderStemPlayers(stems) {
         setTransportTime(0);
       }
     });
+
+    player.audio.load();
   }
 }
 
@@ -1078,7 +1094,7 @@ playButton.addEventListener("click", () => {
 
 scrubber.addEventListener("input", () => {
   isSeeking = true;
-  timeReadout.textContent = `${formatTime(Number(scrubber.value))} / ${formatTime(transportDuration())}`;
+  timeReadout.textContent = `${formatTime(Number(scrubber.value))} / ${formatDuration(transportDuration())}`;
 });
 
 scrubber.addEventListener("change", () => {

@@ -19,6 +19,8 @@ const DEMUCS_TORCH_HOME = process.env.TORCH_HOME || join(__dirname, ".cache", "t
 const FFMPEG_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
 const DEMUCS_SEPARATOR_NAME = `demucs-${DEMUCS_MODEL}`;
 const REAL_SEPARATOR_NAME = REAL_SEPARATOR === "ffmpeg-spectral" ? FFMPEG_SEPARATOR_NAME : DEMUCS_SEPARATOR_NAME;
+const SOURCE_AUDIO_FILENAME = "source-audio.wav";
+const SOURCE_AUDIO_CODEC = "pcm_s16le";
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
@@ -116,6 +118,61 @@ function stemFilePath(job, stem) {
 
 function contentTypeForPath(path, fallback = "application/octet-stream") {
   return mimeTypes[extname(path)] || fallback;
+}
+
+async function streamMediaFile(req, res, filePath, contentType) {
+  const fileStats = await stat(filePath);
+  const fileSize = fileStats.size;
+  const range = req.headers.range;
+  const baseHeaders = {
+    "accept-ranges": "bytes",
+    "content-type": contentType,
+    "content-length": fileSize
+  };
+
+  if (!range) {
+    res.writeHead(200, baseHeaders);
+    createReadStream(filePath).pipe(res);
+    return;
+  }
+
+  const match = range.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match) {
+    res.writeHead(416, { "content-range": `bytes */${fileSize}` });
+    res.end();
+    return;
+  }
+
+  let start = match[1] === "" ? null : Number(match[1]);
+  let end = match[2] === "" ? null : Number(match[2]);
+
+  if (start === null && end !== null) {
+    start = Math.max(fileSize - end, 0);
+    end = fileSize - 1;
+  } else {
+    start ??= 0;
+    end ??= fileSize - 1;
+  }
+
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 0 ||
+    end < start ||
+    start >= fileSize
+  ) {
+    res.writeHead(416, { "content-range": `bytes */${fileSize}` });
+    res.end();
+    return;
+  }
+
+  end = Math.min(end, fileSize - 1);
+  res.writeHead(206, {
+    ...baseHeaders,
+    "content-length": end - start + 1,
+    "content-range": `bytes ${start}-${end}/${fileSize}`
+  });
+  createReadStream(filePath, { start, end }).pipe(res);
 }
 
 function safePublicPath(urlPath) {
@@ -655,16 +712,18 @@ async function demucsVersionLine() {
 }
 
 async function extractSourceAudio(job) {
-  const outputFilename = "source-audio.wav";
+  const outputFilename = SOURCE_AUDIO_FILENAME;
   const outputPath = join(job.dir, outputFilename);
   const args = [
     "-hide_banner",
     "-y",
     "-i",
     job.sourcePath,
+    "-map",
+    "0:a:0",
     "-vn",
-    "-ar",
-    "44100",
+    "-c:a",
+    SOURCE_AUDIO_CODEC,
     outputPath
   ];
   const result = await runProcess(FFMPEG_PATH, args);
@@ -693,7 +752,8 @@ async function extractSourceAudio(job) {
     size: outputStats.size,
     durationMs: result.durationMs,
     command: FFMPEG_PATH,
-    args
+    args,
+    codec: SOURCE_AUDIO_CODEC
   };
 }
 
@@ -891,7 +951,8 @@ async function runRealPipeline(job) {
       command: FFMPEG_PATH,
       available: null,
       durationMs: null,
-      outputFilename: "source-audio.wav",
+      outputFilename: SOURCE_AUDIO_FILENAME,
+      outputCodec: SOURCE_AUDIO_CODEC,
       outputSize: null
     },
     separator: {
@@ -924,6 +985,7 @@ async function runRealPipeline(job) {
         available: true,
         durationMs: extracted.durationMs,
         outputFilename: extracted.filename,
+        outputCodec: extracted.codec,
         outputSize: extracted.size
       }
     };
@@ -952,6 +1014,7 @@ async function runRealPipeline(job) {
         available: true,
         durationMs: extracted.durationMs,
         outputFilename: extracted.filename,
+        outputCodec: extracted.codec,
         outputSize: extracted.size
       },
       separator: {
@@ -1205,7 +1268,7 @@ async function handleGetJob(id, res) {
   json(res, 200, publicJob(job));
 }
 
-async function handleGetAudio(id, res) {
+async function handleGetAudio(req, id, res) {
   const job = await readJobFromDisk(id);
   if (!job || job.status !== "complete") {
     notFound(res);
@@ -1232,11 +1295,10 @@ async function handleGetAudio(id, res) {
     }
   }
 
-  res.writeHead(200, { "content-type": streamContentType });
-  createReadStream(streamPath).pipe(res);
+  await streamMediaFile(req, res, streamPath, streamContentType);
 }
 
-async function handleGetStem(id, stemId, res) {
+async function handleGetStem(req, id, stemId, res) {
   const job = await readJobFromDisk(id);
   const stem = job ? stemsForJob(job).find((candidate) => candidate.id === stemId) : null;
   if (!job || job.status !== "complete" || !stem) {
@@ -1252,8 +1314,25 @@ async function handleGetStem(id, stemId, res) {
     return;
   }
 
-  res.writeHead(200, { "content-type": stem.contentType || contentTypeForPath(stemPath, "audio/wav") });
-  createReadStream(stemPath).pipe(res);
+  await streamMediaFile(req, res, stemPath, stem.contentType || contentTypeForPath(stemPath, "audio/wav"));
+}
+
+async function handleGetSourceAudio(req, id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+
+  const sourceAudioPath = join(job.dir, SOURCE_AUDIO_FILENAME);
+  try {
+    await access(sourceAudioPath);
+  } catch {
+    notFound(res);
+    return;
+  }
+
+  await streamMediaFile(req, res, sourceAudioPath, "audio/wav");
 }
 
 async function route(req, res) {
@@ -1315,13 +1394,19 @@ async function route(req, res) {
 
   const audioMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/piano\.wav$/);
   if (req.method === "GET" && audioMatch) {
-    await handleGetAudio(audioMatch[1], res);
+    await handleGetAudio(req, audioMatch[1], res);
+    return;
+  }
+
+  const sourceAudioMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/source-audio\.wav$/);
+  if (req.method === "GET" && sourceAudioMatch) {
+    await handleGetSourceAudio(req, sourceAudioMatch[1], res);
     return;
   }
 
   const stemMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/stems\/([a-z]+)\.(?:wav|m4a)$/);
   if (req.method === "GET" && stemMatch) {
-    await handleGetStem(stemMatch[1], stemMatch[2], res);
+    await handleGetStem(req, stemMatch[1], stemMatch[2], res);
     return;
   }
 

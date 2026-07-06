@@ -15,6 +15,7 @@ const suiteId = "make-you-feel-my-love-part2-stem-bakeoff";
 const ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
 const demucsCommand = process.env.DEMUCS_PATH || "demucs";
 const runDemucs = process.argv.includes("--demucs") || process.env.BAKEOFF_DEMUCS === "1";
+const sourceAudioCodec = "pcm_s16le";
 
 const stemNames = {
   drums: "Drums",
@@ -84,9 +85,11 @@ async function ensureSourceAudio(jobDir) {
     "-y",
     "-i",
     sourceMedia,
+    "-map",
+    "0:a:0",
     "-vn",
-    "-ar",
-    "44100",
+    "-c:a",
+    sourceAudioCodec,
     outputPath
   ]);
 

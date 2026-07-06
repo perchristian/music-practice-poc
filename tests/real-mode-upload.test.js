@@ -190,6 +190,7 @@ describe("real-mode FFmpeg extraction", () => {
     assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), ["accompaniment", "piano"]);
     assert.equal(completedJob.result.metadata.ffmpeg.available, true);
     assert.equal(completedJob.result.metadata.ffmpeg.outputFilename, "source-audio.wav");
+    assert.equal(completedJob.result.metadata.ffmpeg.outputCodec, "pcm_s16le");
     assert.ok(completedJob.result.metadata.ffmpeg.outputSize > 44);
     assert.equal(completedJob.result.metadata.separator.available, true);
     assert.equal(completedJob.result.metadata.separator.name, "ffmpeg-spectral-piano-v1");
@@ -216,6 +217,11 @@ describe("real-mode FFmpeg extraction", () => {
     const pianoResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/piano.wav`);
     assert.equal(pianoResponse.status, 200);
     assert.match(pianoResponse.headers.get("content-type"), /^audio\/wav/);
+
+    const sourceAudioResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/source-audio.wav`);
+    assert.equal(sourceAudioResponse.status, 200);
+    assert.match(sourceAudioResponse.headers.get("content-type"), /^audio\/wav/);
+    assert.ok((await sourceAudioResponse.arrayBuffer()).byteLength > 44);
   });
 });
 
