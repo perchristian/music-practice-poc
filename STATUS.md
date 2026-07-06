@@ -122,7 +122,10 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Skills Used
 
-No Codex skills used.
+- Used Codex skill `openai-docs` on 2026-07-06 to verify current Codex guidance for custom prompts/slash commands before creating personal prompt `~/.codex/prompts/commit.md`.
+  - Purpose: decide whether a personal `/commit`-style workflow should be implemented as a Codex custom prompt.
+  - Result: personal command should be invoked as `/prompts:commit`; custom prompts are documented as deprecated in favor of skills, but remain practical for this local workflow.
+  - Reproducibility: the workflow can be reproduced without the skill by following the prompt file contents.
 
 ## Agent and Model Use
 
