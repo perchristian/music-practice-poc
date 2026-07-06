@@ -118,6 +118,18 @@ Cloud/object storage is deferred until remote demos or larger files require it.
 
 The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 2.
 
+## Planned Library UX Direction
+
+The next frontend iteration should move from the current home/recent/all-songs split toward the Voice Memos-inspired song workspace documented in `UX_FLOOR_PLANS.md`.
+
+The backend API and storage model should remain the same. This is primarily a client layout and navigation change:
+
+- desktop and wide tablet: persistent song list on the left, selected song detail/practice on the right
+- mobile: list-first stack with song detail as the second screen
+- active uploads, processing jobs, failed jobs, and completed songs shown in one status-first list
+- full-row song selection instead of a separate Open button
+- selected-song header actions for rename, delete, and future overflow actions
+
 ## Pipeline Strategy
 
 The pipeline boundary should be stable:

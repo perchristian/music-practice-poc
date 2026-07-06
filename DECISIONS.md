@@ -217,3 +217,25 @@ High.
 
 Date:
 2026-07-05
+
+## Decision 11
+
+Decision:
+Move the library/practice UX toward a Voice Memos-inspired song workspace with a persistent song list on desktop, a list-first stack on mobile, and status shown inline in the song rows instead of using separate Recent and All songs destinations as the main navigation model.
+
+Reason:
+Newly uploaded songs should stay visible while they upload and process, and reopening a different song should not require navigating home -> All songs -> song. A status-first song list keeps uploads, processing jobs, failed jobs, recently opened songs, and completed songs in one place while preserving the user's ability to decide whether to open a newly processed song.
+
+Alternatives considered:
+- Keep the current Home + Recent + All songs model.
+- Auto-open every newly completed upload.
+- Make Recent the primary first screen and keep All songs as a separate library.
+
+Tradeoffs:
+The unified workspace requires a larger frontend layout change than small fixes to Recent, and mobile/desktop behavior must be designed deliberately. It reduces navigation friction and better matches familiar media-library patterns, but it does not by itself improve the underlying stem or harmonic quality.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-06

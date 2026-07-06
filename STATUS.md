@@ -6,6 +6,8 @@ The first mock-mode vertical slice and Phase 1 processed-song library are implem
 
 Phase 0 and Phase 1 are complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
 
+The next planned frontend iteration is Phase 1B: replace the current home/recent/all-songs navigation shape with the Voice Memos-inspired unified song workspace described in `UX_FLOOR_PLANS.md`. This has been planned and documented, but not implemented yet.
+
 ## Current Architecture
 
 Local web POC:
@@ -19,6 +21,7 @@ Local web POC:
 - home view shows upload queue plus five most recently opened processed songs
 - per-song practice state stored in local `job.json`
 - future `PIPELINE_MODE=real` behind the same pipeline boundary
+- planned library UX direction: unified status-first song list with desktop split view and mobile list-first stack
 
 ## Completed Work
 
@@ -91,6 +94,8 @@ Local web POC:
 - Removed redundant `complete` status badges from completed library cards.
 - Fixed practice-view back navigation so songs opened from All songs return to the processed-song list, while songs opened from Recent still return home.
 - Refined `VISION.md` validation criteria into an OKR-style objective with key results for learning speed, perceived value, motivation, empowerment, transfer learning, error tolerance, return intent, and adoption threshold.
+- Added `UX_FLOOR_PLANS.md` with three floor plans for a Voice Memos-inspired unified song workspace.
+- Documented the unified song workspace direction in `ARCHITECTURE.md`, `TASKS.md`, and `DECISIONS.md`.
 
 ## In Progress
 
@@ -98,7 +103,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Start Phase 2: problem areas and practice notes. Add multiple saved loops per song with a name, note, and loop status while keeping the existing Phase 1 library and practice-state flow working.
+Implement Phase 1B: unified song workspace UX from `UX_FLOOR_PLANS.md`, then continue to Phase 2 problem areas and practice notes.
 
 ## Skills Used
 
@@ -116,6 +121,7 @@ No Codex skills used.
 
 ## Verification Log
 
+- Documentation-only UX planning update on 2026-07-06; no code verification run.
 - `node --check server.js`: passed after home/queue/library flow changes.
 - Documentation-only validation criteria update in `VISION.md`; no code verification run.
 - `node --check public/app.js`: passed after home/queue/library flow changes.

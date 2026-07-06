@@ -116,6 +116,36 @@ Verification:
 
 Status: Complete in mock mode. `npm test` and `npm run test:gui` pass as of 2026-07-05.
 
+## Phase 1B: Unified Song Workspace UX
+
+Goal: A user can always see newly uploaded, processing, failed, and completed songs in one primary song list, and can switch songs without navigating through separate home, Recent, and All songs pages.
+
+Design reference:
+- `UX_FLOOR_PLANS.md`
+
+Demonstrable outcome:
+- Desktop and wide tablet show a Voice Memos-inspired split view with the song list on the left and selected song detail/practice on the right.
+- Mobile shows a list-first stack: song list first, selected song/practice detail second.
+- Upload/add is available from the song list.
+- New uploads appear immediately in the song list with progress/status.
+- Completed uploads remain in the list and do not auto-open unless the user selects them.
+- The whole song row opens/selects the song.
+- Rename/delete move to the selected-song header and/or row actions instead of requiring a separate card button for the primary open action.
+- Status and human-readable activity time are shown inline; seconds-level timestamps are not shown.
+- Existing practice playback, saved state, learning status, and harmonic cue behavior remain working.
+
+Verification:
+- Queue one or more mock uploads and confirm active jobs remain visible in the unified song list.
+- Let uploads complete and confirm they remain visible without auto-opening.
+- On desktop width, select different songs from the left list and confirm the practice/detail pane changes without leaving the workspace.
+- On mobile width, open a song from the list and return to the same list.
+- Confirm the entire row opens/selects the song.
+- Rename and delete a selected song from the new action placement.
+- Run `npm test`.
+- Run `npm run test:gui`.
+
+Status: Planned next.
+
 ## Phase 2: Problem Areas and Practice Notes
 
 Goal: A user can track difficult passages and use the app as an ongoing practice workspace, not just a one-off player.
@@ -129,7 +159,7 @@ Verification:
 - Create, edit, select, and delete multiple loops on one processed song.
 - Reload the app and confirm notes and loop status persist.
 
-Status: Planned.
+Status: Planned after Phase 1B.
 
 ## Phase 3: First Real-Pipeline Spike
 
@@ -210,4 +240,4 @@ Status: Deferred until entry criteria are met.
 
 ## Next Task
 
-Start Phase 2 by adding saved problem areas / practice loops with a name, note, and learning status per loop.
+Implement Phase 1B: unified song workspace UX from `UX_FLOOR_PLANS.md`, before starting Phase 2 problem areas / practice notes.
