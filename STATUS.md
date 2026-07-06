@@ -6,7 +6,7 @@ The first mock-mode vertical slice, Phase 1 processed-song library, and Phase 1B
 
 Phase 0, Phase 1, and Phase 1B are complete for automated verification. Subjective audio usefulness still needs a human listening pass before external user testing.
 
-The next planned frontend iteration is Phase 2: problem areas and practice notes.
+The next planned iteration is Phase 2: first real-pipeline spike, starting with FFmpeg-based audio extraction as the first replaceable real subsystem.
 
 A process task for on-demand context overhead auditing is documented in `TASKS.md`. Context-overhead logging is off by default and should only be enabled after an explicit human request.
 
@@ -67,11 +67,12 @@ Local web POC:
   - `npm run test:gui` passed on 2026-07-05.
 - Added a phased forward roadmap in `TASKS.md`:
   - Phase 1: processed-song library and saved practice state.
-  - Phase 2: problem areas and practice notes.
-  - Phase 3: first real-pipeline spike.
+  - Phase 2: first real-pipeline spike.
+  - Phase 3: problem areas and practice notes.
   - Phase 4: musical grid and bar-based practice.
   - Phase 5: expanded practice targets.
   - Phase 6: native iOS feasibility spike.
+- Expanded Phase 2 into subphases 2A-2F, starting with FFmpeg audio extraction before any heavy ML integration.
 - Documented native iOS transition criteria in `ARCHITECTURE.md`.
 - Added processed-song library API:
   - `GET /api/library`
@@ -121,7 +122,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Implement Phase 2: problem areas and practice notes.
+Start Phase 2A: spike framing and test media for the first real-pipeline spike.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
@@ -144,6 +145,7 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Verification Log
 
+- Documentation-only Phase 2 planning update on 2026-07-06; no code verification run.
 - `node --check server.js`: passed after upload/list/layout correction work.
 - `node --check public/app.js`: passed after upload/list/layout correction work.
 - `node --check tests/gui.spec.js`: passed after updating GUI coverage for auto-upload and creation-time sorting.

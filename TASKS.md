@@ -146,7 +146,146 @@ Verification:
 
 Status: Complete in mock mode. `npm test` and `npm run test:gui` pass as of 2026-07-06.
 
-## Phase 2: Problem Areas and Practice Notes
+## Phase 2: First Real-Pipeline Spike
+
+Goal: Reduce the highest technical uncertainty with one replaceable real subsystem.
+
+Recommended first subsystem:
+- Extract audio from an uploaded video/audio file with FFmpeg in `PIPELINE_MODE=real`.
+
+Reason:
+- This validates the first real processing boundary with much lower dependency risk than stem separation or transcription.
+- It exercises actual file upload, local source storage, asynchronous processing, error handling, generated result assets, and real-mode documentation.
+- It keeps mock mode fully useful while giving the project a concrete real-pipeline foothold.
+
+Deferred candidate scopes:
+- Piano/accompaniment separation on one short sample.
+- Piano transcription or chord extraction on one short sample.
+- These should not start until the audio-extraction spike has either passed or shown that extraction is not the right first real subsystem.
+
+Demonstrable outcome:
+- Real mode replaces exactly one mock subsystem: source media audio extraction.
+- Mock mode remains working.
+- A real uploaded media file produces an extracted audio asset that can be reopened from the processed-song library.
+- Stem separation and harmonic metadata may remain mocked during this phase.
+- Results and limitations are documented.
+
+Verification:
+- Run `npm test`.
+- Run `npm run test:gui`.
+- Run `PIPELINE_MODE=mock npm start` and confirm the existing mock demo still works.
+- Run `PIPELINE_MODE=real npm start` and process one short sample when FFmpeg is available.
+- If FFmpeg is unavailable, confirm real mode fails with a clear setup error while mock mode remains unaffected.
+
+### Phase 2A: Spike Framing and Test Media
+
+Goal: Define the narrowest real-mode slice before touching implementation.
+
+Deliverables:
+- Confirm whether FFmpeg is available locally.
+- Choose or generate one short non-copyright sample for local testing.
+- Define the exact output asset for the spike, such as `source-audio.wav` or `source-audio.m4a`.
+- Define success metrics:
+  - processing completes or fails clearly
+  - extracted audio is playable in the browser
+  - job metadata records timing, command availability, and limitations
+  - mock mode behavior is unchanged
+
+Verification:
+- Record FFmpeg availability and sample choice in `STATUS.md`.
+- If a sample is added or generated, document its source/copyright status in `DEMO.md`.
+
+Status: Planned.
+
+### Phase 2B: Real-Mode Upload and Job Contract
+
+Goal: Make `PIPELINE_MODE=real` accept actual uploaded media and run through the same job lifecycle as mock mode.
+
+Deliverables:
+- Real mode accepts multipart upload through the existing `POST /api/jobs` route.
+- Source media is stored under the job directory.
+- Job status transitions are visible through `GET /api/jobs/:id`.
+- Failures are stored in `job.json` and returned through the API without crashing the server.
+- Mock-mode metadata-only upload remains unchanged.
+
+Verification:
+- Backend coverage for real-mode upload/job creation using an isolated `DATA_DIR`.
+- Existing mock backend tests continue to pass.
+
+Status: Planned.
+
+### Phase 2C: FFmpeg Audio Extraction Worker
+
+Goal: Replace only the source-audio extraction subsystem with real processing.
+
+Deliverables:
+- Real mode invokes FFmpeg through a small backend worker.
+- The worker extracts audio from the uploaded source into a browser-playable asset.
+- Processing duration and FFmpeg errors are captured in job metadata.
+- FFmpeg path can be configured without adding a heavy default dependency.
+- Missing FFmpeg produces a clear actionable error.
+
+Verification:
+- Run extraction on one short local sample when FFmpeg is available.
+- Confirm the extracted audio file exists, has nonzero size, and is served with the correct content type.
+- Confirm a failed extraction marks the job as `failed` with a useful error message.
+
+Status: Planned.
+
+### Phase 2D: Practice UI Compatibility
+
+Goal: Keep the existing workspace usable when the result comes from the first real subsystem.
+
+Deliverables:
+- A completed real-mode job appears in the unified song list.
+- Selecting the job opens the same practice/detail panel.
+- The extracted source audio is exposed as a playable result asset, while separated stems and harmonic metadata may remain mocked or clearly labeled as unavailable/mocked.
+- Existing controls do not break if the real-mode result has fewer stems than the mock result.
+
+Verification:
+- Manual browser test with one real-mode completed job.
+- GUI smoke coverage is updated only if the result shape changes in a way the current tests should protect.
+
+Status: Planned.
+
+### Phase 2E: Real-Mode Smoke Verification
+
+Goal: Make the spike reproducible without making FFmpeg required for mock-mode development.
+
+Deliverables:
+- Add a real-mode smoke path that can run when FFmpeg is installed.
+- Keep default `npm test` and mock GUI verification lightweight.
+- Document any skipped verification when FFmpeg is missing.
+
+Verification:
+- `npm test` passes without requiring FFmpeg.
+- `npm run test:gui` passes in mock mode.
+- The real-mode smoke command passes locally when FFmpeg is available, or reports a documented skip/setup error when unavailable.
+
+Status: Planned.
+
+### Phase 2F: Documentation, Risks, and Decision Gate
+
+Goal: Capture what the spike proves before starting heavier ML work.
+
+Deliverables:
+- Update `DEMO.md` with real-mode setup and run steps.
+- Update `STATUS.md` with results, timing, limitations, and whether FFmpeg was available.
+- Update `RISKS.md` with evidence for upload/extraction, processing time, and dependency/platform risks.
+- Log any significant dependency or pipeline decision in `DECISIONS.md`.
+- Decide the next real subsystem:
+  - stem separation
+  - piano transcription
+  - harmonic analysis
+  - stop and improve real upload/extraction reliability
+
+Verification:
+- Documentation explains how another developer can reproduce the real spike or understand why it was skipped.
+- The next implementation task is selected from evidence, not assumption.
+
+Status: Planned. Start with Phase 2A. Do not begin Demucs, Basic Pitch, or other heavy ML integration before the Phase 2F decision gate.
+
+## Phase 3: Problem Areas and Practice Notes
 
 Goal: A user can track difficult passages and use the app as an ongoing practice workspace, not just a one-off player.
 
@@ -159,26 +298,7 @@ Verification:
 - Create, edit, select, and delete multiple loops on one processed song.
 - Reload the app and confirm notes and loop status persist.
 
-Status: Planned after Phase 1B.
-
-## Phase 3: First Real-Pipeline Spike
-
-Goal: Reduce the highest technical uncertainty with one replaceable real subsystem.
-
-Candidate scope:
-- Extract audio from uploaded video with FFmpeg, or
-- Run a small piano separation/transcription experiment on one short sample.
-
-Demonstrable outcome:
-- Real mode replaces exactly one mock subsystem.
-- Mock mode remains working.
-- Results and limitations are documented.
-
-Verification:
-- Run mock demo.
-- Run real spike on one sample if dependencies are available.
-
-Status: Planned after library and saved practice state, unless real stem quality becomes the immediate blocker.
+Status: Planned
 
 ## Phase 4: Musical Grid and Bar-Based Practice
 
@@ -272,4 +392,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Implement Phase 2: problem areas and practice notes.
+Start Phase 2A: spike framing and test media for the first real-pipeline spike.
