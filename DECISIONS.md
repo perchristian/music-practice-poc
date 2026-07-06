@@ -264,3 +264,25 @@ Medium.
 
 Date:
 2026-07-06
+
+## Decision 13
+
+Decision:
+Use `source-audio.wav` as the first real-mode extracted audio asset inside each job directory.
+
+Reason:
+The first real-pipeline spike should validate one boundary only: uploaded source media becomes a browser-playable audio asset through FFmpeg. WAV keeps playback and file inspection simple, avoids codec ambiguity during the spike, and gives later stem separation or transcription work a stable local input.
+
+Alternatives considered:
+- `source-audio.m4a`
+- Keeping only the original uploaded source file
+- Producing separated stems immediately
+
+Tradeoffs:
+WAV files are larger than compressed audio, but the Phase 2 sample and intended spike files are short. This does not solve stem separation or transcription quality; it only proves upload storage, real processing, error handling, and browser playback of an extracted asset.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-06

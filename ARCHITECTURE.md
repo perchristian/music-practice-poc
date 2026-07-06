@@ -115,7 +115,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 2.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 3.
 
 ## Library UX
 

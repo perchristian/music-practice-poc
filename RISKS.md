@@ -18,7 +18,7 @@
 | Risk | Likelihood | Impact | Mitigation | Current status |
 | --- | --- | --- | --- | --- |
 | Heavy ML dependencies slow or fail installation | High | High | Keep default mock mode dependency-light; add real dependencies only through explicit setup | Open |
-| FFmpeg unavailable in development environment | Medium | Medium | Do not require FFmpeg for mock mode; document real-mode setup when introduced | Open |
+| FFmpeg unavailable in development environment | Medium | Medium | Do not require FFmpeg for mock mode; document real-mode setup when introduced; Phase 2B/2C must return a clear missing-FFmpeg error in real mode | Observed locally on 2026-07-06; mock mode unaffected |
 | Browser audio behavior differs across desktop and iOS Safari | Medium | Medium | Use native HTML audio APIs first; test on target devices before user sessions | Open |
 | Multiple HTML audio elements drift during synchronized stem playback | Medium | Medium | Keep sync simple in mock mode; measure drift manually; move to Web Audio if drift distracts from the demo | Open |
 | Large uploads consume local disk or memory | Medium | Medium | Keep POC file sizes small; add limits before real user testing | Open |

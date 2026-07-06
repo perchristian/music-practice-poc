@@ -103,11 +103,20 @@ The user should experience the intended learning workflow end to end, even thoug
 
 Do not include commercial recordings in the repository. Use a user-provided test file or a generated/local sample. The local demo stem files under `data/` are ignored by git and must be replaced with material the tester is allowed to process. The mock pipeline does not depend on the uploaded file content yet.
 
+The Phase 2A real-pipeline spike uses `test-media/phase-2a-source.wav` as a safe local test input. Generate or refresh it with:
+
+```bash
+npm run generate:test-media
+```
+
+This file is synthesized in-repo from simple sine-wave chord tones. It is not a commercial recording and does not include third-party audio. It is intentionally short and musically plain; its purpose is to verify upload, job lifecycle, FFmpeg availability handling, and browser playback of the extracted `source-audio.wav` asset, not to evaluate stem quality.
+
 ## Known Limitations
 
 - Real piano isolation is not implemented yet.
 - Real drums, bass, guitar, and piano separation is not implemented yet.
 - Real transcription is not implemented yet.
+- Real-mode FFmpeg extraction is framed but not implemented yet. On this machine, FFmpeg was not available on PATH on 2026-07-06.
 - Harmonic metadata is mocked.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.
