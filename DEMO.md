@@ -18,6 +18,8 @@ In mock mode, the browser sends selected file metadata instead of uploading the 
 
 In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav` as uncompressed PCM WAV, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. Harmonic analysis remains mocked. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
 
+Real-mode progress is approximate. FFmpeg extraction moves the job to the separation stage, and Demucs stderr percentages are mapped into the overall progress bar so stem separation should advance beyond 55% before completion when Demucs emits progress output.
+
 The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
 
 When Real mode is selected, the service status should show the active separator. `Backend ready: real · demucs-htdemucs_6s` means new uploads will use Demucs. `Backend ready: real · FFmpeg fallback` means the server was started with `REAL_SEPARATOR=ffmpeg-spectral`; stop that server and restart without `REAL_SEPARATOR=ffmpeg-spectral` if the goal is Demucs separation.
@@ -137,9 +139,9 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 
 1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
 2. Upload `test-media/phase-2g-piano-mix.wav` or another short audio/video file.
-3. Wait for the job to complete.
+3. Wait for the job to complete. During Demucs separation, the selected song should show `Separating stems` and progress should advance past 55% before the job reaches 100%.
 4. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
-5. Play the result and confirm the browser can load both stems.
+5. Play the result and confirm the browser can load all stems.
 6. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
 7. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
 8. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.

@@ -79,7 +79,8 @@ describe("mock backend", () => {
       body: JSON.stringify({
         filename: "screen-recording.mov",
         size: 500_000_000,
-        type: "video/quicktime"
+        type: "video/quicktime",
+        durationSeconds: 74
       })
     });
 
@@ -90,6 +91,7 @@ describe("mock backend", () => {
     const completedJob = await waitForComplete(createdJob.id);
     assert.equal(completedJob.status, "complete");
     assert.equal(completedJob.progress, 100);
+    assert.equal(completedJob.result.metadata.durationSeconds, 74);
     assert.equal(completedJob.result.metadata.key.tonic, "C");
 
     const stems = completedJob.result.stems;
@@ -125,6 +127,7 @@ describe("mock backend", () => {
     assert.equal(job.progress, 100);
     assert.equal(job.mockUpload, true);
     assert.equal(job.originalFilename, "demo-processed-screen-recording.mov");
+    assert.equal(job.result.metadata.durationSeconds, 16);
     assert.equal(job.result.metadata.key.tonic, "C");
     assert.ok(job.result.stems.some((stem) => stem.id === "piano"));
   });

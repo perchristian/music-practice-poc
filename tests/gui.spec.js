@@ -332,6 +332,41 @@ test("song selection waits for real media duration instead of using a 16 second 
   await expect(page.locator("#scrubber")).toHaveAttribute("max", "74");
 });
 
+test("song duration labels prefer media metadata over harmonic cue length", async ({ page }) => {
+  const jobId = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: jobId,
+          mode: "real",
+          status: "complete",
+          progress: 100,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          originalFilename: "long-upload.mov",
+          practiceState: { learningStatus: "not_started", stemStates: {} },
+          result: {
+            stems: [],
+            metadata: {
+              durationSeconds: 74,
+              key: { tonic: "C", mode: "major" },
+              chords: [{ start: 0, end: 16, name: "Cmaj7", roman: "Imaj7" }],
+              melody: []
+            }
+          }
+        }
+      ])
+    });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("1:14");
+  await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("0:16");
+});
+
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];

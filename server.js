@@ -25,6 +25,7 @@ const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MOCK_DURATION_SECONDS = 16;
 
 const jobs = new Map();
 
@@ -114,6 +115,60 @@ function stemFilePath(job, stem) {
     return join(job.dir, stem.filename);
   }
   return join(job.dir, "stems", stem.filename);
+}
+
+function finitePositiveNumber(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function durationSecondsFromMetadata(metadata) {
+  const duration = Number(metadata?.durationSeconds ?? metadata?.duration);
+  return finitePositiveNumber(duration) ? duration : null;
+}
+
+function normalizedDurationSeconds(value) {
+  const duration = Number(value);
+  return finitePositiveNumber(duration) && duration < 24 * 60 * 60 ? duration : null;
+}
+
+function wavDurationSeconds(buffer) {
+  if (
+    buffer.length < 44 ||
+    buffer.toString("ascii", 0, 4) !== "RIFF" ||
+    buffer.toString("ascii", 8, 12) !== "WAVE"
+  ) {
+    return null;
+  }
+
+  let byteRate = null;
+  let dataBytes = null;
+  let offset = 12;
+
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkStart = offset + 8;
+    if (chunkStart + chunkSize > buffer.length) break;
+
+    if (chunkId === "fmt " && chunkSize >= 16) {
+      byteRate = buffer.readUInt32LE(chunkStart + 8);
+    } else if (chunkId === "data") {
+      dataBytes = chunkSize;
+    }
+
+    offset = chunkStart + chunkSize + (chunkSize % 2);
+  }
+
+  if (!finitePositiveNumber(byteRate) || !finitePositiveNumber(dataBytes)) return null;
+  return dataBytes / byteRate;
+}
+
+async function wavDurationSecondsFromFile(filePath) {
+  try {
+    return wavDurationSeconds(await readFile(filePath));
+  } catch {
+    return null;
+  }
 }
 
 function contentTypeForPath(path, fallback = "application/octet-stream") {
@@ -278,8 +333,9 @@ function parseMultipart(buffer, boundary) {
   return parts;
 }
 
-function createMockMetadata() {
+function createMockMetadata(durationSeconds = MOCK_DURATION_SECONDS) {
   return {
+    durationSeconds,
     key: {
       tonic: "C",
       mode: "major",
@@ -419,7 +475,7 @@ function stemSample(stemId, time) {
 
 function generateMockWav(stemId = "piano") {
   const sampleRate = 44100;
-  const durationSeconds = 16;
+  const durationSeconds = MOCK_DURATION_SECONDS;
   const totalSamples = sampleRate * durationSeconds;
   const dataBytes = totalSamples * 2;
   const buffer = Buffer.alloc(44 + dataBytes);
@@ -458,6 +514,7 @@ async function createJobRecord({
   sourcePath = null,
   sourceFilename = null,
   mockUpload = false,
+  originalDurationSeconds = null,
   mode = activePipelineMode
 }) {
   const id = randomUUID();
@@ -472,6 +529,7 @@ async function createJobRecord({
     originalFilename,
     originalSize,
     originalType,
+    originalDurationSeconds: normalizedDurationSeconds(originalDurationSeconds),
     sourcePath,
     sourceFilename,
     mockUpload,
@@ -541,6 +599,7 @@ function publicJob(job) {
     mode: job.mode,
     status: job.status,
     progress: job.progress,
+    pipelineStage: job.metadata?.pipelineStage || null,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     originalFilename: job.originalFilename,
@@ -617,7 +676,7 @@ async function completeMockJob(job) {
 
   job.status = "complete";
   job.progress = 100;
-  job.metadata = createMockMetadata();
+  job.metadata = createMockMetadata(job.originalDurationSeconds || MOCK_DURATION_SECONDS);
   job.updatedAt = new Date().toISOString();
   await saveJob(job);
 }
@@ -660,17 +719,22 @@ async function failJob(job, message, details = {}) {
 
 function runProcess(command, args, options = {}) {
   return new Promise((resolve) => {
+    const { onStdout, onStderr, ...spawnOptions } = options;
     const startedAt = Date.now();
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], ...options });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], ...spawnOptions });
     let stdout = "";
     let stderr = "";
 
     child.stdout.on("data", (chunk) => {
-      stdout = `${stdout}${chunk.toString("utf8")}`.slice(-4000);
+      const text = chunk.toString("utf8");
+      stdout = `${stdout}${text}`.slice(-4000);
+      onStdout?.(text);
     });
 
     child.stderr.on("data", (chunk) => {
-      stderr = `${stderr}${chunk.toString("utf8")}`.slice(-4000);
+      const text = chunk.toString("utf8");
+      stderr = `${stderr}${text}`.slice(-4000);
+      onStderr?.(text);
     });
 
     child.on("error", (error) => {
@@ -695,6 +759,33 @@ function runProcess(command, args, options = {}) {
       });
     });
   });
+}
+
+async function updateProcessingProgress(job, progress, metadataPatch = {}) {
+  if (job.status !== "processing") return;
+
+  const nextProgress = Math.min(99, Math.max(Number(job.progress) || 0, Math.round(progress)));
+  if (nextProgress <= (Number(job.progress) || 0)) return;
+
+  job.progress = nextProgress;
+  job.metadata = {
+    ...(job.metadata || {}),
+    ...metadataPatch
+  };
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+}
+
+function demucsProgressFromOutput(text) {
+  const matches = [...text.matchAll(/(^|[^\d])(\d{1,3})(?:\.\d+)?%/g)];
+  const values = matches
+    .map((match) => Number(match[2]))
+    .filter((value) => Number.isFinite(value) && value >= 0 && value <= 100);
+  return values.length ? values.at(-1) : null;
+}
+
+function jobProgressFromSeparatorPercent(percent) {
+  return Math.min(96, Math.max(56, 55 + Math.round((percent / 100) * 41)));
 }
 
 async function ffmpegVersionLine() {
@@ -746,10 +837,12 @@ async function extractSourceAudio(job) {
   }
 
   const outputStats = await stat(outputPath);
+  const durationSeconds = await wavDurationSecondsFromFile(outputPath);
   return {
     filename: outputFilename,
     path: outputPath,
     size: outputStats.size,
+    durationSeconds,
     durationMs: result.durationMs,
     command: FFMPEG_PATH,
     args,
@@ -863,12 +956,29 @@ async function separateWithDemucs(job, extracted) {
     demucsOutputDir,
     extracted.path
   ];
+  let progressBuffer = "";
+  const progressSaves = [];
   const [version, result] = await Promise.all([
     demucsVersionLine(),
     runProcess(DEMUCS_PATH, args, {
-      env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME }
+      env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME },
+      onStderr: (text) => {
+        progressBuffer = `${progressBuffer}${text}`.slice(-1000);
+        const separatorProgress = demucsProgressFromOutput(progressBuffer);
+        if (separatorProgress === null) return;
+
+        progressSaves.push(
+          updateProcessingProgress(job, jobProgressFromSeparatorPercent(separatorProgress), {
+            separator: {
+              ...(job.metadata?.separator || {}),
+              progressPercent: separatorProgress
+            }
+          })
+        );
+      }
     })
   ]);
+  await Promise.allSettled(progressSaves);
 
   if (!result.ok) {
     const missingCommand = result.error?.code === "ENOENT";
@@ -895,6 +1005,13 @@ async function separateWithDemucs(job, extracted) {
   const demucsStemDir = join(demucsOutputDir, DEMUCS_MODEL, sourceName);
   const stemIds = ["drums", "bass", "guitar", "piano", "vocals", "other"];
   const outputs = [];
+
+  await updateProcessingProgress(job, 97, {
+    separator: {
+      ...(job.metadata?.separator || {}),
+      progressPercent: 100
+    }
+  });
 
   for (const stemId of stemIds) {
     const filename = `${stemId}.wav`;
@@ -984,6 +1101,7 @@ async function runRealPipeline(job) {
         command: extracted.command,
         available: true,
         durationMs: extracted.durationMs,
+        durationSeconds: extracted.durationSeconds,
         outputFilename: extracted.filename,
         outputCodec: extracted.codec,
         outputSize: extracted.size
@@ -1006,6 +1124,7 @@ async function runRealPipeline(job) {
       ...job.metadata,
       pipelineStage: "piano-focused-separated",
       harmonySource: "mock",
+      durationSeconds: extracted.durationSeconds,
       key: createMockMetadata().key,
       chords: createMockMetadata().chords,
       melody: createMockMetadata().melody,
@@ -1013,6 +1132,7 @@ async function runRealPipeline(job) {
         command: extracted.command,
         available: true,
         durationMs: extracted.durationMs,
+        durationSeconds: extracted.durationSeconds,
         outputFilename: extracted.filename,
         outputCodec: extracted.codec,
         outputSize: extracted.size
@@ -1053,6 +1173,7 @@ async function handleCreateJob(req, res) {
       originalFilename: payload.filename,
       originalSize: payload.size,
       originalType: payload.type,
+      originalDurationSeconds: payload.durationSeconds,
       mockUpload: true,
       mode: selectedMode
     });
@@ -1066,6 +1187,7 @@ async function handleCreateJob(req, res) {
     const body = await readRequestBody(req);
     const parts = parseMultipart(body, boundaryMatch[1] || boundaryMatch[2]);
     const media = parts.find((part) => part.name === "media" && part.filename);
+    const durationPart = parts.find((part) => part.name === "durationSeconds" && !part.filename);
     if (!media) {
       badRequest(res, "Upload must include a file field named media.");
       return;
@@ -1077,6 +1199,7 @@ async function handleCreateJob(req, res) {
       originalFilename: media.filename,
       originalSize: media.data.length,
       originalType: media.contentType,
+      originalDurationSeconds: durationPart?.data?.toString("utf8"),
       sourceFilename,
       mode: selectedMode
     });
@@ -1247,11 +1370,37 @@ async function handleSetPipelineMode(req, res) {
   });
 }
 
+async function ensureJobDurationMetadata(job) {
+  if (!job || job.status !== "complete" || durationSecondsFromMetadata(job.metadata)) return job;
+
+  const candidates = [
+    join(job.dir, SOURCE_AUDIO_FILENAME),
+    ...stemsForJob(job)
+      .filter((stem) => extname(stem.filename || "").toLowerCase() === ".wav")
+      .map((stem) => stemFilePath(job, stem))
+  ];
+
+  for (const candidatePath of candidates) {
+    const durationSeconds = await wavDurationSecondsFromFile(candidatePath);
+    if (!durationSeconds) continue;
+
+    job.metadata = {
+      ...(job.metadata || {}),
+      durationSeconds
+    };
+    await saveJob(job);
+    return job;
+  }
+
+  return job;
+}
+
 async function readJobFromDisk(id) {
-  if (jobs.has(id)) return jobs.get(id);
+  if (jobs.has(id)) return ensureJobDurationMetadata(jobs.get(id));
   try {
     const job = JSON.parse(await readFile(join(JOBS_DIR, id, "job.json"), "utf8"));
     job.dir = join(JOBS_DIR, id);
+    await ensureJobDurationMetadata(job);
     jobs.set(id, job);
     return job;
   } catch {

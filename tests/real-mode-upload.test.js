@@ -68,6 +68,28 @@ async function waitForComplete(jobId, url = baseUrl) {
   throw new Error(`Real-mode job did not complete. Latest status: ${latestJob?.status ?? "unknown"}`);
 }
 
+async function waitForProgressAtLeast(jobId, minimum, url = baseUrl) {
+  const deadline = Date.now() + 10_000;
+  let latestJob;
+
+  while (Date.now() < deadline) {
+    const response = await fetch(`${url}/api/jobs/${jobId}`);
+    assert.equal(response.status, 200);
+    latestJob = await response.json();
+    if (latestJob.status === "failed") {
+      throw new Error(`Real-mode job failed unexpectedly: ${latestJob.error}`);
+    }
+    if (latestJob.status === "processing" && latestJob.progress >= minimum && latestJob.progress < 100) {
+      return latestJob;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error(
+    `Real-mode job did not report progress >= ${minimum}. Latest progress: ${latestJob?.progress ?? "unknown"}`
+  );
+}
+
 async function uploadSample(url = baseUrl, filename = "phase-2a-source.wav") {
   const formData = new FormData();
   const mediaBytes = await readFile(join(process.cwd(), "test-media", filename));
@@ -192,6 +214,8 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(completedJob.result.metadata.ffmpeg.outputFilename, "source-audio.wav");
     assert.equal(completedJob.result.metadata.ffmpeg.outputCodec, "pcm_s16le");
     assert.ok(completedJob.result.metadata.ffmpeg.outputSize > 44);
+    assert.equal(completedJob.result.metadata.durationSeconds, 6);
+    assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.separator.available, true);
     assert.equal(completedJob.result.metadata.separator.name, "ffmpeg-spectral-piano-v1");
     assert.ok(completedJob.result.metadata.separator.durationMs >= 0);
@@ -255,6 +279,10 @@ const outDir = args[args.indexOf("--out") + 1];
 const input = args[args.length - 1];
 const targetDir = join(outDir, model, parse(input).name);
 await mkdir(targetDir, { recursive: true });
+for (const percent of [10, 45, 80, 100]) {
+  process.stderr.write(percent + "%| fake-demucs progress\\n");
+  await new Promise((resolve) => setTimeout(resolve, 150));
+}
 for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
   await copyFile(input, join(targetDir, stem + ".wav"));
 }
@@ -298,6 +326,11 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     }
 
     const { job: createdJob } = await uploadSample(demucsBaseUrl, "phase-2g-piano-mix.wav");
+    const progressJob = await waitForProgressAtLeast(createdJob.id, 60, demucsBaseUrl);
+    assert.equal(progressJob.pipelineStage, "piano-focused-separation");
+    assert.ok(progressJob.progress > 55);
+    assert.ok(progressJob.progress < 100);
+
     const completedJob = await waitForComplete(createdJob.id, demucsBaseUrl);
 
     assert.equal(completedJob.status, "complete");
@@ -314,6 +347,8 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     assert.equal(completedJob.result.metadata.separator.model, "fake_model");
     assert.equal(completedJob.result.metadata.separator.outputs.length, 6);
     assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
+    assert.equal(completedJob.result.metadata.durationSeconds, 6);
+    assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
 
     const jobDir = join(demucsDataDir, "jobs", createdJob.id);
     for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {

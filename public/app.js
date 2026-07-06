@@ -72,6 +72,12 @@ const statusLabels = {
   learned: "Learned"
 };
 
+const pipelineStageLabels = {
+  "source-audio-extraction": "Extracting audio",
+  "piano-focused-separation": "Separating stems",
+  "piano-focused-separated": "Preparing result"
+};
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
   const minutes = Math.floor(seconds / 60);
@@ -148,6 +154,9 @@ function formatActivityTime(value) {
 }
 
 function jobDurationLabel(job) {
+  const metadataDuration = Number(job?.result?.metadata?.durationSeconds ?? job?.result?.metadata?.duration);
+  if (Number.isFinite(metadataDuration) && metadataDuration > 0) return formatTime(metadataDuration);
+
   const chords = job?.result?.metadata?.chords || [];
   const duration = Math.max(0, ...chords.map((chord) => Number(chord.end) || 0));
   return duration > 0 ? formatTime(duration) : "--";
@@ -155,7 +164,9 @@ function jobDurationLabel(job) {
 
 function queueStatusLabel(queueJob) {
   if (queueJob.status === "queued") return "Queued";
-  if (queueJob.status === "processing") return "Processing stems";
+  if (queueJob.status === "processing") {
+    return pipelineStageLabels[queueJob.pipelineStage] || "Processing stems";
+  }
   if (queueJob.status === "complete") return "Ready";
   if (queueJob.status === "failed") return "Failed";
   return queueJob.status || "Processing";
@@ -827,6 +838,7 @@ function renderStemPlayers(stems) {
 function updateQueueJob(queueJob, job) {
   queueJob.status = job.status;
   queueJob.progress = job.progress;
+  queueJob.pipelineStage = job.pipelineStage || queueJob.pipelineStage || null;
   queueJob.updatedAt = new Date().toISOString();
   renderSongList();
   if (selectedQueueLocalId === queueJob.localId) {
@@ -914,7 +926,39 @@ async function pollQueueJob(localId) {
   updateQueueJob(queueJob, job);
 }
 
+function readMediaDurationWithElement(file, tagName) {
+  return new Promise((resolve) => {
+    const element = document.createElement(tagName);
+    const objectUrl = URL.createObjectURL(file);
+    let settled = false;
+
+    const finish = (duration = null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      element.removeAttribute("src");
+      URL.revokeObjectURL(objectUrl);
+      resolve(Number.isFinite(duration) && duration > 0 ? duration : null);
+    };
+
+    const timeout = window.setTimeout(() => finish(), 1000);
+    element.preload = "metadata";
+    element.addEventListener("loadedmetadata", () => finish(element.duration), { once: true });
+    element.addEventListener("error", () => finish(), { once: true });
+    element.src = objectUrl;
+    element.load();
+  });
+}
+
+async function readMediaDuration(file) {
+  if (file.type.startsWith("video/")) return readMediaDurationWithElement(file, "video");
+  if (file.type.startsWith("audio/")) return readMediaDurationWithElement(file, "audio");
+  return null;
+}
+
 async function createJob(file) {
+  const durationSeconds = await readMediaDuration(file);
+
   if (pipelineMode === "mock") {
     const response = await fetch("/api/jobs", {
       method: "POST",
@@ -924,7 +968,8 @@ async function createJob(file) {
       body: JSON.stringify({
         filename: file.name,
         size: file.size,
-        type: file.type
+        type: file.type,
+        durationSeconds
       })
     });
 
@@ -938,6 +983,9 @@ async function createJob(file) {
 
   const formData = new FormData();
   formData.append("media", file);
+  if (durationSeconds) {
+    formData.append("durationSeconds", String(durationSeconds));
+  }
 
   const response = await fetch("/api/jobs", {
     method: "POST",
@@ -1027,6 +1075,7 @@ async function uploadFiles(files) {
         filename: file.name,
         status: pipelineMode === "mock" ? "simulating upload" : "uploading",
         progress: 3,
+        pipelineStage: null,
         timer: null,
         jobId: null,
         createdAt: new Date().toISOString(),
@@ -1046,13 +1095,21 @@ async function uploadFiles(files) {
             const latestQueueJob = queueJobs.get(localId);
             if (!latestQueueJob) return;
             window.clearInterval(latestQueueJob.timer);
-            updateQueueJob(latestQueueJob, { status: "failed", progress: latestQueueJob.progress });
+            updateQueueJob(latestQueueJob, {
+              status: "failed",
+              progress: latestQueueJob.progress,
+              pipelineStage: latestQueueJob.pipelineStage
+            });
           });
         }, 500);
         await pollQueueJob(localId);
       } catch (error) {
         queueJob.error = error.message;
-        updateQueueJob(queueJob, { status: "failed", progress: queueJob.progress });
+        updateQueueJob(queueJob, {
+          status: "failed",
+          progress: queueJob.progress,
+          pipelineStage: queueJob.pipelineStage
+        });
       }
     }
   } finally {
