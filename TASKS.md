@@ -379,7 +379,7 @@ Deliverables:
   - `MakeYouFeelMyLovePart2 - Logic baseline`
   - `MakeYouFeelMyLovePart2 - FFmpeg spectral`
   - `MakeYouFeelMyLovePart2 - Demucs htdemucs_6s`
-- Keep these as QA artifacts; do not make Demucs a default dependency for mock mode.
+- Keep the bakeoff entries as QA artifacts; do not make Demucs a dependency for mock mode.
 
 Verification:
 - Run `npm run bakeoff:stems`.
@@ -394,14 +394,14 @@ Result:
 - Current created job ids are documented in `STATUS.md`.
 - Stem URL probes returned HTTP 200 for representative Logic, FFmpeg, and Demucs stems.
 
-Status: Ready for human listening on 2026-07-06. Do not start Phase 2H until this QA pass is scored or intentionally skipped.
+Status: Complete on 2026-07-06. Human listening accepted Demucs for the POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Demucs is now the default real-mode separator; FFmpeg spectral remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 ## Phase 2H: First Real Audio Analysis Spike
 
 Goal: Replace mocked harmonic metadata with approximate whole-song harmonic cues derived from the extracted audio and, when available, separated stems.
 
 Entry criteria:
-- Phase 2G has produced at least one audio source worth analyzing, or the team explicitly decides to analyze `source-audio.wav` before separation quality is known.
+- Phase 2G-QA has produced at least one audio source worth analyzing, or the team explicitly decides to analyze `source-audio.wav` before separation quality is known.
 
 Strategy:
 - Analyze the song harmony, not just the piano part.
@@ -439,7 +439,7 @@ Verification:
 - Confirm the metadata records whether bass, piano, accompaniment, and full mix were used as evidence.
 - Document accuracy, failure modes, dependency/install cost, and processing time.
 
-Status: Planned after Phase 2G-QA unless stem separation is intentionally deferred.
+Status: Planned after Phase 2G-QA. Demucs stems are now available as supporting evidence, but `source-audio.wav` should remain the full-mix truth source.
 
 ## Phase 3: Problem Areas and Practice Notes
 
@@ -548,4 +548,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Start Phase 2G-QA listening: compare the Logic baseline, FFmpeg spectral, and Demucs `htdemucs_6s` jobs in the app. Start Phase 2H only after a human listening pass confirms whether any separated source is useful enough, or after deciding to analyze `source-audio.wav` before improving separation.
+Start Phase 2H: first real audio/harmonic analysis. Use `source-audio.wav` as the full-mix truth source and Demucs drums/bass/guitar/piano/other stems as supporting evidence where useful.

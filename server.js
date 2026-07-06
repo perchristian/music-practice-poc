@@ -12,7 +12,13 @@ const HOST = process.env.HOST || "127.0.0.1";
 const startupPipelineMode = process.env.PIPELINE_MODE === "real" ? "real" : "mock";
 let activePipelineMode = startupPipelineMode;
 const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
-const REAL_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
+const REAL_SEPARATOR = process.env.REAL_SEPARATOR === "ffmpeg-spectral" ? "ffmpeg-spectral" : "demucs";
+const DEMUCS_MODEL = process.env.DEMUCS_MODEL || "htdemucs_6s";
+const DEMUCS_PATH = process.env.DEMUCS_PATH || join(__dirname, ".venv-real", "bin", "demucs");
+const DEMUCS_TORCH_HOME = process.env.TORCH_HOME || join(__dirname, ".cache", "torch");
+const FFMPEG_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
+const DEMUCS_SEPARATOR_NAME = `demucs-${DEMUCS_MODEL}`;
+const REAL_SEPARATOR_NAME = REAL_SEPARATOR === "ffmpeg-spectral" ? FFMPEG_SEPARATOR_NAME : DEMUCS_SEPARATOR_NAME;
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
@@ -595,10 +601,10 @@ async function failJob(job, message, details = {}) {
   await saveJob(job);
 }
 
-function runProcess(command, args) {
+function runProcess(command, args, options = {}) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], ...options });
     let stdout = "";
     let stderr = "";
 
@@ -636,6 +642,14 @@ function runProcess(command, args) {
 
 async function ffmpegVersionLine() {
   const result = await runProcess(FFMPEG_PATH, ["-version"]);
+  if (!result.ok) return null;
+  return result.stdout.split(/\r?\n/).find(Boolean) || null;
+}
+
+async function demucsVersionLine() {
+  const result = await runProcess(DEMUCS_PATH, ["--version"], {
+    env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME }
+  });
   if (!result.ok) return null;
   return result.stdout.split(/\r?\n/).find(Boolean) || null;
 }
@@ -730,7 +744,7 @@ async function separatePianoAndAccompaniment(job, extracted) {
   if (!result.ok) {
     throw Object.assign(new Error("FFmpeg could not create piano-focused separated stems."), {
       separator: {
-        name: REAL_SEPARATOR_NAME,
+        name: FFMPEG_SEPARATOR_NAME,
         version,
         command: FFMPEG_PATH,
         args,
@@ -763,7 +777,7 @@ async function separatePianoAndAccompaniment(job, extracted) {
   ];
 
   return {
-    name: REAL_SEPARATOR_NAME,
+    name: FFMPEG_SEPARATOR_NAME,
     version,
     command: FFMPEG_PATH,
     args,
@@ -776,6 +790,91 @@ async function separatePianoAndAccompaniment(job, extracted) {
       "The piano stem is a broad midrange band and may contain vocals, guitar, synths, or other pitched material."
     ]
   };
+}
+
+async function separateWithDemucs(job, extracted) {
+  const stemsDir = join(job.dir, "stems");
+  const demucsOutputDir = join(job.dir, "demucs-output");
+  await mkdir(stemsDir, { recursive: true });
+  await mkdir(demucsOutputDir, { recursive: true });
+
+  const args = [
+    "-n",
+    DEMUCS_MODEL,
+    "--out",
+    demucsOutputDir,
+    extracted.path
+  ];
+  const [version, result] = await Promise.all([
+    demucsVersionLine(),
+    runProcess(DEMUCS_PATH, args, {
+      env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME }
+    })
+  ]);
+
+  if (!result.ok) {
+    const missingCommand = result.error?.code === "ENOENT";
+    const message = missingCommand
+      ? `Demucs was not found at "${DEMUCS_PATH}". Install real-mode dependencies or set DEMUCS_PATH, then retry real mode.`
+      : "Demucs could not create separated stems.";
+    throw Object.assign(new Error(message), {
+      separator: {
+        name: DEMUCS_SEPARATOR_NAME,
+        version,
+        command: DEMUCS_PATH,
+        args,
+        model: DEMUCS_MODEL,
+        torchHome: DEMUCS_TORCH_HOME,
+        exitCode: result.code,
+        missingCommand,
+        stderr: result.stderr.trim(),
+        durationMs: result.durationMs
+      }
+    });
+  }
+
+  const sourceName = extracted.filename.replace(/\.[^.]+$/, "");
+  const demucsStemDir = join(demucsOutputDir, DEMUCS_MODEL, sourceName);
+  const stemIds = ["drums", "bass", "guitar", "piano", "vocals", "other"];
+  const outputs = [];
+
+  for (const stemId of stemIds) {
+    const filename = `${stemId}.wav`;
+    const sourcePath = join(demucsStemDir, filename);
+    const targetPath = join(stemsDir, filename);
+    await copyFile(sourcePath, targetPath);
+    const outputStats = await stat(targetPath);
+    outputs.push({
+      id: stemId,
+      name: stemId.charAt(0).toUpperCase() + stemId.slice(1),
+      filename,
+      contentType: "audio/wav",
+      size: outputStats.size
+    });
+  }
+
+  return {
+    name: DEMUCS_SEPARATOR_NAME,
+    version,
+    command: DEMUCS_PATH,
+    args,
+    model: DEMUCS_MODEL,
+    torchHome: DEMUCS_TORCH_HOME,
+    durationMs: result.durationMs,
+    outputs,
+    limitations: [
+      "Demucs is the first accepted real separator for the POC after listening tests.",
+      "The main use case is muting/removing piano for play-along; solo piano may contain artifacts or crackle.",
+      "Dense mixes and screen-recorded audio may still leak piano into other stems."
+    ]
+  };
+}
+
+async function runSelectedSeparator(job, extracted) {
+  if (REAL_SEPARATOR === "ffmpeg-spectral") {
+    return separatePianoAndAccompaniment(job, extracted);
+  }
+  return separateWithDemucs(job, extracted);
 }
 
 async function runRealPipeline(job) {
@@ -804,8 +903,12 @@ async function runRealPipeline(job) {
       outputs: []
     },
     limitations: [
-      "Source-audio extraction and a narrow piano-focused FFmpeg spectral split are real in this phase.",
-      "The separator is a heuristic spike, not production-quality source separation.",
+      REAL_SEPARATOR === "ffmpeg-spectral"
+        ? "Source-audio extraction and a narrow piano-focused FFmpeg spectral split are real in this phase."
+        : "Source-audio extraction and Demucs stem separation are real in this phase.",
+      REAL_SEPARATOR === "ffmpeg-spectral"
+        ? "The separator is a heuristic spike, not production-quality source separation."
+        : "Demucs output is accepted for play-along piano removal in the POC, but solo piano may contain artifacts.",
       "Harmony cues are mocked so the practice UI remains usable."
     ]
   };
@@ -829,23 +932,14 @@ async function runRealPipeline(job) {
     job.updatedAt = new Date().toISOString();
     await saveJob(job);
 
-    const separation = await separatePianoAndAccompaniment(job, extracted);
-    job.stems = [
-      {
-        id: "piano",
-        name: "Piano",
-        filename: "piano.wav",
-        contentType: "audio/wav",
-        kind: "separated-stem"
-      },
-      {
-        id: "accompaniment",
-        name: "Accompaniment",
-        filename: "accompaniment.wav",
-        contentType: "audio/wav",
-        kind: "separated-stem"
-      }
-    ];
+    const separation = await runSelectedSeparator(job, extracted);
+    job.stems = separation.outputs.map((stem) => ({
+      id: stem.id,
+      name: stem.name,
+      filename: stem.filename,
+      contentType: stem.contentType,
+      kind: "separated-stem"
+    }));
     job.status = "complete";
     job.progress = 100;
     job.metadata = {

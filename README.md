@@ -27,7 +27,15 @@ Mock mode is the default and requires no heavy ML dependencies:
 PIPELINE_MODE=mock npm start
 ```
 
-Real mode currently validates upload, FFmpeg source-audio extraction, and a narrow FFmpeg spectral split for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, then exposes heuristic `Piano` and `Accompaniment` WAV stems. This is not production-quality source separation; transcription and real harmonic analysis are not implemented yet.
+Real mode currently validates upload, FFmpeg source-audio extraction, and Demucs `htdemucs_6s` stem separation for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, then exposes `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` WAV stems. The FFmpeg spectral split remains available as a lightweight fallback with `REAL_SEPARATOR=ffmpeg-spectral`. Transcription and real harmonic analysis are not implemented yet.
+
+Heavy real-pipeline dependencies are optional and separate from mock mode:
+
+```bash
+python3 -m venv .venv-real
+.venv-real/bin/python -m pip install -r requirements-real.txt
+TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
+```
 
 See `DEMO.md` for the current demo flow and known limitations.
 

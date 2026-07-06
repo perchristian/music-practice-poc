@@ -1,7 +1,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,8 +11,10 @@ const extractionPort = Number(process.env.REAL_EXTRACTION_TEST_PORT || 3212);
 const extractionBaseUrl = `http://127.0.0.1:${extractionPort}`;
 let server;
 let extractionServer;
+let demucsServer;
 let testDataDir;
 let extractionDataDir;
+let demucsDataDir;
 
 async function waitForHealth(url = baseUrl) {
   const deadline = Date.now() + 10_000;
@@ -154,6 +156,7 @@ describe("real-mode FFmpeg extraction", () => {
         ...process.env,
         PORT: String(extractionPort),
         PIPELINE_MODE: "real",
+        REAL_SEPARATOR: "ffmpeg-spectral",
         DATA_DIR: extractionDataDir
       },
       stdio: ["ignore", "pipe", "pipe"]
@@ -213,5 +216,106 @@ describe("real-mode FFmpeg extraction", () => {
     const pianoResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/piano.wav`);
     assert.equal(pianoResponse.status, 200);
     assert.match(pianoResponse.headers.get("content-type"), /^audio\/wav/);
+  });
+});
+
+describe("real-mode Demucs separator contract", () => {
+  const demucsPort = Number(process.env.REAL_DEMUCS_TEST_PORT || 3213);
+  const demucsBaseUrl = `http://127.0.0.1:${demucsPort}`;
+
+  before(async (t) => {
+    const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
+    if (ffmpegCheck.status !== 0) {
+      t.skip("FFmpeg is not available; skipping Demucs separator contract smoke.");
+      return;
+    }
+
+    demucsDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-demucs-"));
+    const fakeDemucsPath = join(demucsDataDir, "fake-demucs.mjs");
+    await writeFile(
+      fakeDemucsPath,
+      `#!/usr/bin/env node
+import { copyFile, mkdir } from "node:fs/promises";
+import { join, parse } from "node:path";
+
+const args = process.argv.slice(2);
+if (args.includes("--version")) {
+  console.log("fake-demucs 0.0.0");
+  process.exit(0);
+}
+
+const model = args[args.indexOf("-n") + 1];
+const outDir = args[args.indexOf("--out") + 1];
+const input = args[args.length - 1];
+const targetDir = join(outDir, model, parse(input).name);
+await mkdir(targetDir, { recursive: true });
+for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
+  await copyFile(input, join(targetDir, stem + ".wav"));
+}
+`
+    );
+    await chmod(fakeDemucsPath, 0o755);
+
+    demucsServer = spawn(process.execPath, ["server.js"], {
+      env: {
+        ...process.env,
+        PORT: String(demucsPort),
+        PIPELINE_MODE: "real",
+        REAL_SEPARATOR: "demucs",
+        DEMUCS_PATH: fakeDemucsPath,
+        DEMUCS_MODEL: "fake_model",
+        TORCH_HOME: join(demucsDataDir, "torch-cache"),
+        DATA_DIR: demucsDataDir
+      },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    demucsServer.stderr.on("data", (chunk) => {
+      process.stderr.write(chunk);
+    });
+
+    await waitForHealth(demucsBaseUrl);
+  });
+
+  after(async () => {
+    demucsServer?.kill();
+    if (demucsDataDir) {
+      await rm(demucsDataDir, { recursive: true, force: true });
+    }
+  });
+
+  it("creates six Demucs-compatible stems and exposes them as a practice result", async (t) => {
+    const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
+    if (ffmpegCheck.status !== 0) {
+      t.skip("FFmpeg is not available; skipping Demucs separator contract smoke.");
+      return;
+    }
+
+    const { job: createdJob } = await uploadSample(demucsBaseUrl, "phase-2g-piano-mix.wav");
+    const completedJob = await waitForComplete(createdJob.id, demucsBaseUrl);
+
+    assert.equal(completedJob.status, "complete");
+    assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), [
+      "bass",
+      "drums",
+      "guitar",
+      "other",
+      "piano",
+      "vocals"
+    ]);
+    assert.equal(completedJob.result.metadata.separator.available, true);
+    assert.equal(completedJob.result.metadata.separator.name, "demucs-fake_model");
+    assert.equal(completedJob.result.metadata.separator.model, "fake_model");
+    assert.equal(completedJob.result.metadata.separator.outputs.length, 6);
+    assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
+
+    const jobDir = join(demucsDataDir, "jobs", createdJob.id);
+    for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
+      const output = await stat(join(jobDir, "stems", `${stemId}.wav`));
+      assert.ok(output.size > 44);
+      const audioResponse = await fetch(`${demucsBaseUrl}/api/jobs/${completedJob.id}/stems/${stemId}.wav`);
+      assert.equal(audioResponse.status, 200);
+      assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
+    }
   });
 });

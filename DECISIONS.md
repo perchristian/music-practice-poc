@@ -243,6 +243,28 @@ High for the current POC library behavior.
 Date:
 2026-07-06
 
+## Decision 19
+
+Decision:
+Use Demucs `htdemucs_6s` as the default real-mode stem separator for the POC, with the previous FFmpeg spectral split retained as `REAL_SEPARATOR=ffmpeg-spectral` fallback.
+
+Reason:
+A listening pass on `test-media/MakeYouFeelMyLovePart2.mov` found that Demucs is good enough for the core POC workflow: removing/muting piano for play-along practice. The solo piano stem can crackle and is not presentation-quality, but solo piano quality is less important than creating a useful non-piano backing track.
+
+Alternatives considered:
+- Continue with `ffmpeg-spectral-piano-v1`.
+- Use manual Logic Pro stems as the real-mode pipeline.
+- Keep Demucs only as a bakeoff artifact.
+
+Tradeoffs:
+Demucs adds heavy Python/Torch dependencies, model downloads, and runtime cost. It is also not perfect for isolated piano listening. It is still a better fit than FFmpeg spectral splitting because it produces instrument-level stems and materially improves the piano-removal practice workflow. Logic Pro remains a useful quality baseline, but it is not a reproducible backend dependency or suitable for Codex Cloud.
+
+Confidence:
+Medium for POC play-along value; low for final production architecture.
+
+Date:
+2026-07-06
+
 ## Decision 18
 
 Decision:

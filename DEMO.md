@@ -16,7 +16,7 @@ Mock mode does not perform real stem separation or transcription. If local demo 
 
 In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
-In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav`, then runs a narrow FFmpeg spectral split that writes `stems/piano.wav` and `stems/accompaniment.wav`. Harmonic analysis remains mocked. The separator is a spike, not production-quality source separation.
+In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav`, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. Harmonic analysis remains mocked. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
 
 The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
 
@@ -33,6 +33,25 @@ Real mode requires FFmpeg for extraction. On this machine it was verified at `/o
 
 ```bash
 FFMPEG_PATH=/path/to/ffmpeg npm start
+```
+
+Real mode now uses Demucs by default. Install the optional heavy dependencies separately:
+
+```bash
+python3 -m venv .venv-real
+.venv-real/bin/python -m pip install -r requirements-real.txt
+```
+
+Then run:
+
+```bash
+TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
+```
+
+To use the old lightweight FFmpeg spectral split instead of Demucs:
+
+```bash
+REAL_SEPARATOR=ffmpeg-spectral PIPELINE_MODE=real npm start
 ```
 
 ## Run
@@ -111,13 +130,13 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
 2. Upload `test-media/phase-2g-piano-mix.wav` or another short audio/video file.
 3. Wait for the job to complete.
-4. Select the completed song and confirm the practice result shows `Piano` and `Accompaniment` stems.
+4. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
 5. Play the result and confirm the browser can load both stems.
 6. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
 7. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
-8. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav`, `stems/piano.wav`, and `stems/accompaniment.wav` exist with nonzero size.
+8. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
 
-If FFmpeg is unavailable, the job should fail with a clear setup message instead of crashing the server. If the spectral split fails, the job should fail with an API-visible separator error. Mock mode remains usable.
+If FFmpeg or Demucs is unavailable, the job should fail with a clear setup message instead of crashing the server. If separation fails, the job should fail with an API-visible separator error. Mock mode remains usable.
 
 ## Stem Separation Bakeoff
 
