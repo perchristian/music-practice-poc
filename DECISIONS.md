@@ -243,6 +243,29 @@ High for the current POC library behavior.
 Date:
 2026-07-06
 
+## Decision 18
+
+Decision:
+Analyze key and chords as whole-song harmony using the full extracted audio plus supporting evidence from bass, piano, guitar, and accompaniment stems when available, rather than deriving chords from the piano stem alone.
+
+Reason:
+The learning cue the user needs is the song's harmonic map. The piano part may omit roots, imply voicings, or add passing tones that are not the actual chord. Bass content is often the strongest evidence for root motion, while guitar, piano, and other harmonic instruments help identify chord quality and extensions such as dominant 7, minor 7, major 7, 9, 11, and 13. Early separation will be imperfect, so the full mix should remain part of the evidence.
+
+Alternatives considered:
+- Analyze only the separated piano stem.
+- Analyze only the full mix with no stem-specific evidence.
+- Defer chord analysis until high-quality ML separation exists.
+- Display advanced chord labels immediately from a broad chord vocabulary.
+
+Tradeoffs:
+Multi-source analysis is more complex than a piano-only transcription path, but it better matches the musical question. Full-mix analysis is robust to bad stems but can confuse melody, percussion, and dense mixes with harmony. Stem-specific evidence can help, but early stems may leak or remove important notes. The first implementation should therefore use a conservative vocabulary and expose confidence/limitations instead of overclaiming detailed extensions.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-06
+
 ## Decision 15
 
 Decision:
@@ -283,6 +306,28 @@ Stem separation introduces heavier dependencies and likely install/runtime risk,
 
 Confidence:
 Medium.
+
+Date:
+2026-07-06
+
+## Decision 17
+
+Decision:
+Use a narrow FFmpeg spectral split (`ffmpeg-spectral-piano-v1`) for Phase 2G instead of adding Demucs, Torch, or another heavy ML separator.
+
+Reason:
+Phase 2G should reduce integration uncertainty and exercise the real practice flow with `piano.wav` and `accompaniment.wav` while keeping mock mode lightweight and avoiding a large dependency step. FFmpeg is already part of the real-mode extraction spike and is installed locally.
+
+Alternatives considered:
+- Add Demucs or another ML separator immediately.
+- Keep real mode at source-audio extraction only.
+- Mock piano/accompaniment stems after real upload.
+
+Tradeoffs:
+The FFmpeg split is not true source separation and may remove useful accompaniment content or include non-piano material in the piano stem. It is useful for proving job flow, output storage, API shape, metadata, timing, and UI compatibility, but it does not validate real separation quality. A stronger separator should replace it if listening tests show the workflow needs better audio quality.
+
+Confidence:
+Medium for spike integration value; low for final audio quality.
 
 Date:
 2026-07-06

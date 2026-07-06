@@ -12,6 +12,7 @@ const HOST = process.env.HOST || "127.0.0.1";
 const startupPipelineMode = process.env.PIPELINE_MODE === "real" ? "real" : "mock";
 let activePipelineMode = startupPipelineMode;
 const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
+const REAL_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
@@ -597,8 +598,13 @@ async function failJob(job, message, details = {}) {
 function runProcess(command, args) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
-    const child = spawn(command, args, { stdio: ["ignore", "ignore", "pipe"] });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
     let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout = `${stdout}${chunk.toString("utf8")}`.slice(-4000);
+    });
 
     child.stderr.on("data", (chunk) => {
       stderr = `${stderr}${chunk.toString("utf8")}`.slice(-4000);
@@ -609,6 +615,7 @@ function runProcess(command, args) {
         ok: false,
         code: null,
         error,
+        stdout,
         stderr,
         durationMs: Date.now() - startedAt
       });
@@ -619,11 +626,18 @@ function runProcess(command, args) {
         ok: code === 0,
         code,
         error: null,
+        stdout,
         stderr,
         durationMs: Date.now() - startedAt
       });
     });
   });
+}
+
+async function ffmpegVersionLine() {
+  const result = await runProcess(FFMPEG_PATH, ["-version"]);
+  if (!result.ok) return null;
+  return result.stdout.split(/\r?\n/).find(Boolean) || null;
 }
 
 async function extractSourceAudio(job) {
@@ -671,6 +685,99 @@ async function extractSourceAudio(job) {
   };
 }
 
+async function separatePianoAndAccompaniment(job, extracted) {
+  const stemsDir = join(job.dir, "stems");
+  await mkdir(stemsDir, { recursive: true });
+
+  const pianoFilename = "piano.wav";
+  const accompanimentFilename = "accompaniment.wav";
+  const pianoPath = join(stemsDir, pianoFilename);
+  const accompanimentPath = join(stemsDir, accompanimentFilename);
+  const filterGraph = [
+    "[0:a]asplit=3[piano_source][low_source][high_source]",
+    "[piano_source]highpass=f=170,lowpass=f=1400,volume=1.35[piano]",
+    "[low_source]lowpass=f=160,volume=1.2[low]",
+    "[high_source]highpass=f=1500,volume=1.0[high]",
+    "[low][high]amix=inputs=2:normalize=0,alimiter=limit=0.95[accompaniment]"
+  ].join(";");
+  const args = [
+    "-hide_banner",
+    "-y",
+    "-i",
+    extracted.path,
+    "-filter_complex",
+    filterGraph,
+    "-map",
+    "[piano]",
+    "-ac",
+    "1",
+    "-ar",
+    "44100",
+    pianoPath,
+    "-map",
+    "[accompaniment]",
+    "-ac",
+    "1",
+    "-ar",
+    "44100",
+    accompanimentPath
+  ];
+  const [version, result] = await Promise.all([
+    ffmpegVersionLine(),
+    runProcess(FFMPEG_PATH, args)
+  ]);
+
+  if (!result.ok) {
+    throw Object.assign(new Error("FFmpeg could not create piano-focused separated stems."), {
+      separator: {
+        name: REAL_SEPARATOR_NAME,
+        version,
+        command: FFMPEG_PATH,
+        args,
+        exitCode: result.code,
+        stderr: result.stderr.trim(),
+        durationMs: result.durationMs
+      }
+    });
+  }
+
+  const [pianoStats, accompanimentStats] = await Promise.all([
+    stat(pianoPath),
+    stat(accompanimentPath)
+  ]);
+  const outputs = [
+    {
+      id: "piano",
+      name: "Piano",
+      filename: pianoFilename,
+      contentType: "audio/wav",
+      size: pianoStats.size
+    },
+    {
+      id: "accompaniment",
+      name: "Accompaniment",
+      filename: accompanimentFilename,
+      contentType: "audio/wav",
+      size: accompanimentStats.size
+    }
+  ];
+
+  return {
+    name: REAL_SEPARATOR_NAME,
+    version,
+    command: FFMPEG_PATH,
+    args,
+    filterGraph,
+    durationMs: result.durationMs,
+    outputs,
+    limitations: [
+      "This is a lightweight FFmpeg spectral split, not ML source separation.",
+      "The accompaniment is made from low and high frequency bands, so midrange instruments may be removed with the piano.",
+      "The piano stem is a broad midrange band and may contain vocals, guitar, synths, or other pitched material."
+    ]
+  };
+}
+
 async function runRealPipeline(job) {
   await new Promise((resolve) => setTimeout(resolve, 100));
   job.status = "processing";
@@ -690,9 +797,15 @@ async function runRealPipeline(job) {
       outputFilename: "source-audio.wav",
       outputSize: null
     },
+    separator: {
+      name: REAL_SEPARATOR_NAME,
+      available: null,
+      durationMs: null,
+      outputs: []
+    },
     limitations: [
-      "Only source-audio extraction is real in this phase.",
-      "Stem separation remains unavailable in real mode.",
+      "Source-audio extraction and a narrow piano-focused FFmpeg spectral split are real in this phase.",
+      "The separator is a heuristic spike, not production-quality source separation.",
       "Harmony cues are mocked so the practice UI remains usable."
     ]
   };
@@ -701,24 +814,10 @@ async function runRealPipeline(job) {
 
   try {
     const extracted = await extractSourceAudio(job);
-    job.stems = [
-      {
-        id: "source",
-        name: "Extracted source audio",
-        filename: extracted.filename,
-        contentType: "audio/wav",
-        kind: "source-audio"
-      }
-    ];
-    job.status = "complete";
-    job.progress = 100;
+    job.progress = 55;
     job.metadata = {
       ...job.metadata,
-      pipelineStage: "source-audio-extracted",
-      harmonySource: "mock",
-      key: createMockMetadata().key,
-      chords: createMockMetadata().chords,
-      melody: createMockMetadata().melody,
+      pipelineStage: "piano-focused-separation",
       ffmpeg: {
         command: extracted.command,
         available: true,
@@ -729,14 +828,56 @@ async function runRealPipeline(job) {
     };
     job.updatedAt = new Date().toISOString();
     await saveJob(job);
+
+    const separation = await separatePianoAndAccompaniment(job, extracted);
+    job.stems = [
+      {
+        id: "piano",
+        name: "Piano",
+        filename: "piano.wav",
+        contentType: "audio/wav",
+        kind: "separated-stem"
+      },
+      {
+        id: "accompaniment",
+        name: "Accompaniment",
+        filename: "accompaniment.wav",
+        contentType: "audio/wav",
+        kind: "separated-stem"
+      }
+    ];
+    job.status = "complete";
+    job.progress = 100;
+    job.metadata = {
+      ...job.metadata,
+      pipelineStage: "piano-focused-separated",
+      harmonySource: "mock",
+      key: createMockMetadata().key,
+      chords: createMockMetadata().chords,
+      melody: createMockMetadata().melody,
+      ffmpeg: {
+        command: extracted.command,
+        available: true,
+        durationMs: extracted.durationMs,
+        outputFilename: extracted.filename,
+        outputSize: extracted.size
+      },
+      separator: {
+        ...separation,
+        available: true
+      }
+    };
+    job.updatedAt = new Date().toISOString();
+    await saveJob(job);
   } catch (error) {
-    await failJob(job, error.message || "Real-mode source-audio extraction failed.", {
-      pipelineStage: "source-audio-extraction",
+    await failJob(job, error.message || "Real-mode audio processing failed.", {
+      pipelineStage: job.metadata?.pipelineStage || "source-audio-extraction",
       sourceStored: Boolean(job.sourcePath),
       ffmpeg: error.ffmpeg || {
         command: FFMPEG_PATH,
         available: false
-      }
+      },
+      separator: error.separator
     });
   }
 }

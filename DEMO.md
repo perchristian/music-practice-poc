@@ -16,7 +16,7 @@ Mock mode does not perform real stem separation or transcription. If local demo 
 
 In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
-In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav`, and exposes that extracted audio as a playable practice result. Stem separation and harmonic analysis remain mocked or unavailable; the real subsystem in this phase is only source-audio extraction.
+In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav`, then runs a narrow FFmpeg spectral split that writes `stems/piano.wav` and `stems/accompaniment.wav`. Harmonic analysis remains mocked. The separator is a spike, not production-quality source separation.
 
 The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
 
@@ -106,16 +106,18 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 18. Delete the selected song and confirm it disappears from the song list and no longer opens.
 19. Inspect detected key, chord names, and roman numerals.
 
-## Real-Mode Extraction Smoke
+## Real-Mode Separation Smoke
 
 1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
-2. Upload `test-media/phase-2a-source.wav` or another short audio/video file.
+2. Upload `test-media/phase-2g-piano-mix.wav` or another short audio/video file.
 3. Wait for the job to complete.
-4. Select the completed song and confirm the practice result shows `Extracted source audio`.
-5. Play the result and confirm the browser can load the audio.
-6. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` exists with nonzero size.
+4. Select the completed song and confirm the practice result shows `Piano` and `Accompaniment` stems.
+5. Play the result and confirm the browser can load both stems.
+6. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
+7. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+8. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav`, `stems/piano.wav`, and `stems/accompaniment.wav` exist with nonzero size.
 
-If FFmpeg is unavailable, the job should fail with a clear setup message instead of crashing the server. Mock mode remains usable.
+If FFmpeg is unavailable, the job should fail with a clear setup message instead of crashing the server. If the spectral split fails, the job should fail with an API-visible separator error. Mock mode remains usable.
 
 ## Fast Iteration Steps
 
@@ -132,20 +134,25 @@ The user should experience the intended learning workflow end to end, even thoug
 
 Do not include commercial recordings in the repository. Use a user-provided test file or a generated/local sample. The local demo stem files under `data/` are ignored by git and must be replaced with material the tester is allowed to process. The mock pipeline does not depend on the uploaded file content yet.
 
-The Phase 2A real-pipeline spike uses `test-media/phase-2a-source.wav` as a safe local test input. Generate or refresh it with:
+The Phase 2A/2G real-pipeline spikes use generated safe local test inputs. Generate or refresh them with:
 
 ```bash
 npm run generate:test-media
 ```
 
-This file is synthesized in-repo from simple sine-wave chord tones. It is not a commercial recording and does not include third-party audio. It is intentionally short and musically plain; its purpose is to verify upload, job lifecycle, FFmpeg availability handling, and browser playback of the extracted `source-audio.wav` asset, not to evaluate stem quality.
+This creates:
+
+- `test-media/phase-2a-source.wav`: synthesized sine-wave chord tones for upload/extraction smoke.
+- `test-media/phase-2g-piano-mix.wav`: synthesized piano-band chords plus low bass and high accompaniment content for the separator smoke.
+
+These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that the backend creates and serves `piano.wav` and `accompaniment.wav`; it cannot prove quality on real screen recordings.
 
 ## Known Limitations
 
-- Real piano isolation is not implemented yet.
+- Real piano isolation is only a lightweight FFmpeg spectral split, not ML source separation.
 - Real drums, bass, guitar, and piano separation is not implemented yet.
 - Real transcription is not implemented yet.
-- Real-mode upload storage and FFmpeg source-audio extraction are implemented, but no real separation or transcription runs after extraction.
+- Real-mode upload storage, FFmpeg source-audio extraction, and heuristic piano/accompaniment splitting are implemented, but no real transcription runs after separation.
 - Harmonic metadata is mocked, including for real-mode extracted-audio jobs.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.

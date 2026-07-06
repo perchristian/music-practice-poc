@@ -66,10 +66,10 @@ async function waitForComplete(jobId, url = baseUrl) {
   throw new Error(`Real-mode job did not complete. Latest status: ${latestJob?.status ?? "unknown"}`);
 }
 
-async function uploadSample(url = baseUrl) {
+async function uploadSample(url = baseUrl, filename = "phase-2a-source.wav") {
   const formData = new FormData();
-  const mediaBytes = await readFile(join(process.cwd(), "test-media", "phase-2a-source.wav"));
-  formData.append("media", new Blob([mediaBytes], { type: "audio/wav" }), "phase-2a-source.wav");
+  const mediaBytes = await readFile(join(process.cwd(), "test-media", filename));
+  formData.append("media", new Blob([mediaBytes], { type: "audio/wav" }), filename);
 
   const createResponse = await fetch(`${url}/api/jobs`, {
     method: "POST",
@@ -173,31 +173,45 @@ describe("real-mode FFmpeg extraction", () => {
     }
   });
 
-  it("extracts browser-playable source audio and exposes it as a practice result", async (t) => {
+  it("extracts source audio, creates piano-focused stems, and exposes them as a practice result", async (t) => {
     const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
     if (ffmpegCheck.status !== 0) {
       t.skip("FFmpeg is not available; skipping real-mode extraction smoke.");
       return;
     }
 
-    const { job: createdJob } = await uploadSample(extractionBaseUrl);
+    const { job: createdJob } = await uploadSample(extractionBaseUrl, "phase-2g-piano-mix.wav");
     const completedJob = await waitForComplete(createdJob.id, extractionBaseUrl);
     assert.equal(completedJob.status, "complete");
     assert.equal(completedJob.progress, 100);
-    assert.equal(completedJob.result.stems.length, 1);
-    assert.equal(completedJob.result.stems[0].id, "source");
+    assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), ["accompaniment", "piano"]);
     assert.equal(completedJob.result.metadata.ffmpeg.available, true);
     assert.equal(completedJob.result.metadata.ffmpeg.outputFilename, "source-audio.wav");
     assert.ok(completedJob.result.metadata.ffmpeg.outputSize > 44);
+    assert.equal(completedJob.result.metadata.separator.available, true);
+    assert.equal(completedJob.result.metadata.separator.name, "ffmpeg-spectral-piano-v1");
+    assert.ok(completedJob.result.metadata.separator.durationMs >= 0);
+    assert.equal(completedJob.result.metadata.separator.outputs.length, 2);
+    assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
     assert.equal(completedJob.result.metadata.harmonySource, "mock");
 
     const jobDir = join(extractionDataDir, "jobs", createdJob.id);
     const output = await stat(join(jobDir, "source-audio.wav"));
     assert.ok(output.size > 44);
+    const piano = await stat(join(jobDir, "stems", "piano.wav"));
+    const accompaniment = await stat(join(jobDir, "stems", "accompaniment.wav"));
+    assert.ok(piano.size > 44);
+    assert.ok(accompaniment.size > 44);
 
-    const audioResponse = await fetch(`${extractionBaseUrl}${completedJob.result.stems[0].audioUrl}`);
-    assert.equal(audioResponse.status, 200);
-    assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
-    assert.ok((await audioResponse.arrayBuffer()).byteLength > 44);
+    for (const stem of completedJob.result.stems) {
+      const audioResponse = await fetch(`${extractionBaseUrl}${stem.audioUrl}`);
+      assert.equal(audioResponse.status, 200);
+      assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
+      assert.ok((await audioResponse.arrayBuffer()).byteLength > 44);
+    }
+
+    const pianoResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/piano.wav`);
+    assert.equal(pianoResponse.status, 200);
+    assert.match(pianoResponse.headers.get("content-type"), /^audio\/wav/);
   });
 });

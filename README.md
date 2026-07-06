@@ -27,7 +27,7 @@ Mock mode is the default and requires no heavy ML dependencies:
 PIPELINE_MODE=mock npm start
 ```
 
-Real mode currently validates one real subsystem: FFmpeg source-audio extraction. It stores uploaded media, writes `source-audio.wav`, and exposes that extracted audio as a playable practice result. Stem separation and transcription are not implemented yet.
+Real mode currently validates upload, FFmpeg source-audio extraction, and a narrow FFmpeg spectral split for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, then exposes heuristic `Piano` and `Accompaniment` WAV stems. This is not production-quality source separation; transcription and real harmonic analysis are not implemented yet.
 
 See `DEMO.md` for the current demo flow and known limitations.
 

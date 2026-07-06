@@ -9,7 +9,7 @@ The backend owns uploads, job status, pipeline mode, generated mock stem assets,
 ## Runtime Modes
 
 - `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
-- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, and writes a browser-playable `source-audio.wav` asset. Stem separation and harmonic analysis are not real yet.
+- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, and runs a narrow FFmpeg spectral split that creates `piano.wav` and `accompaniment.wav`. Harmonic analysis is still mocked.
 
 The browser topbar can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the startup default, and existing jobs retain the mode they were created with.
 
@@ -44,7 +44,7 @@ Local filesystem storage
 - `GET /api/health`: returns active mode, startup mode, FFmpeg path, and service status.
 - `PUT /api/settings/pipeline-mode`: switches active local pipeline mode for new jobs between `mock` and `real`.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in real mode, accepts one multipart media file, stores it in the job directory, and creates a processing job. The browser can create multiple jobs from one multi-file selection.
-- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems.
+- `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains heuristic piano and accompaniment WAV stems.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
@@ -142,13 +142,35 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
-Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, exposes completed extracted-audio jobs through the same practice UI, and persists setup/extraction failures through the same API. It should next replace:
+Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, then runs `ffmpeg-spectral-piano-v1`, a lightweight non-ML split that writes `stems/piano.wav` and `stems/accompaniment.wav`. This is a spike to exercise the product flow and metadata contract, not a final separation strategy. The accompaniment removes much of the midrange, so it may also remove guitars, vocals, synths, and other learning-relevant material. Real harmonic analysis is not implemented yet. Real mode should next replace:
 
-1. multi-stem separation, with piano as the primary practice target
-2. transcription or chord extraction
-3. harmonic analysis
+1. transcription or chord extraction
+2. harmonic analysis
+3. the heuristic separator with a better real separator if listening tests show the current split is not practice-useful
 
 one subsystem at a time.
+
+## Whole-Song Harmonic Analysis Strategy
+
+Chord and key detection should estimate the harmony of the whole song, not transcribe only the piano stem.
+
+The analysis pipeline should treat `source-audio.wav` as the primary harmonic context and use any available stems as supporting evidence. Bass or low-frequency content is important for root and inversion candidates. Piano, guitar, and harmonic accompaniment are important for chord quality and extensions. The full mix remains important because early separation may leak or remove musically relevant notes.
+
+Recommended analysis shape:
+
+```text
+source-audio.wav + optional stems
+  -> beat/bar or fixed-window segmentation
+  -> pitch-class/chroma features from full mix and harmonic stems
+  -> bass/root candidates from low-frequency content
+  -> chord-template scoring
+  -> temporal smoothing
+  -> key estimate + chord names + roman numerals + confidence
+```
+
+The first implementation should use a conservative vocabulary: major/minor triads, dominant 7, minor 7, major 7, sus chords, and diminished chords. Extensions such as 9, 11, 13, altered dominants, slash chords, and borrowed chords should only be displayed when confidence is high. If the evidence is ambiguous, the app should show the simpler musically useful label, such as `C7`, instead of a more specific but weakly supported label such as `C13`.
+
+The result metadata should record which evidence streams were used, the chord vocabulary level, per-cue confidence where practical, and known limitations. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
 
 ## Native iOS Transition Criteria
 
@@ -170,11 +192,11 @@ The first iOS spike should stay narrow: choose a video from Photos, upload it to
 | Assumption | Confidence | Evidence | Remaining uncertainty |
 | --- | --- | --- | --- |
 | Screen recording audio quality is sufficient | Low | Not tested yet | Need real iOS screen recordings from target apps |
-| Piano stems can be isolated accurately enough | Low | Known risk for mixed/compressed audio | Need real separator trial |
+| Piano stems can be isolated accurately enough | Low | Phase 2G creates heuristic FFmpeg piano/accompaniment stems from a generated sample, but this is not ML separation | Need human listening on real screen recordings and likely a stronger separator |
 | Muting piano while keeping other stems useful helps practice | Medium | Strong learning rationale; mock mixer now demonstrates flow | Need tester feedback |
 | Transcription can produce useful cues | Low | Dense piano is difficult | Need Basic Pitch or alternative benchmark |
 | Harmonic cues remain useful despite errors | Medium | Approximate chords can still orient learners | Need user feedback |
-| Processing time is acceptable | Low | Mock mode is fast only | Need CPU real-pipeline measurement |
+| Processing time is acceptable | Low to medium | Phase 2G direct FFmpeg smoke on a 6-second generated sample took about 0.06s for extraction and 0.05s for spectral splitting | Need measurement on longer real screen recordings and any future ML separator |
 | Local backend is practical | Medium | Simple local web flow should work | Need run-through on MacBook |
 | Web upload is enough before native iOS | Medium | AGENTS.md allows web/local uploader first | Need tester feedback on friction |
 

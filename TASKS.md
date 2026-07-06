@@ -321,6 +321,92 @@ Result:
 
 Status: Complete on 2026-07-06. Do not begin broad Demucs, Basic Pitch, or other heavy ML integration without keeping the spike narrow and mock mode working.
 
+## Phase 2G: Piano-Focused Real Stem-Separation Spike
+
+Goal: Determine whether the extracted source audio can be turned into practice-useful piano and accompaniment stems.
+
+Reason:
+- Phase 2 has only extracted `source-audio.wav` with FFmpeg.
+- The core product question depends on muting/removing piano while keeping the rest of the arrangement useful.
+- This should happen before more practice-workspace UX, because unusable separation would change the next product direction.
+
+Candidate scope:
+- Use `source-audio.wav` as the input to one stem-separation path.
+- Keep the spike narrow: one short real or generated sample first.
+- Produce at minimum:
+  - `piano.wav`
+  - `accompaniment.wav`
+- Prefer drums, bass, guitar, and piano if the chosen separator can provide them without broad integration work.
+- Store outputs under the existing job directory and expose them through the existing stem API.
+- Record separator name/version, command/runtime, output files, and limitations in job metadata.
+- Keep `PIPELINE_MODE=mock` unchanged and useful.
+
+Verification:
+- Run the separator on one short allowed test file.
+- Confirm resulting stems are served by the browser player.
+- Manually listen for:
+  - whether piano is reduced enough in accompaniment for play-along
+  - whether the piano stem is recognizable enough for learning
+  - whether artifacts make practice distracting
+- Measure processing time on the local MacBook.
+- Update `RISKS.md`, `STATUS.md`, and `DEMO.md` with the result.
+
+Result:
+- Real mode now uses `source-audio.wav` as the input to `ffmpeg-spectral-piano-v1`, a lightweight FFmpeg filter-graph separator.
+- The separator writes `stems/piano.wav` and `stems/accompaniment.wav` under the existing job directory.
+- Completed real-mode jobs expose those stems through the existing stem API and compatibility `piano.wav` endpoint.
+- Job metadata records separator name, FFmpeg version line, command/filter graph, runtime, output files, output sizes, and limitations.
+- `npm run generate:test-media` now generates `test-media/phase-2g-piano-mix.wav`, a short copyright-safe synthetic piano/accompaniment mix for this spike.
+- Direct FFmpeg smoke on the 6-second generated sample took about `0.06s` for extraction and `0.05s` for the spectral split on the local MacBook environment.
+- Automated verification confirms the stems are browser-servable. Subjective listening for practice usefulness still needs a human pass.
+
+Status: Complete for technical spike on 2026-07-06. Human listening on generated and real screen-recorded material remains required before treating the separation as product-useful.
+
+## Phase 2H: First Real Audio Analysis Spike
+
+Goal: Replace mocked harmonic metadata with approximate whole-song harmonic cues derived from the extracted audio and, when available, separated stems.
+
+Entry criteria:
+- Phase 2G has produced at least one audio source worth analyzing, or the team explicitly decides to analyze `source-audio.wav` before separation quality is known.
+
+Strategy:
+- Analyze the song harmony, not just the piano part.
+- Treat `source-audio.wav` as the primary truth source for key and chord context because it contains the whole arrangement.
+- Use separated or filtered sources as evidence streams:
+  - bass or low-frequency content for likely root notes and inversions
+  - piano, guitar, and harmonic accompaniment for chord quality such as major, minor, dominant 7, minor 7, major 7, suspended, diminished, and common extensions
+  - full mix chroma for stable pitch-class evidence when stem separation is imperfect
+- Combine evidence instead of trusting one stem:
+  - estimate beat/bar or fixed-window segments first
+  - compute chroma/HPCP-style pitch-class features per segment from full mix and harmonic stems
+  - estimate bass pitch class/root candidates from low-frequency content
+  - score candidate chords against chord templates
+  - smooth the chord sequence over time so single-frame noise does not create misleading chord changes
+- Start with a conservative chord vocabulary:
+  - first pass: key, major/minor triads, dominant 7, minor 7, major 7, sus2/sus4, diminished
+  - later pass: 9, 11, 13, altered dominants, slash chords, and borrowed chords only when confidence is high
+- When evidence for extensions is weak, display the simpler useful chord rather than overclaiming precision. For example, prefer `C7` over `C13` unless the upper extensions are clearly supported by the harmonic instruments.
+- Generate roman numerals from the detected key and chord root, with confidence and "approximate" metadata.
+- Keep melody extraction separate from chord analysis; melody may use the piano stem later, but the chord timeline should remain a whole-song estimate.
+- Preserve the existing harmonic metadata shape so the UI does not need a major rewrite, but add metadata fields for analysis source, confidence, vocabulary level, and limitations.
+
+Candidate implementation sequence:
+1. Build a deterministic analysis contract that can emit key, chord timeline, roman numerals, confidence, and source notes.
+2. Add a simple real-derived key/chord prototype on generated test media with known chords.
+3. Compare full-mix-only analysis against analysis that also uses bass/accompaniment/piano stems.
+4. Keep the first UI result conservative: useful labels over impressive labels.
+5. Only add advanced extensions after the simpler vocabulary is stable enough to help practice.
+
+Verification:
+- Run analysis on one short allowed test file.
+- Confirm the UI displays real-derived key/chord data instead of mock data for that job.
+- Compare the output manually against the known/generated test material or a simple hand-labeled reference.
+- Confirm chord labels are whole-song estimates, not piano-only transcription.
+- Confirm the metadata records whether bass, piano, accompaniment, and full mix were used as evidence.
+- Document accuracy, failure modes, dependency/install cost, and processing time.
+
+Status: Planned after Phase 2G unless stem separation is intentionally deferred.
+
 ## Phase 3: Problem Areas and Practice Notes
 
 Goal: A user can track difficult passages and use the app as an ongoing practice workspace, not just a one-off player.
@@ -428,4 +514,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Start Phase 3: problem areas and practice notes, or first run a narrow piano-focused real stem-separation spike if the next iteration is intended to reduce real-pipeline risk before adding more practice UX.
+Start Phase 2H: first real audio/harmonic analysis. Use the Phase 2G outputs only after a human listening pass confirms whether `source-audio.wav`, `stems/piano.wav`, or `stems/accompaniment.wav` is the most useful analysis input.
