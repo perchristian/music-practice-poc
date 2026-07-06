@@ -70,6 +70,9 @@ describe("mock backend", () => {
   });
 
   it("creates a mock job and exposes practice stems plus harmonic metadata", async () => {
+    const health = await waitForHealth();
+    assert.equal(health.realSeparator, "demucs-htdemucs_6s");
+
     const createResponse = await fetch(`${baseUrl}/api/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },

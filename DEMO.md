@@ -20,6 +20,8 @@ In real mode, the browser uploads the actual selected file as multipart form dat
 
 The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
 
+When Real mode is selected, the service status should show the active separator. `Backend ready: real · demucs-htdemucs_6s` means new uploads will use Demucs. `Backend ready: real · FFmpeg fallback` means the server was started with `REAL_SEPARATOR=ffmpeg-spectral`; stop that server and restart without `REAL_SEPARATOR=ffmpeg-spectral` if the goal is Demucs separation.
+
 ## Prerequisites
 
 - Node.js installed.
@@ -72,6 +74,12 @@ To start with real mode selected by default:
 
 ```bash
 PIPELINE_MODE=real npm start
+```
+
+For Demucs real mode, prefer:
+
+```bash
+TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
 ```
 
 You can also start normally and switch Mock/Real from the topbar before uploading a file.

@@ -85,8 +85,6 @@ async function ensureSourceAudio(jobDir) {
     "-i",
     sourceMedia,
     "-vn",
-    "-ac",
-    "1",
     "-ar",
     "44100",
     outputPath

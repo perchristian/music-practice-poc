@@ -663,8 +663,6 @@ async function extractSourceAudio(job) {
     "-i",
     job.sourcePath,
     "-vn",
-    "-ac",
-    "1",
     "-ar",
     "44100",
     outputPath
@@ -1178,7 +1176,12 @@ async function handleSetPipelineMode(req, res) {
   }
 
   activePipelineMode = mode;
-  json(res, 200, { ok: true, mode: activePipelineMode, startupMode: startupPipelineMode });
+  json(res, 200, {
+    ok: true,
+    mode: activePipelineMode,
+    startupMode: startupPipelineMode,
+    realSeparator: REAL_SEPARATOR_NAME
+  });
 }
 
 async function readJobFromDisk(id) {
@@ -1261,6 +1264,7 @@ async function route(req, res) {
       ok: true,
       mode: activePipelineMode,
       startupMode: startupPipelineMode,
+      realSeparator: REAL_SEPARATOR_NAME,
       ffmpegPath: FFMPEG_PATH
     });
     return;

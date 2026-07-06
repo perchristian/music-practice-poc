@@ -389,3 +389,14 @@ Optional process task: enable the on-demand context overhead audit only when exp
 - `npm test`: passed on 2026-07-05 while closing Phase 0.
 - `npm run test:gui`: passed on 2026-07-05 while closing Phase 0.
 - Manual subjective listening could not be completed by Codex; a human should still listen through `DEMO.md` before external user testing.
+- Investigated perceived audio degradation in the real/Demucs path on 2026-07-06.
+- `test-media/MakeYouFeelMyLovePart2.mov` audio is 44.1 kHz stereo AAC; existing `source-audio.wav` from the bakeoff Demucs job was 44.1 kHz mono PCM16 because FFmpeg extraction used `-ac 1 -ar 44100`.
+- Demucs default output is 44.1 kHz stereo PCM16. A diagnostic Demucs run on a stereo WAV preserved much stronger channel difference than the previous mono-preprocessed Demucs job, so the avoidable degradation was the FFmpeg mono downmix before Demucs, not a lower sample rate.
+- Updated `server.js` and `scripts/build-stem-bakeoff.js` to preserve source channel count during `source-audio.wav` extraction while keeping 44.1 kHz output for Demucs compatibility.
+- `npm test`: passed after preserving source channels during FFmpeg extraction.
+- Investigated three fresh local uploads after old `data/jobs` entries were archived to `data/jobs/Archive.zip`.
+- Jobs `073f295b-21dd-4994-b71a-86edb04326fa`, `6722662e-dbe6-4846-a8fe-0ce6bab23b7b`, and `94a2d0fb-f9b3-4cc7-ab66-3b0c4f8322d9` were real-mode jobs, but their metadata shows `separator.name: ffmpeg-spectral-piano-v1`; they were not mock fallback jobs.
+- Added active real-separator reporting to `/api/health` and the pipeline mode switch response, and updated the UI service status to show `FFmpeg fallback` when `REAL_SEPARATOR=ffmpeg-spectral` is active.
+- Updated `DEMO.md` to clarify that Demucs real mode should show `Backend ready: real · demucs-htdemucs_6s`.
+- `npm test`: passed after adding separator visibility.
+- `npm run test:gui`: passed after adding separator visibility.

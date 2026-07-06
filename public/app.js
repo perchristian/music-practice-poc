@@ -86,6 +86,17 @@ function modeLabel(mode) {
   return mode === "real" ? "Real" : "Mock";
 }
 
+function separatorLabel(settings) {
+  if (settings?.mode !== "real" || !settings.realSeparator) return "";
+  return settings.realSeparator === "ffmpeg-spectral-piano-v1"
+    ? " · FFmpeg fallback"
+    : ` · ${settings.realSeparator}`;
+}
+
+function backendReadyLabel(settings, suffix = "") {
+  return `Backend ready: ${settings.mode}${separatorLabel(settings)}${suffix}`;
+}
+
 function renderPipelineMode(mode) {
   pipelineMode = mode === "real" ? "real" : "mock";
   if (pipelineEyebrow) {
@@ -933,8 +944,8 @@ async function checkHealth() {
     if (requestId !== pipelineModeRequestId) return;
     renderPipelineMode(health.mode);
     serviceStatus.textContent = loadProcessedDemo
-      ? `Backend ready: ${health.mode} · processed demo`
-      : `Backend ready: ${health.mode}`;
+      ? backendReadyLabel(health, " · processed demo")
+      : backendReadyLabel(health);
   } catch {
     if (requestId !== pipelineModeRequestId) return;
     serviceStatus.textContent = "Backend unavailable";
@@ -958,7 +969,7 @@ async function setPipelineMode(mode) {
     const settings = await response.json();
     if (requestId !== pipelineModeRequestId) return;
     renderPipelineMode(settings.mode);
-    serviceStatus.textContent = `Backend ready: ${settings.mode}`;
+    serviceStatus.textContent = backendReadyLabel(settings);
   } catch (error) {
     if (requestId !== pipelineModeRequestId) return;
     console.error(error);
