@@ -286,3 +286,25 @@ Medium.
 
 Date:
 2026-07-06
+
+## Decision 14
+
+Decision:
+Keep Phase 2B real mode limited to upload storage and job-contract validation, with an intentional API-visible failure before FFmpeg extraction.
+
+Reason:
+The next learning step is to prove that real uploads, local source storage, persisted job state, and failure reporting work before adding FFmpeg process execution. This keeps the first real-pipeline boundary small and preserves mock-mode demo behavior.
+
+Alternatives considered:
+- Implement FFmpeg extraction in the same phase.
+- Keep `PIPELINE_MODE=real` returning an immediate "not implemented" error.
+- Reuse mock-mode JSON metadata upload in real mode until extraction exists.
+
+Tradeoffs:
+This does not yet produce a playable real output asset, so Phase 2 is not complete. It does validate actual multipart upload and failure persistence with lower debugging surface than combining upload and FFmpeg worker work in one step.
+
+Confidence:
+High.
+
+Date:
+2026-07-06

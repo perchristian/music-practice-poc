@@ -16,6 +16,8 @@ Mock mode does not perform real stem separation or transcription. If local demo 
 
 In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
+In real mode, the browser uploads the actual selected file as multipart form data. As of Phase 2B, the backend stores the uploaded source media under the job directory and exposes the queued -> processing -> failed job lifecycle through the API. The failure is expected until Phase 2C adds FFmpeg extraction.
+
 ## Prerequisites
 
 - Node.js installed.
@@ -116,7 +118,7 @@ This file is synthesized in-repo from simple sine-wave chord tones. It is not a 
 - Real piano isolation is not implemented yet.
 - Real drums, bass, guitar, and piano separation is not implemented yet.
 - Real transcription is not implemented yet.
-- Real-mode FFmpeg extraction is framed but not implemented yet. On this machine, FFmpeg was not available on PATH on 2026-07-06.
+- Real-mode upload storage is implemented, but real-mode FFmpeg extraction is not implemented yet. On this machine, FFmpeg was installed with Homebrew on 2026-07-06 and verified at `/opt/homebrew/bin/ffmpeg` version 8.1.2.
 - Harmonic metadata is mocked.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.

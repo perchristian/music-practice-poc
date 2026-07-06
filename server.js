@@ -377,7 +377,14 @@ async function saveJob(job) {
   await writeFile(join(job.dir, "job.json"), JSON.stringify(job, null, 2));
 }
 
-async function createJobRecord({ originalFilename, originalSize = null, originalType = null, sourcePath = null, mockUpload = false }) {
+async function createJobRecord({
+  originalFilename,
+  originalSize = null,
+  originalType = null,
+  sourcePath = null,
+  sourceFilename = null,
+  mockUpload = false
+}) {
   const id = randomUUID();
   const dir = join(JOBS_DIR, id);
   await mkdir(dir, { recursive: true });
@@ -391,9 +398,11 @@ async function createJobRecord({ originalFilename, originalSize = null, original
     originalSize,
     originalType,
     sourcePath,
+    sourceFilename,
     mockUpload,
     dir,
     metadata: null,
+    error: null,
     practiceState: {
       learningStatus: "not_started",
       playbackRate: 1,
@@ -461,7 +470,16 @@ function publicJob(job) {
     updatedAt: job.updatedAt,
     originalFilename: job.originalFilename,
     originalSize: job.originalSize,
+    originalType: job.originalType,
     mockUpload: job.mockUpload,
+    error: job.error || null,
+    source: job.sourceFilename
+      ? {
+          filename: job.sourceFilename,
+          contentType: job.originalType,
+          size: job.originalSize
+        }
+      : null,
     practiceState: ensurePracticeState(job),
     result: job.status === "complete"
       ? {
@@ -548,6 +566,50 @@ async function runMockPipeline(job) {
   await completeMockJob(job);
 }
 
+async function failJob(job, message, details = {}) {
+  const { progress, ...failureDetails } = details;
+  job.status = "failed";
+  job.progress = Number.isFinite(progress) ? progress : Math.max(Number(job.progress) || 0, 15);
+  job.error = message;
+  job.metadata = {
+    ...(job.metadata || {}),
+    failure: {
+      message,
+      ...failureDetails,
+      failedAt: new Date().toISOString()
+    }
+  };
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+}
+
+async function runRealPipelineContract(job) {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  job.status = "processing";
+  job.progress = 15;
+  job.metadata = {
+    realMode: true,
+    pipelineStage: "source-upload",
+    source: {
+      filename: job.sourceFilename,
+      contentType: job.originalType,
+      size: job.originalSize
+    },
+    limitations: [
+      "FFmpeg source-audio extraction is scheduled for Phase 2C.",
+      "Stem separation and harmonic analysis remain unavailable in real mode."
+    ]
+  };
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  await failJob(job, "Real-mode upload succeeded, but FFmpeg extraction is not implemented yet. Continue with Phase 2C.", {
+    pipelineStage: "source-audio-extraction",
+    sourceStored: Boolean(job.sourcePath)
+  });
+}
+
 async function handleCreateJob(req, res) {
   const contentType = req.headers["content-type"] || "";
   let job;
@@ -580,13 +642,15 @@ async function handleCreateJob(req, res) {
       return;
     }
 
+    const sourceExt = extname(media.filename) || ".upload";
+    const sourceFilename = `source${sourceExt}`;
     job = await createJobRecord({
       originalFilename: media.filename,
       originalSize: media.data.length,
-      originalType: media.contentType
+      originalType: media.contentType,
+      sourceFilename
     });
-    const sourceExt = extname(media.filename) || ".upload";
-    job.sourcePath = join(job.dir, `source${sourceExt}`);
+    job.sourcePath = join(job.dir, sourceFilename);
     await writeFile(job.sourcePath, media.data);
     await saveJob(job);
   }
@@ -599,10 +663,11 @@ async function handleCreateJob(req, res) {
       await saveJob(job);
     });
   } else {
-    job.status = "failed";
-    job.error = "PIPELINE_MODE=real is not implemented yet. Use PIPELINE_MODE=mock.";
-    job.updatedAt = new Date().toISOString();
-    await saveJob(job);
+    runRealPipelineContract(job).catch(async (error) => {
+      await failJob(job, error.message || "Real-mode processing failed unexpectedly.", {
+        pipelineStage: "real-mode-contract"
+      });
+    });
   }
 
   json(res, 202, publicJob(job));
