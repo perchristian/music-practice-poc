@@ -9,7 +9,9 @@ The backend owns uploads, job status, pipeline mode, generated mock stem assets,
 ## Runtime Modes
 
 - `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
-- `PIPELINE_MODE=real`: accepts real multipart media uploads and stores the source file under each job directory. It currently runs the shared job lifecycle through an API-visible failure until Phase 2C adds FFmpeg source-audio extraction. It should continue replacing mock subsystems one at a time while preserving the same API and client workflow.
+- `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, and writes a browser-playable `source-audio.wav` asset. Stem separation and harmonic analysis are not real yet.
+
+The browser topbar can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the startup default, and existing jobs retain the mode they were created with.
 
 ## Recommended Architecture
 
@@ -39,7 +41,8 @@ Local filesystem storage
 
 ## API Surface
 
-- `GET /api/health`: returns mode and service status.
+- `GET /api/health`: returns active mode, startup mode, FFmpeg path, and service status.
+- `PUT /api/settings/pipeline-mode`: switches active local pipeline mode for new jobs between `mock` and `real`.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in real mode, accepts one multipart media file, stores it in the job directory, and creates a processing job. The browser can create multiple jobs from one multi-file selection.
 - `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
@@ -139,12 +142,11 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
-Real mode now stores uploaded source media and exposes queued, processing, and failed job states through the same API. It should next replace:
+Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, exposes completed extracted-audio jobs through the same practice UI, and persists setup/extraction failures through the same API. It should next replace:
 
-1. audio extraction from video
-2. multi-stem separation, with piano as the primary practice target
-3. transcription or chord extraction
-4. harmonic analysis
+1. multi-stem separation, with piano as the primary practice target
+2. transcription or chord extraction
+3. harmonic analysis
 
 one subsystem at a time.
 

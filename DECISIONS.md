@@ -243,6 +243,50 @@ High for the current POC library behavior.
 Date:
 2026-07-06
 
+## Decision 15
+
+Decision:
+Use `PIPELINE_MODE` as the server startup default, but allow the GUI to switch the active backend pipeline mode between `mock` and `real` for new jobs during a running local session.
+
+Reason:
+The POC needs an easy evaluator-facing way to compare mock and real processing without restarting the server for every upload. Keeping `PIPELINE_MODE=mock` as the default preserves reproducible lightweight setup, while the GUI switch makes the real-pipeline spike discoverable.
+
+Alternatives considered:
+- Require restarting the server with `PIPELINE_MODE=mock` or `PIPELINE_MODE=real`.
+- Store the mode only in browser state and infer upload behavior client-side.
+- Create separate mock and real servers.
+
+Tradeoffs:
+Runtime mode switching is local-session state and is not a production configuration model. Existing jobs keep the mode they were created with, and the switch affects only new uploads. This is acceptable for the POC because it improves demo ergonomics without adding persistent configuration or deployment complexity.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-06
+
+## Decision 16
+
+Decision:
+After the Phase 2 FFmpeg extraction spike, the next real-pipeline subsystem should be piano-focused stem separation on a short real or generated sample.
+
+Reason:
+Phase 2 validated real upload storage, FFmpeg extraction, API-visible failures, browser playback of a real extracted asset, and mock-mode compatibility. The highest remaining uncertainty for the core product hypothesis is whether piano can be removed or isolated well enough from screen-recorded audio for useful play-along practice.
+
+Alternatives considered:
+- Start piano transcription first.
+- Start harmonic analysis first.
+- Spend more time hardening upload/extraction before separation.
+
+Tradeoffs:
+Stem separation introduces heavier dependencies and likely install/runtime risk, but it attacks the most important learning-value uncertainty. Transcription and harmonic analysis remain valuable, but both depend on usable source or piano audio and are less central than muting piano against an accompaniment.
+
+Confidence:
+Medium.
+
+Date:
+2026-07-06
+
 ## Decision 12
 
 Decision:

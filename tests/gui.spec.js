@@ -91,6 +91,13 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
 
   await page.goto("/");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+  await expect(page.getByTestId("mode-mock")).toHaveClass(/active/);
+  await page.getByTestId("mode-real").click();
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
+  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
+  await page.getByTestId("mode-mock").click();
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+  await expect(page.getByTestId("mode-mock")).toHaveClass(/active/);
 
   const filename = `screen-recording-${Date.now()}.mov`;
   await page.getByTestId("media-input").setInputFiles({
@@ -445,9 +452,9 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("loop-start")).toHaveValue("1.5");
   await expect(page.getByTestId("loop-end")).toHaveValue("5.5");
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
+  await expect(page.locator("#scrubber")).toHaveValue("3.2");
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);
   await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");
-  await expect(page.locator("#scrubber")).toHaveValue("3.2");
 
   page.once("dialog", (dialog) => dialog.accept("Renamed Phase 1 song"));
   await page.getByTestId("selected-rename-button").click();

@@ -11,10 +11,16 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Mock pipeline</p>
+            <p class="eyebrow" id="pipelineEyebrow">Mock pipeline</p>
             <h1>Piano practice from a screen recording</h1>
           </div>
-          <div class="status-pill" id="serviceStatus" data-testid="service-status">Checking backend</div>
+          <div class="topbar-tools">
+            <div class="mode-switch" id="pipelineModeControls" data-testid="pipeline-mode-controls" role="group" aria-label="Pipeline mode">
+              <button type="button" data-mode="mock" data-testid="mode-mock">Mock</button>
+              <button type="button" data-mode="real" data-testid="mode-real">Real</button>
+            </div>
+            <div class="status-pill" id="serviceStatus" data-testid="service-status">Checking backend</div>
+          </div>
         </header>
 
         <section class="song-workspace" id="homeView" data-testid="home-view">

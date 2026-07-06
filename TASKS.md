@@ -243,7 +243,13 @@ Verification:
 - Confirm the extracted audio file exists, has nonzero size, and is served with the correct content type.
 - Confirm a failed extraction marks the job as `failed` with a useful error message.
 
-Status: Planned.
+Result:
+- Real mode now invokes FFmpeg through `FFMPEG_PATH` or `ffmpeg`.
+- Successful real-mode jobs write `source-audio.wav` inside the job directory and expose it as a browser-playable source stem.
+- Job metadata records FFmpeg command availability, processing time, output filename, and output size.
+- Missing FFmpeg produces an API-visible failed job with a setup-oriented error.
+
+Status: Complete on 2026-07-06.
 
 ### Phase 2D: Practice UI Compatibility
 
@@ -259,7 +265,13 @@ Verification:
 - Manual browser test with one real-mode completed job.
 - GUI smoke coverage is updated only if the result shape changes in a way the current tests should protect.
 
-Status: Planned.
+Result:
+- Completed real-mode extraction jobs appear in the unified song list.
+- Selecting a real-mode completed job opens the same practice/detail panel with one `Extracted source audio` stem.
+- Harmonic metadata remains mocked and is marked as `harmonySource: "mock"` in job metadata.
+- The GUI includes a Mock/Real pipeline mode switch in the topbar; `PIPELINE_MODE` remains the startup default, and the switch affects new uploads in the current server session.
+
+Status: Complete on 2026-07-06.
 
 ### Phase 2E: Real-Mode Smoke Verification
 
@@ -275,7 +287,12 @@ Verification:
 - `npm run test:gui` passes in mock mode.
 - The real-mode smoke command passes locally when FFmpeg is available, or reports a documented skip/setup error when unavailable.
 
-Status: Planned.
+Result:
+- `npm test` includes a missing-FFmpeg real-mode failure test that does not require FFmpeg.
+- `npm test` also includes a real-mode extraction smoke that runs when FFmpeg is available and skips cleanly otherwise.
+- Mock GUI verification remains under `npm run test:gui`.
+
+Status: Complete on 2026-07-06.
 
 ### Phase 2F: Documentation, Risks, and Decision Gate
 
@@ -296,7 +313,13 @@ Verification:
 - Documentation explains how another developer can reproduce the real spike or understand why it was skipped.
 - The next implementation task is selected from evidence, not assumption.
 
-Status: Planned. Phase 2A is complete; continue with Phase 2B before starting this decision gate. Do not begin Demucs, Basic Pitch, or other heavy ML integration before the Phase 2F decision gate.
+Result:
+- Real extraction was verified locally with FFmpeg available.
+- Mock mode remained intact.
+- Documentation, risks, and decisions were updated.
+- The next real subsystem should be a narrow piano-focused stem separation spike before transcription or harmonic-analysis work.
+
+Status: Complete on 2026-07-06. Do not begin broad Demucs, Basic Pitch, or other heavy ML integration without keeping the spike narrow and mock mode working.
 
 ## Phase 3: Problem Areas and Practice Notes
 
@@ -311,7 +334,7 @@ Verification:
 - Create, edit, select, and delete multiple loops on one processed song.
 - Reload the app and confirm notes and loop status persist.
 
-Status: Planned
+Status: Planned.
 
 ## Phase 4: Musical Grid and Bar-Based Practice
 
@@ -405,4 +428,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Start Phase 2B: real-mode upload and job contract.
+Start Phase 3: problem areas and practice notes, or first run a narrow piano-focused real stem-separation spike if the next iteration is intended to reduce real-pipeline risk before adding more practice UX.

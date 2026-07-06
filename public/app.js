@@ -1,4 +1,6 @@
 const serviceStatus = document.querySelector("#serviceStatus");
+const pipelineEyebrow = document.querySelector("#pipelineEyebrow");
+const pipelineModeControls = document.querySelector("#pipelineModeControls");
 const uploadForm = document.querySelector("#uploadForm");
 const mediaInput = document.querySelector("#mediaInput");
 const fileLabel = document.querySelector("#fileLabel");
@@ -77,6 +79,21 @@ function formatTime(seconds) {
 
 function statusLabel(status) {
   return statusLabels[status] || "Not started";
+}
+
+function modeLabel(mode) {
+  return mode === "real" ? "Real" : "Mock";
+}
+
+function renderPipelineMode(mode) {
+  pipelineMode = mode === "real" ? "real" : "mock";
+  if (pipelineEyebrow) {
+    pipelineEyebrow.textContent = `${modeLabel(pipelineMode)} pipeline`;
+  }
+  for (const button of pipelineModeControls?.querySelectorAll("button[data-mode]") || []) {
+    button.classList.toggle("active", button.dataset.mode === pipelineMode);
+    button.setAttribute("aria-pressed", String(button.dataset.mode === pipelineMode));
+  }
 }
 
 function formatActivityTime(value) {
@@ -911,12 +928,35 @@ async function checkHealth() {
   try {
     const response = await fetch("/api/health");
     const health = await response.json();
-    pipelineMode = health.mode;
+    renderPipelineMode(health.mode);
     serviceStatus.textContent = loadProcessedDemo
       ? `Backend ready: ${health.mode} · processed demo`
       : `Backend ready: ${health.mode}`;
   } catch {
     serviceStatus.textContent = "Backend unavailable";
+  }
+}
+
+async function setPipelineMode(mode) {
+  renderPipelineMode(mode);
+  serviceStatus.textContent = `Switching to ${mode}`;
+  try {
+    const response = await fetch("/api/settings/pipeline-mode", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode })
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Could not switch pipeline mode." }));
+      throw new Error(error.error);
+    }
+    const settings = await response.json();
+    renderPipelineMode(settings.mode);
+    serviceStatus.textContent = `Backend ready: ${settings.mode}`;
+  } catch (error) {
+    console.error(error);
+    serviceStatus.textContent = error.message || "Could not switch pipeline mode";
+    await checkHealth();
   }
 }
 
@@ -1002,6 +1042,12 @@ uploadButton.addEventListener("click", () => {
 
 uploadForm.addEventListener("submit", (event) => {
   event.preventDefault();
+});
+
+pipelineModeControls?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-mode]");
+  if (!button || button.dataset.mode === pipelineMode) return;
+  void setPipelineMode(button.dataset.mode);
 });
 
 playButton.addEventListener("click", () => {

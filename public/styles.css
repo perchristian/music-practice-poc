@@ -29,7 +29,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -54,6 +56,14 @@ button {
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 22px;
+}
+
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 h1,
@@ -114,6 +124,7 @@ h3 {
 
 .add-form button,
 .segmented button,
+.mode-switch button,
 .secondary-button,
 .filter-row button {
   min-height: 42px;
@@ -315,6 +326,28 @@ h3 {
 
 .filter-row button.active {
   border-color: var(--accent);
+  background: #dff4ef;
+  color: var(--accent-strong);
+}
+
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px;
+}
+
+.mode-switch button {
+  min-width: 64px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 10px;
+  font-weight: 800;
+}
+
+.mode-switch button.active {
   background: #dff4ef;
   color: var(--accent-strong);
 }
@@ -539,6 +572,7 @@ audio {
 .stem-toggle:focus-visible,
 .play-button:focus-visible,
 .segmented button:focus-visible,
+.mode-switch button:focus-visible,
 .secondary-button:focus-visible,
 .filter-row button:focus-visible,
 .add-form button:focus-visible {
@@ -726,6 +760,10 @@ audio {
   .topbar {
     display: grid;
     align-items: start;
+  }
+
+  .topbar-tools {
+    justify-content: start;
   }
 
   .song-workspace {

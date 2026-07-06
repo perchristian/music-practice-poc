@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
-import { access, copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { spawn } from "node:child_process";
 import { extname, join, normalize } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -8,7 +9,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "127.0.0.1";
-const PIPELINE_MODE = process.env.PIPELINE_MODE || "mock";
+const startupPipelineMode = process.env.PIPELINE_MODE === "real" ? "real" : "mock";
+let activePipelineMode = startupPipelineMode;
+const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
@@ -95,6 +98,13 @@ function publicStem(job, stem) {
     audioUrl: stemAudioUrl(job, stem),
     defaultMuted: false
   };
+}
+
+function stemFilePath(job, stem) {
+  if (stem.kind === "source-audio") {
+    return join(job.dir, stem.filename);
+  }
+  return join(job.dir, "stems", stem.filename);
 }
 
 function contentTypeForPath(path, fallback = "application/octet-stream") {
@@ -383,7 +393,8 @@ async function createJobRecord({
   originalType = null,
   sourcePath = null,
   sourceFilename = null,
-  mockUpload = false
+  mockUpload = false,
+  mode = activePipelineMode
 }) {
   const id = randomUUID();
   const dir = join(JOBS_DIR, id);
@@ -391,7 +402,7 @@ async function createJobRecord({
 
   const job = {
     id,
-    mode: PIPELINE_MODE,
+    mode,
     status: "queued",
     progress: 0,
     originalFilename,
@@ -583,38 +594,159 @@ async function failJob(job, message, details = {}) {
   await saveJob(job);
 }
 
-async function runRealPipelineContract(job) {
+function runProcess(command, args) {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const child = spawn(command, args, { stdio: ["ignore", "ignore", "pipe"] });
+    let stderr = "";
+
+    child.stderr.on("data", (chunk) => {
+      stderr = `${stderr}${chunk.toString("utf8")}`.slice(-4000);
+    });
+
+    child.on("error", (error) => {
+      resolve({
+        ok: false,
+        code: null,
+        error,
+        stderr,
+        durationMs: Date.now() - startedAt
+      });
+    });
+
+    child.on("close", (code) => {
+      resolve({
+        ok: code === 0,
+        code,
+        error: null,
+        stderr,
+        durationMs: Date.now() - startedAt
+      });
+    });
+  });
+}
+
+async function extractSourceAudio(job) {
+  const outputFilename = "source-audio.wav";
+  const outputPath = join(job.dir, outputFilename);
+  const args = [
+    "-hide_banner",
+    "-y",
+    "-i",
+    job.sourcePath,
+    "-vn",
+    "-ac",
+    "1",
+    "-ar",
+    "44100",
+    outputPath
+  ];
+  const result = await runProcess(FFMPEG_PATH, args);
+
+  if (!result.ok) {
+    const missingCommand = result.error?.code === "ENOENT";
+    const message = missingCommand
+      ? `FFmpeg was not found at "${FFMPEG_PATH}". Install FFmpeg or set FFMPEG_PATH, then retry real mode.`
+      : "FFmpeg could not extract audio from the uploaded media.";
+    throw Object.assign(new Error(message), {
+      ffmpeg: {
+        command: FFMPEG_PATH,
+        args,
+        exitCode: result.code,
+        missingCommand,
+        stderr: result.stderr.trim(),
+        durationMs: result.durationMs
+      }
+    });
+  }
+
+  const outputStats = await stat(outputPath);
+  return {
+    filename: outputFilename,
+    path: outputPath,
+    size: outputStats.size,
+    durationMs: result.durationMs,
+    command: FFMPEG_PATH,
+    args
+  };
+}
+
+async function runRealPipeline(job) {
   await new Promise((resolve) => setTimeout(resolve, 100));
   job.status = "processing";
   job.progress = 15;
   job.metadata = {
     realMode: true,
-    pipelineStage: "source-upload",
+    pipelineStage: "source-audio-extraction",
     source: {
       filename: job.sourceFilename,
       contentType: job.originalType,
       size: job.originalSize
     },
+    ffmpeg: {
+      command: FFMPEG_PATH,
+      available: null,
+      durationMs: null,
+      outputFilename: "source-audio.wav",
+      outputSize: null
+    },
     limitations: [
-      "FFmpeg source-audio extraction is scheduled for Phase 2C.",
-      "Stem separation and harmonic analysis remain unavailable in real mode."
+      "Only source-audio extraction is real in this phase.",
+      "Stem separation remains unavailable in real mode.",
+      "Harmony cues are mocked so the practice UI remains usable."
     ]
   };
   job.updatedAt = new Date().toISOString();
   await saveJob(job);
 
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  await failJob(job, "Real-mode upload succeeded, but FFmpeg extraction is not implemented yet. Continue with Phase 2C.", {
-    pipelineStage: "source-audio-extraction",
-    sourceStored: Boolean(job.sourcePath)
-  });
+  try {
+    const extracted = await extractSourceAudio(job);
+    job.stems = [
+      {
+        id: "source",
+        name: "Extracted source audio",
+        filename: extracted.filename,
+        contentType: "audio/wav",
+        kind: "source-audio"
+      }
+    ];
+    job.status = "complete";
+    job.progress = 100;
+    job.metadata = {
+      ...job.metadata,
+      pipelineStage: "source-audio-extracted",
+      harmonySource: "mock",
+      key: createMockMetadata().key,
+      chords: createMockMetadata().chords,
+      melody: createMockMetadata().melody,
+      ffmpeg: {
+        command: extracted.command,
+        available: true,
+        durationMs: extracted.durationMs,
+        outputFilename: extracted.filename,
+        outputSize: extracted.size
+      }
+    };
+    job.updatedAt = new Date().toISOString();
+    await saveJob(job);
+  } catch (error) {
+    await failJob(job, error.message || "Real-mode source-audio extraction failed.", {
+      pipelineStage: "source-audio-extraction",
+      sourceStored: Boolean(job.sourcePath),
+      ffmpeg: error.ffmpeg || {
+        command: FFMPEG_PATH,
+        available: false
+      }
+    });
+  }
 }
 
 async function handleCreateJob(req, res) {
   const contentType = req.headers["content-type"] || "";
+  const selectedMode = activePipelineMode;
   let job;
 
-  if (PIPELINE_MODE === "mock" && contentType.includes("application/json")) {
+  if (selectedMode === "mock" && contentType.includes("application/json")) {
     const payload = await readJsonBody(req);
     if (!payload.filename) {
       badRequest(res, "Mock job must include filename.");
@@ -625,7 +757,8 @@ async function handleCreateJob(req, res) {
       originalFilename: payload.filename,
       originalSize: payload.size,
       originalType: payload.type,
-      mockUpload: true
+      mockUpload: true,
+      mode: selectedMode
     });
   } else {
     const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/);
@@ -648,14 +781,15 @@ async function handleCreateJob(req, res) {
       originalFilename: media.filename,
       originalSize: media.data.length,
       originalType: media.contentType,
-      sourceFilename
+      sourceFilename,
+      mode: selectedMode
     });
     job.sourcePath = join(job.dir, sourceFilename);
     await writeFile(job.sourcePath, media.data);
     await saveJob(job);
   }
 
-  if (PIPELINE_MODE === "mock") {
+  if (job.mode === "mock") {
     runMockPipeline(job).catch(async (error) => {
       job.status = "failed";
       job.error = error.message;
@@ -663,9 +797,9 @@ async function handleCreateJob(req, res) {
       await saveJob(job);
     });
   } else {
-    runRealPipelineContract(job).catch(async (error) => {
+    runRealPipeline(job).catch(async (error) => {
       await failJob(job, error.message || "Real-mode processing failed unexpectedly.", {
-        pipelineStage: "real-mode-contract"
+        pipelineStage: "source-audio-extraction"
       });
     });
   }
@@ -674,7 +808,7 @@ async function handleCreateJob(req, res) {
 }
 
 async function handleGetProcessedDemoJob(res) {
-  if (PIPELINE_MODE !== "mock") {
+  if (activePipelineMode !== "mock") {
     json(res, 409, { error: "Processed demo shortcut is only available in PIPELINE_MODE=mock." });
     return;
   }
@@ -793,6 +927,18 @@ async function handleRenameJob(req, id, res) {
   json(res, 200, publicJob(job));
 }
 
+async function handleSetPipelineMode(req, res) {
+  const payload = await readJsonBody(req);
+  const mode = typeof payload.mode === "string" ? payload.mode : "";
+  if (!["mock", "real"].includes(mode)) {
+    badRequest(res, "Pipeline mode must be mock or real.");
+    return;
+  }
+
+  activePipelineMode = mode;
+  json(res, 200, { ok: true, mode: activePipelineMode, startupMode: startupPipelineMode });
+}
+
 async function readJobFromDisk(id) {
   if (jobs.has(id)) return jobs.get(id);
   try {
@@ -821,11 +967,12 @@ async function handleGetAudio(id, res) {
     return;
   }
 
-  const pianoStem = stemsForJob(job).find((stem) => stem.id === "piano");
-  let streamPath = pianoStem
-    ? join(job.dir, "stems", pianoStem.filename)
+  const stems = stemsForJob(job);
+  const preferredStem = stems.find((stem) => stem.id === "piano") || stems[0] || null;
+  let streamPath = preferredStem
+    ? stemFilePath(job, preferredStem)
     : join(job.dir, "piano.wav");
-  let streamContentType = pianoStem?.contentType || contentTypeForPath(streamPath, "audio/wav");
+  let streamContentType = preferredStem?.contentType || contentTypeForPath(streamPath, "audio/wav");
   try {
     await access(streamPath);
   } catch {
@@ -852,7 +999,7 @@ async function handleGetStem(id, stemId, res) {
     return;
   }
 
-  const stemPath = join(job.dir, "stems", stem.filename);
+  const stemPath = stemFilePath(job, stem);
   try {
     await access(stemPath);
   } catch {
@@ -868,7 +1015,17 @@ async function route(req, res) {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
   if (req.method === "GET" && url.pathname === "/api/health") {
-    json(res, 200, { ok: true, mode: PIPELINE_MODE });
+    json(res, 200, {
+      ok: true,
+      mode: activePipelineMode,
+      startupMode: startupPipelineMode,
+      ffmpegPath: FFMPEG_PATH
+    });
+    return;
+  }
+
+  if (req.method === "PUT" && url.pathname === "/api/settings/pipeline-mode") {
+    await handleSetPipelineMode(req, res);
     return;
   }
 
@@ -939,5 +1096,5 @@ createServer((req, res) => {
   });
 }).listen(PORT, HOST, () => {
   console.log(`Piano Practice POC running at http://${HOST}:${PORT}`);
-  console.log(`PIPELINE_MODE=${PIPELINE_MODE}`);
+  console.log(`PIPELINE_MODE=${activePipelineMode}`);
 });

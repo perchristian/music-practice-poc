@@ -2,7 +2,7 @@
 
 Mock-first prototype for testing whether a screen recording can become a better piano learning workflow.
 
-The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can queue multiple files for mock processing, reopen processed songs from a creation-time-sorted library, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
+The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can switch Mock/Real pipeline mode, queue multiple files, reopen processed songs from a creation-time-sorted library, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
 
 ## Run
 
@@ -26,6 +26,8 @@ Mock mode is the default and requires no heavy ML dependencies:
 ```bash
 PIPELINE_MODE=mock npm start
 ```
+
+Real mode currently validates one real subsystem: FFmpeg source-audio extraction. It stores uploaded media, writes `source-audio.wav`, and exposes that extracted audio as a playable practice result. Stem separation and transcription are not implemented yet.
 
 See `DEMO.md` for the current demo flow and known limitations.
 

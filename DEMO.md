@@ -16,7 +16,9 @@ Mock mode does not perform real stem separation or transcription. If local demo 
 
 In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, and harmonic display.
 
-In real mode, the browser uploads the actual selected file as multipart form data. As of Phase 2B, the backend stores the uploaded source media under the job directory and exposes the queued -> processing -> failed job lifecycle through the API. The failure is expected until Phase 2C adds FFmpeg extraction.
+In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav`, and exposes that extracted audio as a playable practice result. Stem separation and harmonic analysis remain mocked or unavailable; the real subsystem in this phase is only source-audio extraction.
+
+The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
 
 ## Prerequisites
 
@@ -26,6 +28,12 @@ In real mode, the browser uploads the actual selected file as multipart form dat
 - In mock mode the file can be large, because only metadata is sent.
 
 No Demucs, Basic Pitch, FFmpeg, GPU, or heavy ML dependency is required for mock mode.
+
+Real mode requires FFmpeg for extraction. On this machine it was verified at `/opt/homebrew/bin/ffmpeg`. If FFmpeg is not on `PATH`, set:
+
+```bash
+FFMPEG_PATH=/path/to/ffmpeg npm start
+```
 
 ## Run
 
@@ -40,6 +48,14 @@ http://localhost:3000
 ```
 
 If a sandbox blocks local port binding, run the same command in a normal terminal from the repository root.
+
+To start with real mode selected by default:
+
+```bash
+PIPELINE_MODE=real npm start
+```
+
+You can also start normally and switch Mock/Real from the topbar before uploading a file.
 
 For repeated frontend testing where file selection and upload are not the thing being evaluated, open:
 
@@ -64,7 +80,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, detected key, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -89,6 +105,17 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 17. Rename the selected song from the selected-song header.
 18. Delete the selected song and confirm it disappears from the song list and no longer opens.
 19. Inspect detected key, chord names, and roman numerals.
+
+## Real-Mode Extraction Smoke
+
+1. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
+2. Upload `test-media/phase-2a-source.wav` or another short audio/video file.
+3. Wait for the job to complete.
+4. Select the completed song and confirm the practice result shows `Extracted source audio`.
+5. Play the result and confirm the browser can load the audio.
+6. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` exists with nonzero size.
+
+If FFmpeg is unavailable, the job should fail with a clear setup message instead of crashing the server. Mock mode remains usable.
 
 ## Fast Iteration Steps
 
@@ -118,8 +145,8 @@ This file is synthesized in-repo from simple sine-wave chord tones. It is not a 
 - Real piano isolation is not implemented yet.
 - Real drums, bass, guitar, and piano separation is not implemented yet.
 - Real transcription is not implemented yet.
-- Real-mode upload storage is implemented, but real-mode FFmpeg extraction is not implemented yet. On this machine, FFmpeg was installed with Homebrew on 2026-07-06 and verified at `/opt/homebrew/bin/ffmpeg` version 8.1.2.
-- Harmonic metadata is mocked.
+- Real-mode upload storage and FFmpeg source-audio extraction are implemented, but no real separation or transcription runs after extraction.
+- Harmonic metadata is mocked, including for real-mode extracted-audio jobs.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.
 - Native iOS Photos import is not implemented yet.
