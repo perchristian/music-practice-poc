@@ -45,7 +45,6 @@ Local filesystem storage
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
-- `POST /api/jobs/:id/opened`: records that a completed processed song was intentionally opened in the practice view, powering recently-opened sorting inside the unified song list.
 - `PUT /api/jobs/:id/practice-state`: persists per-song learning status, stem mute/solo/volume state, playback speed, loop points, and last playback position.
 - `PUT /api/jobs/:id/rename`: renames a processed song for the local library.
 - `DELETE /api/jobs/:id`: deletes a processed song and its local files.

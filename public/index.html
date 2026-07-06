@@ -25,11 +25,10 @@
                 <h2 id="songsTitle">Songs</h2>
               </div>
               <form id="uploadForm" class="add-form">
-                <label class="add-button">
-                  <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" multiple required>
-                  <span id="fileLabel" data-testid="file-label">Add</span>
-                </label>
-                <button type="submit" id="uploadButton" data-testid="upload-button">Upload</button>
+                <input id="mediaInput" data-testid="media-input" name="media" type="file" accept="video/*,audio/*" multiple required>
+                <button type="button" id="uploadButton" data-testid="upload-button">
+                  <span id="fileLabel" data-testid="file-label">Upload</span>
+                </button>
               </form>
             </div>
             <label class="search-field">

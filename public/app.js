@@ -57,6 +57,7 @@ let currentJobId = null;
 let persistTimer = null;
 let selectedQueueLocalId = null;
 let selectedReadyJobId = null;
+let isUploading = false;
 const loadProcessedDemo =
   urlParams.get("demo") === "processed" ||
   urlParams.get("skipUpload") === "1";
@@ -283,7 +284,7 @@ function completedRowItem(entry) {
     key: entry.id,
     id: entry.id,
     title: entry.originalFilename,
-    activityAt: entry.lastOpenedAt || entry.updatedAt || entry.createdAt,
+    activityAt: entry.createdAt,
     status: completedStatusLabel(entry),
     duration: jobDurationLabel(entry),
     entry
@@ -303,14 +304,6 @@ function orderedSongItems() {
       const rank = { active: 0, complete: 1, failed: 2 };
       const rankDiff = rank[left.type] - rank[right.type];
       if (rankDiff !== 0) return rankDiff;
-
-      if (left.type === "complete" && right.type === "complete") {
-        if (left.entry.lastOpenedAt && right.entry.lastOpenedAt) {
-          return new Date(right.entry.lastOpenedAt) - new Date(left.entry.lastOpenedAt);
-        }
-        if (left.entry.lastOpenedAt) return -1;
-        if (right.entry.lastOpenedAt) return 1;
-      }
 
       return new Date(right.activityAt || 0) - new Date(left.activityAt || 0);
     });
@@ -344,7 +337,7 @@ function renderSongRow(item) {
   row.append(art, copy, side);
   row.addEventListener("click", () => {
     if (item.type === "complete") {
-      void loadJob(item.id, { markOpened: true });
+      void loadJob(item.id);
       return;
     }
     selectQueueJob(item.queueJob);
@@ -385,10 +378,8 @@ async function loadLibrary() {
   }
 }
 
-async function loadJob(jobId, { markOpened = false } = {}) {
-  const response = await fetch(markOpened ? `/api/jobs/${jobId}/opened` : `/api/jobs/${jobId}`, {
-    method: markOpened ? "POST" : "GET"
-  });
+async function loadJob(jobId) {
+  const response = await fetch(`/api/jobs/${jobId}`);
   if (!response.ok) throw new Error("Could not load processed song.");
   const job = await response.json();
   currentJob = job;
@@ -410,7 +401,7 @@ function renderCompletedJob(job) {
   showSelectedHeader({
     eyebrow: "Ready",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.lastOpenedAt || job.updatedAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
     actions: true
   });
   renderStemPlayers(stems);
@@ -644,9 +635,11 @@ function updateStemAudibility() {
     player.audio.muted = nextMuted;
     player.row.classList.toggle("muted", player.muted);
     player.row.classList.toggle("solo", player.solo);
-    player.muteButton.textContent = player.muted ? "Unmute" : "Mute";
+    player.muteButton.textContent = "M";
+    player.muteButton.setAttribute("aria-label", `${player.muted ? "Unmute" : "Mute"} ${player.name}`);
     player.muteButton.setAttribute("aria-pressed", String(player.muted));
-    player.soloButton.textContent = player.solo ? "Unsolo" : "Solo";
+    player.soloButton.textContent = "S";
+    player.soloButton.setAttribute("aria-label", `${player.solo ? "Unsolo" : "Solo"} ${player.name}`);
     player.soloButton.setAttribute("aria-pressed", String(player.solo));
 
     if (wasMuted && !nextMuted) {
@@ -732,6 +725,7 @@ function renderStemPlayers(stems) {
     muteButton.dataset.stemId = stem.id;
     muteButton.dataset.stemAction = "mute";
     muteButton.dataset.testid = `stem-mute-${stem.id}`;
+    muteButton.title = `Mute ${stem.name}`;
     controls.append(volumeSlider, muteButton);
 
     const soloButton = document.createElement("button");
@@ -740,6 +734,7 @@ function renderStemPlayers(stems) {
     soloButton.dataset.stemId = stem.id;
     soloButton.dataset.stemAction = "solo";
     soloButton.dataset.testid = `stem-solo-${stem.id}`;
+    soloButton.title = `Solo ${stem.name}`;
     controls.append(soloButton);
 
     row.append(controls);
@@ -838,7 +833,7 @@ function renderReadyJob(job) {
   showSelectedHeader({
     eyebrow: "Ready",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.updatedAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
+    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - Key: ${job.result.metadata.key.tonic} ${job.result.metadata.key.mode}`,
     actions: true
   });
   showDetailPane("ready");
@@ -928,8 +923,7 @@ async function checkHealth() {
 async function showProcessedDemo() {
   pauseAll();
   uploadButton.disabled = true;
-  uploadButton.textContent = "Demo loaded";
-  fileLabel.textContent = "Processed demo";
+  fileLabel.textContent = "Loading";
 
   const response = await fetch("/api/demo/processed-job");
   if (!response.ok) {
@@ -941,69 +935,73 @@ async function showProcessedDemo() {
   renderCompletedJob(job);
   await loadLibrary();
   uploadButton.disabled = false;
-  uploadButton.textContent = "Upload";
+  fileLabel.textContent = "Upload";
+}
+
+async function uploadFiles(files) {
+  if (!files.length || isUploading) return;
+
+  isUploading = true;
+  uploadButton.disabled = true;
+  fileLabel.textContent = "Uploading";
+
+  try {
+    for (const file of files) {
+      const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const queueJob = {
+        localId,
+        filename: file.name,
+        status: pipelineMode === "mock" ? "simulating upload" : "uploading",
+        progress: 3,
+        timer: null,
+        jobId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        error: null
+      };
+      queueJobs.set(localId, queueJob);
+      renderSongList();
+
+      try {
+        const job = await createJob(file);
+        queueJob.jobId = job.id;
+        updateQueueJob(queueJob, job);
+        queueJob.timer = window.setInterval(() => {
+          pollQueueJob(localId).catch((error) => {
+            console.error(error);
+            const latestQueueJob = queueJobs.get(localId);
+            if (!latestQueueJob) return;
+            window.clearInterval(latestQueueJob.timer);
+            updateQueueJob(latestQueueJob, { status: "failed", progress: latestQueueJob.progress });
+          });
+        }, 500);
+        await pollQueueJob(localId);
+      } catch (error) {
+        queueJob.error = error.message;
+        updateQueueJob(queueJob, { status: "failed", progress: queueJob.progress });
+      }
+    }
+  } finally {
+    mediaInput.value = "";
+    fileLabel.textContent = "Upload";
+    uploadButton.disabled = false;
+    isUploading = false;
+    homeView.classList.remove("detail-open");
+  }
 }
 
 mediaInput.addEventListener("change", () => {
   const files = [...(mediaInput.files || [])];
-  if (files.length === 0) {
-    fileLabel.textContent = "Select screen recordings";
-  } else if (files.length === 1) {
-    fileLabel.textContent = files[0].name;
-  } else {
-    fileLabel.textContent = `${files.length} recordings selected`;
-  }
+  void uploadFiles(files);
 });
 
-uploadForm.addEventListener("submit", async (event) => {
+uploadButton.addEventListener("click", () => {
+  if (isUploading) return;
+  mediaInput.click();
+});
+
+uploadForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const files = [...(mediaInput.files || [])];
-  if (!files.length) return;
-
-  uploadButton.disabled = true;
-  uploadButton.textContent = "Adding";
-
-  for (const file of files) {
-    const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const queueJob = {
-      localId,
-      filename: file.name,
-      status: pipelineMode === "mock" ? "simulating upload" : "uploading",
-      progress: 3,
-      timer: null,
-      jobId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      error: null
-    };
-    queueJobs.set(localId, queueJob);
-    renderSongList();
-
-    try {
-      const job = await createJob(file);
-      queueJob.jobId = job.id;
-      updateQueueJob(queueJob, job);
-      queueJob.timer = window.setInterval(() => {
-        pollQueueJob(localId).catch((error) => {
-          console.error(error);
-          const latestQueueJob = queueJobs.get(localId);
-          if (!latestQueueJob) return;
-          window.clearInterval(latestQueueJob.timer);
-          updateQueueJob(latestQueueJob, { status: "failed", progress: latestQueueJob.progress });
-        });
-      }, 500);
-      await pollQueueJob(localId);
-    } catch (error) {
-      queueJob.error = error.message;
-      updateQueueJob(queueJob, { status: "failed", progress: queueJob.progress });
-    }
-  }
-
-  mediaInput.value = "";
-  fileLabel.textContent = "Select screen recordings";
-  uploadButton.disabled = false;
-  uploadButton.textContent = "Upload";
-  homeView.classList.remove("detail-open");
 });
 
 playButton.addEventListener("click", () => {

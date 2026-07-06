@@ -131,9 +131,7 @@ describe("mock backend", () => {
 
     assert.equal(createResponse.status, 202);
     const createdJob = await createResponse.json();
-    assert.equal(createdJob.lastOpenedAt, null);
     const completedJob = await waitForComplete(createdJob.id);
-    assert.equal(completedJob.lastOpenedAt, null);
     const pianoStem = completedJob.result.stems.find((stem) => stem.id === "piano");
     assert.ok(pianoStem);
 
@@ -180,7 +178,6 @@ describe("mock backend", () => {
     assert.equal(libraryEntry.originalFilename, "Renamed practice song");
     assert.equal(libraryEntry.practiceState.learningStatus, "practicing");
     assert.equal(libraryEntry.practiceState.stemStates.piano.muted, true);
-    assert.equal(libraryEntry.lastOpenedAt, null);
 
     const reopenedResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`);
     assert.equal(reopenedResponse.status, 200);
@@ -188,18 +185,6 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.originalFilename, "Renamed practice song");
     assert.equal(reopenedJob.practiceState.playbackRate, 0.75);
     assert.equal(reopenedJob.practiceState.lastPosition, 3.25);
-    assert.equal(reopenedJob.lastOpenedAt, null);
-
-    const openedResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/opened`, { method: "POST" });
-    assert.equal(openedResponse.status, 200);
-    const openedJob = await openedResponse.json();
-    assert.match(openedJob.lastOpenedAt, /^\d{4}-\d{2}-\d{2}T/);
-
-    const libraryAfterOpenResponse = await fetch(`${baseUrl}/api/library`);
-    assert.equal(libraryAfterOpenResponse.status, 200);
-    const entriesAfterOpen = await libraryAfterOpenResponse.json();
-    const openedLibraryEntry = entriesAfterOpen.find((entry) => entry.id === completedJob.id);
-    assert.equal(openedLibraryEntry.lastOpenedAt, openedJob.lastOpenedAt);
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

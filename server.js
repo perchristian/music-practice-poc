@@ -404,8 +404,7 @@ async function createJobRecord({ originalFilename, originalSize = null, original
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastOpenedAt: null
+    updatedAt: new Date().toISOString()
   };
 
   jobs.set(id, job);
@@ -460,7 +459,6 @@ function publicJob(job) {
     progress: job.progress,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
-    lastOpenedAt: job.lastOpenedAt || null,
     originalFilename: job.originalFilename,
     originalSize: job.originalSize,
     mockUpload: job.mockUpload,
@@ -640,7 +638,7 @@ async function handleListLibrary(res) {
       entries.push(publicJob(job));
     }
 
-    entries.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+    entries.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
     json(res, 200, entries);
   } catch (error) {
     console.error(error);
@@ -726,18 +724,6 @@ async function handleRenameJob(req, id, res) {
 
   job.originalFilename = label;
   job.updatedAt = new Date().toISOString();
-  await saveJob(job);
-  json(res, 200, publicJob(job));
-}
-
-async function handleMarkJobOpened(id, res) {
-  const job = await readJobFromDisk(id);
-  if (!job || job.status !== "complete") {
-    notFound(res);
-    return;
-  }
-
-  job.lastOpenedAt = new Date().toISOString();
   await saveJob(job);
   json(res, 200, publicJob(job));
 }
@@ -845,11 +831,6 @@ async function route(req, res) {
   const practiceStateMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/practice-state$/);
   if (req.method === "PUT" && practiceStateMatch) {
     await handleUpdatePracticeState(req, practiceStateMatch[1], res);
-    return;
-  }
-  const openedMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/opened$/);
-  if (req.method === "POST" && openedMatch) {
-    await handleMarkJobOpened(openedMatch[1], res);
     return;
   }
   const renameJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/rename$/);

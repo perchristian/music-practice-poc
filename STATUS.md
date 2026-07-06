@@ -76,7 +76,6 @@ Local web POC:
 - Added processed-song library API:
   - `GET /api/library`
   - `PUT /api/jobs/:id/practice-state`
-  - `POST /api/jobs/:id/opened`
   - `PUT /api/jobs/:id/rename`
   - `DELETE /api/jobs/:id`
 - Added local `DATA_DIR` override support for isolated backend tests.
@@ -92,7 +91,7 @@ Local web POC:
 - Documented the Phase 1 storage decision in `DECISIONS.md`.
 - Added home/all-songs/practice view separation so upload and library controls do not distract inside the practice view.
 - Added multi-file upload queue UI with per-file progress; completed uploads stay on home instead of opening practice automatically.
-- Added `lastOpenedAt` tracking so home shows the five most recently opened songs regardless of learning status.
+- Added `lastOpenedAt` tracking during Phase 1, then removed it from the active API/UI on 2026-07-06 so the unified song list displays and sorts completed songs by `createdAt`.
 - Added All songs learning-status filters for `All`, `Not started`, `Practicing`, and `Learned`.
 - Removed redundant `complete` status badges from completed library cards.
 - Fixed practice-view back navigation so songs opened from All songs return to the processed-song list, while songs opened from Recent still return home.
@@ -109,6 +108,12 @@ Local web POC:
   - Kept completed uploads from auto-opening after processing.
   - Preserved saved practice state, learning status, stem controls, speed, loop, and harmonic cue behavior.
 - Fixed Pause -> Play resume behavior so stem audio continues from the paused timeline position instead of restarting near the beginning while the visual playhead continues.
+- Combined file selection and upload into one `Upload` button: selecting files from the picker immediately queues/uploads them.
+- Changed completed song rows and selected-song metadata to use creation time instead of last-opened or updated time, and removed the obsolete `/api/jobs/:id/opened` endpoint from the active API.
+- Removed the 980px list-over-player breakpoint; the only viewport breakpoint now switches from split list/detail to mobile list/detail navigation at 820px.
+- Made the practice grid stack by available detail width, so processed-result is no longer squeezed beside harmony when the sidebar is still visible.
+- Kept stem controls in a consistent name/volume/mute/solo row at desktop and mobile widths, with narrower minimums to avoid mobile overflow.
+- Moved each stem volume slider and M/S controls below the stem title to prevent overlap with longer stem names.
 
 ## In Progress
 
@@ -139,6 +144,15 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Verification Log
 
+- `node --check server.js`: passed after upload/list/layout correction work.
+- `node --check public/app.js`: passed after upload/list/layout correction work.
+- `node --check tests/gui.spec.js`: passed after updating GUI coverage for auto-upload and creation-time sorting.
+- `npm test`: passed on 2026-07-06 with 3 backend tests after upload/list/layout correction work.
+- `npm run test:gui`: passed on 2026-07-06 with 7 Playwright tests after upload/list/layout correction work.
+- Manual Playwright viewport probe against `http://127.0.0.1:3002/?demo=processed`: at 980px the sidebar and detail/player remained side by side; at 390px no horizontal overflow was detected and stem controls stayed in name/slider/button order.
+- `node --check public/app.js`: passed after moving stem slider/buttons below the title.
+- `npm run test:gui`: passed on 2026-07-06 with 7 Playwright tests after moving stem slider/buttons below the title.
+- Manual Playwright viewport probe against `http://127.0.0.1:3002/?demo=processed`: at 980px, 820px, and 390px each stem name rendered above the slider/buttons, with no horizontal overflow.
 - `node --check public/app.js`: passed after Phase 1B unified workspace changes.
 - `node --check tests/gui.spec.js`: passed after Phase 1B GUI coverage updates.
 - `npm test`: passed on 2026-07-06 with 3 backend tests covering mock job creation, processed demo shortcut, processed-song library/practice-state persistence, rename, reopen, and delete.

@@ -92,7 +92,7 @@ Goal: A user can return to previously processed songs without processing them ag
 
 Demonstrable outcome:
 - Processed songs are listed in the UI.
-- Home shows the five most recently opened songs, independent of learning status.
+- The unified song list shows completed songs with timestamps and ordering based on when they were created.
 - All completed songs are available from an All songs view.
 - Multiple uploads can be queued at once with per-file processing progress.
 - A song can be opened without creating a new processing job.
@@ -109,7 +109,7 @@ Demonstrable outcome:
 Verification:
 - Process a mock song, reload the browser, and reopen it from the library.
 - Queue two mock uploads and confirm the app stays on home after processing completes.
-- Open six processed songs and confirm home shows only the five most recently opened.
+- Open older processed songs and confirm doing so does not move them above newer created songs.
 - Filter All songs by learning status.
 - Change speed, stem mix, volume, loop points, and status; reload and confirm the values persist.
 - Delete a processed song and confirm it disappears from the library and no longer opens.

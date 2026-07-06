@@ -218,7 +218,32 @@ High.
 Date:
 2026-07-05
 
+Status:
+Superseded by Decision 11 on 2026-07-06. The active UI and API no longer track opens for library ordering.
+
 ## Decision 11
+
+Decision:
+Use creation time, not last-opened time, for completed song list timestamps and ordering.
+
+Reason:
+The unified song list should behave like a library of processed songs. Opening a song is not a content change and should not move the song to the top or make the displayed date look newer than the processing job.
+
+Alternatives considered:
+- Continue sorting by `lastOpenedAt`.
+- Sort by `updatedAt`.
+- Add a separate explicit "Recently opened" section.
+
+Tradeoffs:
+Creation-time ordering is predictable and matches the user's correction, but removes implicit recency-of-use behavior. A future "Recently opened" view can still be added explicitly if user testing shows it is useful.
+
+Confidence:
+High for the current POC library behavior.
+
+Date:
+2026-07-06
+
+## Decision 12
 
 Decision:
 Move the library/practice UX toward a Voice Memos-inspired song workspace with a persistent song list on desktop, a list-first stack on mobile, and status shown inline in the song rows instead of using separate Recent and All songs destinations as the main navigation model.

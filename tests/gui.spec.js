@@ -98,9 +98,7 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
     mimeType: "video/quicktime",
     buffer: Buffer.from("mock media bytes")
   });
-  await expect(page.getByTestId("file-label")).toHaveText(filename);
 
-  await page.getByTestId("upload-button").click();
   const jobId = await libraryJobId(page, filename);
   await expect(page.getByTestId("home-view")).toBeVisible();
   await expect(page.getByTestId("practice-view")).toBeHidden();
@@ -257,7 +255,7 @@ test("processed demo shortcut opens practice view without selecting a file", asy
   await page.goto("/?demo=processed");
   await expect(page.getByTestId("service-status")).toContainText("processed demo");
   await expect(page.getByTestId("practice-view")).toBeVisible();
-  await expect(page.getByTestId("file-label")).toHaveText("Processed demo");
+  await expect(page.getByTestId("file-label")).toHaveText("Upload");
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect(page.getByTestId("key-badge")).toHaveText("C major");
   await expect(page.getByText("Cmaj7")).toBeVisible();
@@ -382,7 +380,6 @@ test("processed song library reopens songs and persists practice state", async (
     mimeType: "video/quicktime",
     buffer: Buffer.from("mock media bytes")
   });
-  await page.getByTestId("upload-button").click();
   const jobId = await libraryJobId(page, filename);
   await expect(page.getByTestId("home-view")).toBeVisible();
   await expect(page.getByTestId("practice-view")).toBeHidden();
@@ -398,15 +395,6 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("selected-song-title")).toHaveText(filename);
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
-  await expect
-    .poll(async () => {
-      return page.evaluate(async (id) => {
-        const response = await fetch("/api/library");
-        const entries = await response.json();
-        return entries.find((entry) => entry.id === id)?.lastOpenedAt || null;
-      }, jobId);
-    })
-    .not.toBeNull();
 
   await page.getByTestId("speed-075").click();
   await page.getByTestId("loop-start").fill("1.5");
@@ -496,9 +484,7 @@ test("home upload queue processes multiple files without opening practice", asyn
       buffer: Buffer.from("second mock media bytes")
     }
   ]);
-  await expect(page.getByTestId("file-label")).toHaveText("2 recordings selected");
 
-  await page.getByTestId("upload-button").click();
   await expect(page.getByTestId("song-list")).toContainText(firstFilename);
   await expect(page.getByTestId("song-list")).toContainText(secondFilename);
 
@@ -533,13 +519,15 @@ test("unified song list shows completed songs and filters by learning status", a
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ learningStatus: statuses[index] })
       });
-      await fetch(`/api/jobs/${id}/opened`, { method: "POST" });
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
   }, jobIds);
 
   await page.reload();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(6);
+  await expect(
+    page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix }).locator(".song-row-title")
+  ).toHaveText([...filenames].reverse());
   await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toBeVisible();
@@ -550,16 +538,25 @@ test("unified song list shows completed songs and filters by learning status", a
 
   await page.getByTestId("filter-practicing").click();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(
+    page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix }).locator(".song-row-title")
+  ).toHaveText([filenames[4], filenames[1]]);
   await expect(page.getByTestId(`song-row-${jobIds[1]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toBeVisible();
 
   await page.getByTestId("filter-learned").click();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(
+    page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix }).locator(".song-row-title")
+  ).toHaveText([filenames[5], filenames[2]]);
   await expect(page.getByTestId(`song-row-${jobIds[2]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toBeVisible();
 
   await page.getByTestId("filter-not-started").click();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
+  await expect(
+    page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix }).locator(".song-row-title")
+  ).toHaveText([filenames[3], filenames[0]]);
   await expect(page.getByTestId(`song-row-${jobIds[0]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toBeVisible();
 });
