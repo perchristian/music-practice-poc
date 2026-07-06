@@ -111,6 +111,7 @@ Local web POC:
   - `PIPELINE_MODE` remains the startup default
   - the GUI switch updates the active backend mode for new jobs in the current server process
   - existing jobs retain the mode they were created with
+- Fixed a GUI mode-switch race where a stale startup `/api/health` response could render `mock` after the user clicked `Real`; invalid pipeline-mode JSON now returns a clear 400 response instead of a generic 500.
 - Documented native iOS transition criteria in `ARCHITECTURE.md`.
 - Added processed-song library API:
   - `GET /api/library`
@@ -214,6 +215,10 @@ Optional process task: enable the on-demand context overhead audit only when exp
 - `node --check tests/gui.spec.js`: passed after adding GUI mode-switch coverage and removing out-of-scope Phase 3 saved-loop coverage.
 - `node --check tests/real-mode-upload.test.js`: passed after updating real-mode extraction coverage.
 - `npm test`: passed on 2026-07-06 with 5 backend tests covering mock flow/library/practice state, missing-FFmpeg failure, and real-mode FFmpeg extraction when available.
+- `node --check public/app.js`, `node --check server.js`, and `node --check tests/gui.spec.js`: passed after fixing the GUI mode-switch stale-health race.
+- `npm test`: passed on 2026-07-06 after fixing the GUI mode-switch stale-health race.
+- `npm run test:gui`: passed on 2026-07-06 with 8 Playwright tests, including coverage that a stale startup `/api/health` mock response cannot revert the Real mode selection.
+- Manual API check on 2026-07-06: malformed `PUT /api/settings/pipeline-mode` JSON returned `400 Bad Request` with `{"error":"Invalid JSON body."}`.
 - `npx playwright test tests/gui.spec.js -g "processed song library reopens"`: initially blocked by sandbox local port binding, then passed after approved execution.
 - `npm run test:gui`: passed on 2026-07-06 with 7 Playwright tests covering mode switch, mock upload-to-practice, processed demo shortcut, pause/resume, queue behavior, filters, and mobile stack navigation.
 - Scope correction on 2026-07-06: removed the out-of-scope Phase 3 saved-loop implementation after clarifying that work should continue up to Phase 3, not through Phase 3. Phase 3 is again the next planned UX phase.

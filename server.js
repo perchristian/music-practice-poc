@@ -928,7 +928,14 @@ async function handleRenameJob(req, id, res) {
 }
 
 async function handleSetPipelineMode(req, res) {
-  const payload = await readJsonBody(req);
+  let payload;
+  try {
+    payload = await readJsonBody(req);
+  } catch {
+    badRequest(res, "Invalid JSON body.");
+    return;
+  }
+
   const mode = typeof payload.mode === "string" ? payload.mode : "";
   if (!["mock", "real"].includes(mode)) {
     badRequest(res, "Pipeline mode must be mock or real.");

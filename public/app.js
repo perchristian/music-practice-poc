@@ -46,6 +46,7 @@ const queueJobs = new Map();
 let libraryEntries = [];
 let activeLibraryFilter = "all";
 let pipelineMode = "mock";
+let pipelineModeRequestId = 0;
 let stemPlayers = [];
 let primaryPlayer = null;
 let isPlaying = false;
@@ -925,19 +926,23 @@ async function createJob(file) {
 }
 
 async function checkHealth() {
+  const requestId = pipelineModeRequestId;
   try {
     const response = await fetch("/api/health");
     const health = await response.json();
+    if (requestId !== pipelineModeRequestId) return;
     renderPipelineMode(health.mode);
     serviceStatus.textContent = loadProcessedDemo
       ? `Backend ready: ${health.mode} · processed demo`
       : `Backend ready: ${health.mode}`;
   } catch {
+    if (requestId !== pipelineModeRequestId) return;
     serviceStatus.textContent = "Backend unavailable";
   }
 }
 
 async function setPipelineMode(mode) {
+  const requestId = ++pipelineModeRequestId;
   renderPipelineMode(mode);
   serviceStatus.textContent = `Switching to ${mode}`;
   try {
@@ -951,9 +956,11 @@ async function setPipelineMode(mode) {
       throw new Error(error.error);
     }
     const settings = await response.json();
+    if (requestId !== pipelineModeRequestId) return;
     renderPipelineMode(settings.mode);
     serviceStatus.textContent = `Backend ready: ${settings.mode}`;
   } catch (error) {
+    if (requestId !== pipelineModeRequestId) return;
     console.error(error);
     serviceStatus.textContent = error.message || "Could not switch pipeline mode";
     await checkHealth();

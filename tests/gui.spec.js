@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 
+test.afterEach(async ({ request }) => {
+  await request.put("/api/settings/pipeline-mode", { data: { mode: "mock" } });
+});
+
 async function setPlaybackPosition(page, seconds) {
   await page.locator("#scrubber").evaluate((scrubber, value) => {
     scrubber.value = String(value);
@@ -248,6 +252,39 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await expect(page.getByText("Cmaj7")).toBeVisible();
   await expect(page.getByText("Imaj7")).toBeVisible();
   await expect(page.getByText("E4 G4")).toHaveCount(0);
+});
+
+test("pipeline mode switch ignores stale startup health response", async ({ page }) => {
+  let releaseStartupHealth;
+  let interceptedStartupHealth = false;
+
+  await page.route("**/api/health", async (route) => {
+    if (interceptedStartupHealth) {
+      await route.continue();
+      return;
+    }
+
+    interceptedStartupHealth = true;
+    await new Promise((resolve) => {
+      releaseStartupHealth = resolve;
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, mode: "mock", startupMode: "mock", ffmpegPath: "ffmpeg" })
+    });
+  });
+
+  await page.goto("/");
+  await page.getByTestId("mode-real").click();
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
+  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
+
+  releaseStartupHealth();
+  await page.waitForTimeout(100);
+
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
+  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
 });
 
 test("processed demo shortcut opens practice view without selecting a file", async ({ page }) => {
