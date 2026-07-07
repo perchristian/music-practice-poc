@@ -93,6 +93,8 @@ describe("mock backend", () => {
     assert.equal(completedJob.progress, 100);
     assert.equal(completedJob.result.metadata.durationSeconds, 74);
     assert.equal(completedJob.result.metadata.key.tonic, "C");
+    assert.equal(completedJob.result.metadata.beatGrid.bpm, 60);
+    assert.equal(completedJob.result.metadata.beatGrid.beatsPerBar, 4);
 
     const stems = completedJob.result.stems;
     const stemIds = stems.map((stem) => stem.id).sort();
@@ -159,6 +161,10 @@ describe("mock backend", () => {
         loopEnd: 5.5,
         loopEnabled: true,
         lastPosition: 3.25,
+        metronomeEnabled: true,
+        metronomeVolume: 0.65,
+        metronomeAccent: false,
+        gridOverrides: { bpm: 106.4 },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
         }
@@ -172,6 +178,10 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.loopEnd, 5.5);
     assert.equal(updatedJob.practiceState.loopEnabled, true);
     assert.equal(updatedJob.practiceState.lastPosition, 3.25);
+    assert.equal(updatedJob.practiceState.metronomeEnabled, true);
+    assert.equal(updatedJob.practiceState.metronomeVolume, 0.65);
+    assert.equal(updatedJob.practiceState.metronomeAccent, false);
+    assert.equal(updatedJob.practiceState.gridOverrides.bpm, 106.4);
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 
@@ -199,6 +209,8 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.originalFilename, "Renamed practice song");
     assert.equal(reopenedJob.practiceState.playbackRate, 0.75);
     assert.equal(reopenedJob.practiceState.lastPosition, 3.25);
+    assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
+    assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

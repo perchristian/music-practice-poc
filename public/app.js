@@ -29,12 +29,21 @@ const stemDeck = document.querySelector("#stemDeck");
 const stemMixer = document.querySelector("#stemMixer");
 const playButton = document.querySelector("#playButton");
 const scrubber = document.querySelector("#scrubber");
+const gridTimeline = document.querySelector("#gridTimeline");
 const speedControls = document.querySelector("#speedControls");
+const metronomeEnabled = document.querySelector("#metronomeEnabled");
+const metronomeAccent = document.querySelector("#metronomeAccent");
+const metronomeVolume = document.querySelector("#metronomeVolume");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
 const loopEnabled = document.querySelector("#loopEnabled");
 const timeReadout = document.querySelector("#timeReadout");
 const keyBadge = document.querySelector("#keyBadge");
+const tempoControl = document.querySelector("#tempoControl");
+const tempoHalf = document.querySelector("#tempoHalf");
+const tempoDisplay = document.querySelector("#tempoDisplay");
+const tempoInput = document.querySelector("#tempoInput");
+const tempoDouble = document.querySelector("#tempoDouble");
 const chordList = document.querySelector("#chordList");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
@@ -56,8 +65,12 @@ let transportPosition = 0;
 let transportStartedAt = 0;
 let knownTransportDuration = 0;
 let transportFrame = null;
+let audioContext = null;
+let scheduledMetronomeBeats = new Set();
 let currentJob = null;
 let currentJobId = null;
+let currentAnalyzedMetadata = null;
+let gridOverrides = {};
 let persistTimer = null;
 let selectedQueueLocalId = null;
 let selectedReadyJobId = null;
@@ -110,10 +123,80 @@ function tempoLabel(metadata) {
   return `${Number.isInteger(rounded) ? Math.round(rounded) : rounded} BPM`;
 }
 
+function keyLabel(metadata) {
+  return `${metadata.key.tonic} ${metadata.key.mode}`;
+}
+
 function keyTempoLabel(metadata) {
-  const key = `${metadata.key.tonic} ${metadata.key.mode}`;
+  const key = keyLabel(metadata);
   const tempo = tempoLabel(metadata);
   return tempo ? `${key} · ${tempo}` : key;
+}
+
+function roundedBpm(value) {
+  const bpm = Number(value);
+  if (!Number.isFinite(bpm) || bpm <= 0) return null;
+  return Math.round(Math.max(30, Math.min(260, bpm)) * 10) / 10;
+}
+
+function normalizedGridOverrides(state = null) {
+  const source = state?.gridOverrides || {};
+  const bpm = roundedBpm(source.bpm);
+  return bpm ? { bpm } : {};
+}
+
+function effectiveMetadata(metadata) {
+  if (!metadata) return metadata;
+
+  const bpm = roundedBpm(gridOverrides.bpm);
+  if (!bpm) return metadata;
+
+  return {
+    ...metadata,
+    beatGrid: {
+      ...(metadata.beatGrid || {}),
+      bpm,
+      beatDurationSeconds: 60 / bpm,
+      tempoOverride: true
+    }
+  };
+}
+
+function normalizedBeatGrid(metadata, durationFallback = null) {
+  const grid = metadata?.beatGrid || {};
+  const bpm = Number(grid.bpm);
+  const beatDurationSeconds = Number(grid.beatDurationSeconds) || (bpm > 0 ? 60 / bpm : null);
+  if (!Number.isFinite(beatDurationSeconds) || beatDurationSeconds <= 0) return null;
+
+  const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
+  const downbeatOffsetSeconds = Number(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0) || 0;
+  const metadataDuration = Number(metadata?.durationSeconds ?? metadata?.duration);
+  const chordDuration = Math.max(0, ...(metadata?.chords || []).map((chord) => Number(chord.end) || 0));
+  const durationSeconds = [durationFallback, metadataDuration, chordDuration]
+    .map(Number)
+    .find((value) => Number.isFinite(value) && value > 0);
+
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  return {
+    bpm,
+    beatsPerBar,
+    beatDurationSeconds,
+    downbeatOffsetSeconds,
+    durationSeconds
+  };
+}
+
+function chordBarLabel(chord, grid) {
+  if (grid && Number.isFinite(Number(chord.start))) {
+    const rawBeatIndex = Math.floor((Number(chord.start) - grid.downbeatOffsetSeconds + 0.001) / grid.beatDurationSeconds);
+    if (Number.isFinite(rawBeatIndex)) {
+      const bar = Math.floor(rawBeatIndex / grid.beatsPerBar) + 1;
+      if (bar > 0) return `Bar ${bar} · `;
+    }
+  }
+
+  return Number.isFinite(Number(chord.bar)) ? `Bar ${chord.bar} · ` : "";
 }
 
 function statusLabel(status) {
@@ -269,6 +352,10 @@ async function persistPracticeState(refreshLibrary = false) {
     loopEnd: Number(loopEnd.value),
     loopEnabled: loopEnabled.checked,
     lastPosition: transportTime(),
+    metronomeEnabled: Boolean(metronomeEnabled?.checked),
+    metronomeVolume: Number(metronomeVolume?.value) || 0,
+    metronomeAccent: metronomeAccent?.checked !== false,
+    gridOverrides,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -300,13 +387,24 @@ async function persistPracticeState(refreshLibrary = false) {
 
 function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
+  gridOverrides = normalizedGridOverrides(state);
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
   loopEnabled.checked = Boolean(state.loopEnabled);
+  if (metronomeEnabled) {
+    metronomeEnabled.checked = Boolean(state.metronomeEnabled);
+  }
+  if (metronomeVolume) {
+    metronomeVolume.value = String(Number(state.metronomeVolume ?? 0.45));
+  }
+  if (metronomeAccent) {
+    metronomeAccent.checked = state.metronomeAccent !== false;
+  }
   if (learningStatusSelect) {
     learningStatusSelect.value = state.learningStatus || "not_started";
   }
+  updateTempoControl();
   setActiveSpeedButton();
 
   if (!stemPlayers.length) return;
@@ -470,15 +568,16 @@ function renderCompletedJob(job) {
   const stems = job.result.stems?.length
     ? job.result.stems
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
+  gridOverrides = normalizedGridOverrides(job.practiceState);
   showSelectedHeader({
     eyebrow: "Ready",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(job.result.metadata)}`,
+    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(effectiveMetadata(job.result.metadata))}`,
     actions: true
   });
   renderStemPlayers(stems);
-  renderMetadata(job.result.metadata);
   applySavedPracticeState(job);
+  renderMetadata(job.result.metadata);
   showDetailPane("practice");
   openMobileDetail();
   if (learningStatusSelect) {
@@ -488,15 +587,19 @@ function renderCompletedJob(job) {
 }
 
 function renderMetadata(metadata) {
-  currentMetadata = metadata;
-  keyBadge.textContent = keyTempoLabel(metadata);
+  currentAnalyzedMetadata = metadata;
+  currentMetadata = effectiveMetadata(metadata);
+  keyBadge.textContent = keyLabel(currentMetadata);
+  updateTempoControl();
+  renderGridTimeline(currentMetadata);
 
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   chordList.replaceChildren(
-    ...metadata.chords.map((chord, index) => {
+    ...currentMetadata.chords.map((chord, index) => {
       const card = document.createElement("div");
       card.className = "chord-card";
       card.dataset.index = String(index);
-      const cuePrefix = Number.isFinite(Number(chord.bar)) ? `Bar ${chord.bar} · ` : "";
+      const cuePrefix = chordBarLabel(chord, grid);
       card.innerHTML = `
         <span class="cue-time">${cuePrefix}${formatCueTime(chord.start)}-${formatCueTime(chord.end)}</span>
         <span class="cue-name">${chord.name}</span>
@@ -505,6 +608,152 @@ function renderMetadata(metadata) {
       return card;
     })
   );
+}
+
+function updateTempoControl() {
+  if (!tempoControl || !tempoDisplay || !currentMetadata) return;
+
+  const label = tempoLabel(currentMetadata);
+  tempoControl.hidden = !label;
+  tempoDisplay.textContent = label || "Tempo";
+  tempoDisplay.classList.toggle("overridden", Boolean(roundedBpm(gridOverrides.bpm)));
+  if (tempoInput && document.activeElement !== tempoInput) {
+    tempoInput.value = roundedBpm(currentMetadata.beatGrid?.bpm) || "";
+  }
+}
+
+function updateSelectedSongMeta() {
+  if (!currentJob || !selectedSongMeta || !currentMetadata) return;
+  selectedSongMeta.textContent = `${formatActivityTime(currentJob.createdAt)} - ${jobDurationLabel(currentJob)} - ${keyTempoLabel(currentMetadata)}`;
+}
+
+function applyTempoOverride(nextBpm) {
+  const bpm = roundedBpm(nextBpm);
+  if (!bpm || !currentAnalyzedMetadata) return;
+
+  gridOverrides = { ...gridOverrides, bpm };
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.gridOverrides = gridOverrides;
+  }
+
+  resetMetronomeSchedule();
+  renderMetadata(currentAnalyzedMetadata);
+  updateSelectedSongMeta();
+  queuePracticeStatePersist();
+}
+
+function openTempoInput() {
+  if (!tempoInput || !tempoDisplay || !currentMetadata) return;
+  tempoInput.value = roundedBpm(currentMetadata.beatGrid?.bpm) || "";
+  tempoInput.hidden = false;
+  tempoDisplay.hidden = true;
+  tempoInput.focus();
+  tempoInput.select();
+}
+
+function closeTempoInput(commit = false) {
+  if (!tempoInput || !tempoDisplay) return;
+  if (commit) {
+    applyTempoOverride(tempoInput.value);
+  }
+  tempoInput.hidden = true;
+  tempoDisplay.hidden = false;
+}
+
+function renderGridTimeline(metadata) {
+  if (!gridTimeline) return;
+
+  const grid = normalizedBeatGrid(metadata, transportDuration());
+  gridTimeline.replaceChildren();
+  gridTimeline.classList.toggle("empty", !grid);
+  if (!grid) return;
+
+  const startBeatIndex = Math.floor((0 - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) - 1;
+  const endBeatIndex = Math.ceil((grid.durationSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) + 1;
+
+  for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
+    const time = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
+    if (time < 0 || time > grid.durationSeconds) continue;
+
+    const marker = document.createElement("span");
+    marker.className = "grid-marker";
+    const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
+    const isDownbeat = beatWithinBar === 0;
+    marker.classList.toggle("downbeat", isDownbeat);
+    marker.style.left = `${Math.min(100, Math.max(0, (time / grid.durationSeconds) * 100))}%`;
+    marker.dataset.time = String(Math.round(time * 1000) / 1000);
+    marker.dataset.beat = String(beatWithinBar + 1);
+
+    if (isDownbeat) {
+      const label = document.createElement("span");
+      label.textContent = String(Math.floor(beatIndex / grid.beatsPerBar) + 1);
+      marker.append(label);
+    }
+
+    gridTimeline.append(marker);
+  }
+}
+
+function resetMetronomeSchedule() {
+  scheduledMetronomeBeats = new Set();
+}
+
+function ensureAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  audioContext ||= new AudioContextClass();
+  if (audioContext.state === "suspended") {
+    const resumePromise = audioContext.resume?.();
+    if (resumePromise?.catch) {
+      resumePromise.catch(console.error);
+    }
+  }
+  return audioContext;
+}
+
+function playMetronomeClick(delaySeconds, accented) {
+  const context = ensureAudioContext();
+  if (!context) return;
+
+  const volume = Number(metronomeVolume?.value) || 0;
+  if (volume <= 0) return;
+
+  const startAt = context.currentTime + Math.max(0, delaySeconds);
+  const duration = accented ? 0.065 : 0.045;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.value = accented ? 1320 : 880;
+  gain.gain.setValueAtTime(Math.min(0.7, volume * (accented ? 0.55 : 0.34)), startAt);
+  gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + duration);
+}
+
+function scheduleMetronomeClicks(currentTime = transportTime()) {
+  if (!metronomeEnabled?.checked || !isPlaying || !currentMetadata) return;
+
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!grid) return;
+
+  const lookaheadSeconds = 0.45;
+  const startBeatIndex = Math.floor((currentTime - grid.downbeatOffsetSeconds - 0.04) / grid.beatDurationSeconds);
+  const endBeatIndex = Math.ceil((currentTime + lookaheadSeconds * playbackRate - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds);
+
+  for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
+    const beatTime = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
+    if (beatTime < 0 || beatTime < currentTime - 0.06 || beatTime > grid.durationSeconds) continue;
+    const key = `${beatIndex}:${Math.round(beatTime * 1000)}`;
+    if (scheduledMetronomeBeats.has(key)) continue;
+
+    scheduledMetronomeBeats.add(key);
+    const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
+    const accented = metronomeAccent?.checked && beatWithinBar === 0;
+    const delaySeconds = (beatTime - currentTime) / Math.max(0.1, playbackRate);
+    playMetronomeClick(delaySeconds, accented);
+  }
 }
 
 function transportTime() {
@@ -607,6 +856,7 @@ function setTransportTime(seconds) {
   const bounded = boundTransportTime(seconds);
   anchorTransport(bounded);
   syncStemTimes(bounded);
+  resetMetronomeSchedule();
   updateTimeDisplay();
   highlightCurrentChord();
   queuePracticeStatePersist();
@@ -628,11 +878,13 @@ function tickTransport() {
 
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
     setTransportTime(start);
+    resetMetronomeSchedule();
     current = transportTime();
   }
 
   updateTimeDisplay();
   highlightCurrentChord();
+  scheduleMetronomeClicks(current);
 
   const duration = transportDuration();
   if (Number.isFinite(duration) && duration > 0 && current >= duration) {
@@ -656,6 +908,7 @@ function pauseAll({ persist = true } = {}) {
   }
   isPlaying = false;
   anchorTransport(current);
+  resetMetronomeSchedule();
   stopTransportTick();
   playButton.textContent = "Play";
   updateTimeDisplay();
@@ -680,6 +933,8 @@ async function playAll() {
   if (results.some((result) => result.status === "fulfilled")) {
     isPlaying = true;
     anchorTransport(current);
+    resetMetronomeSchedule();
+    scheduleMetronomeClicks(current);
     startTransportTick();
     playButton.textContent = "Pause";
   }
@@ -845,6 +1100,7 @@ function renderStemPlayers(stems) {
   const updateLoadedDuration = () => {
     transportDuration();
     updateTimeDisplay();
+    renderGridTimeline(currentMetadata);
   };
 
   for (const player of stemPlayers) {
@@ -1212,11 +1468,39 @@ speedControls.addEventListener("click", (event) => {
     player.audio.playbackRate = playbackRate;
   }
 
+  resetMetronomeSchedule();
   setActiveSpeedButton();
   queuePracticeStatePersist();
 });
 
-[loopStart, loopEnd, loopEnabled].forEach((element) => {
+tempoHalf?.addEventListener("click", () => {
+  applyTempoOverride((currentMetadata?.beatGrid?.bpm || 0) / 2);
+});
+
+tempoDouble?.addEventListener("click", () => {
+  applyTempoOverride((currentMetadata?.beatGrid?.bpm || 0) * 2);
+});
+
+tempoDisplay?.addEventListener("click", () => {
+  openTempoInput();
+});
+
+tempoInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    closeTempoInput(true);
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeTempoInput(false);
+  }
+});
+
+tempoInput?.addEventListener("blur", () => {
+  closeTempoInput(true);
+});
+
+[loopStart, loopEnd, loopEnabled, metronomeEnabled, metronomeAccent, metronomeVolume].forEach((element) => {
   if (!element) return;
   element.addEventListener("change", () => queuePracticeStatePersist());
   element.addEventListener("input", () => queuePracticeStatePersist());

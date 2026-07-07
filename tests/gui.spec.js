@@ -249,6 +249,7 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
 
   await expect(page.getByTestId("key-badge")).toHaveText("C major");
+  await expect(page.getByTestId("tempo-display")).toHaveText("60 BPM");
   await expect(page.getByText("Cmaj7")).toBeVisible();
   await expect(page.getByText("Imaj7")).toBeVisible();
   await expect(page.getByText("E4 G4")).toHaveCount(0);
@@ -302,7 +303,99 @@ test("processed demo shortcut opens practice view without selecting a file", asy
   await expect(page.getByTestId("file-label")).toHaveText("Upload");
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect(page.getByTestId("key-badge")).toHaveText("C major");
+  await expect(page.getByTestId("tempo-display")).toHaveText("60 BPM");
   await expect(page.getByText("Cmaj7")).toBeVisible();
+});
+
+test("beat grid timeline and metronome click follow the analyzed grid", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__metronomeClicks = [];
+    const currentTimes = new WeakMap();
+    const pausedStates = new WeakMap();
+
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      get() {
+        return currentTimes.get(this) ?? 0;
+      },
+      set(value) {
+        currentTimes.set(this, Number(value) || 0);
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      get() {
+        return pausedStates.get(this) ?? true;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      pausedStates.set(this, false);
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      pausedStates.set(this, true);
+    };
+
+    class MockAudioContext {
+      constructor() {
+        this.currentTime = 10;
+        this.destination = {};
+        this.state = "running";
+      }
+
+      createOscillator() {
+        const oscillator = {
+          type: "sine",
+          frequency: { value: 0 },
+          connect() {},
+          start(time) {
+            window.__metronomeClicks.push({
+              time,
+              frequency: oscillator.frequency.value
+            });
+          },
+          stop() {}
+        };
+        return oscillator;
+      }
+
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime() {},
+            exponentialRampToValueAtTime() {}
+          },
+          connect() {}
+        };
+      }
+
+      resume() {
+        return Promise.resolve();
+      }
+    }
+
+    window.AudioContext = MockAudioContext;
+    window.webkitAudioContext = MockAudioContext;
+  });
+
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await expect(page.getByTestId("grid-timeline")).not.toHaveClass(/empty/);
+  await expect(page.locator(".grid-marker.downbeat")).toHaveCount(5);
+  await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0");
+
+  await page.getByTestId("metronome-enabled").check();
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+
+  await expect
+    .poll(async () => page.evaluate(() => window.__metronomeClicks.length))
+    .toBeGreaterThan(0);
+  const clicks = await page.evaluate(() => window.__metronomeClicks);
+  expect(clicks[0]).toMatchObject({ time: 10, frequency: 1320 });
 });
 
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
@@ -415,13 +508,28 @@ test("harmony panel shows analysis tempo and sub-second cue times", async ({ pag
       body: JSON.stringify(job)
     });
   });
+  await page.route(`**/api/jobs/${jobId}/practice-state`, async (route) => {
+    const payload = route.request().postDataJSON();
+    job.practiceState = { ...job.practiceState, ...payload };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
 
   await page.goto("/");
   await page.getByTestId(`song-row-${jobId}`).click();
 
-  await expect(page.getByTestId("key-badge")).toHaveText("C major · 72.5 BPM");
+  await expect(page.getByTestId("key-badge")).toHaveText("C major");
+  await expect(page.getByTestId("tempo-display")).toHaveText("72.5 BPM");
   await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 72.5 BPM");
   await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:00.7-0:04.7");
+
+  await page.getByTestId("tempo-display").click();
+  await page.getByTestId("tempo-input").fill("145");
+  await page.getByTestId("tempo-input").press("Enter");
+  await expect(page.getByTestId("tempo-display")).toHaveText("145 BPM");
+  await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 145 BPM");
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
@@ -563,6 +671,13 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("loop-start").fill("1.5");
   await page.getByTestId("loop-end").fill("5.5");
   await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("metronome-enabled").check();
+  await page.getByTestId("metronome-volume").evaluate((slider) => {
+    slider.value = "0.65";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await page.getByTestId("metronome-accent").uncheck();
+  await page.getByTestId("tempo-double").click();
   await setPlaybackPosition(page, 3.2);
   await page.getByTestId("stem-mute-piano").click();
   await page.getByTestId("stem-volume-piano").evaluate((slider) => {
@@ -584,6 +699,10 @@ test("processed song library reopens songs and persists practice state", async (
         loopEnd: state.loopEnd,
         loopEnabled: state.loopEnabled,
         lastPosition: Math.round(state.lastPosition * 10) / 10,
+        metronomeEnabled: state.metronomeEnabled,
+        metronomeVolume: state.metronomeVolume,
+        metronomeAccent: state.metronomeAccent,
+        tempoBpm: state.gridOverrides?.bpm,
         pianoMuted: state.stemStates.piano.muted,
         pianoVolume: state.stemStates.piano.volume
       };
@@ -595,6 +714,10 @@ test("processed song library reopens songs and persists practice state", async (
       loopEnd: 5.5,
       loopEnabled: true,
       lastPosition: 3.2,
+      metronomeEnabled: true,
+      metronomeVolume: 0.65,
+      metronomeAccent: false,
+      tempoBpm: 120,
       pianoMuted: true,
       pianoVolume: 0.35
     });
@@ -608,6 +731,10 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("loop-start")).toHaveValue("1.5");
   await expect(page.getByTestId("loop-end")).toHaveValue("5.5");
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
+  await expect(page.getByTestId("metronome-enabled")).toBeChecked();
+  await expect(page.getByTestId("metronome-volume")).toHaveValue("0.65");
+  await expect(page.getByTestId("metronome-accent")).not.toBeChecked();
+  await expect(page.getByTestId("tempo-display")).toHaveText("120 BPM");
   await expect(page.locator("#scrubber")).toHaveValue("3.2");
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);
   await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");

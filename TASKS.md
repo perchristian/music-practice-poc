@@ -488,7 +488,52 @@ Verification:
 - Reload the app and confirm user grid corrections and chord edits persist.
 - Confirm analyzer suggestions remain available as provenance but do not overwrite user edits.
 
-Status: Planned as the next recommended implementation phase.
+### Phase 3A: Grid Audition with Metronome
+
+Goal: Let a user hear and see whether the analyzed beat/bar grid is plausible before adding correction controls or chord editing.
+
+Deliverables:
+- Mock metadata includes a simple 60 BPM, 4/4 beat grid so `/?demo=processed` can exercise grid UI without real-mode dependencies.
+- The practice view renders beat and bar markers from `metadata.beatGrid`.
+- The app can play an optional Web Audio metronome/click aligned to the same grid while stem playback runs.
+- Downbeats are accented when enabled.
+- Click on/off, downbeat accent, and click volume persist in each song's practice state.
+
+Verification:
+- Open a processed song and confirm beat/bar markers are visible.
+- Enable the grid click and confirm click scheduling follows the displayed grid.
+- Change click settings, reload the song, and confirm they persist.
+- Run `npm test`.
+- Run `npm run test:gui`.
+
+Result:
+- Phase 3A is implemented in mock-compatible UI and backed by automated backend and Playwright coverage.
+- `npm test` passed on 2026-07-07 with 11 backend tests.
+- `npm run test:gui` passed on 2026-07-07 with 12 Playwright tests.
+- Manual listening on real recordings is still required to judge whether the click feels aligned enough for calibration.
+
+Status: Complete for automated verification on 2026-07-07.
+
+### Phase 3B: Minimal Grid Correction Controls
+
+Goal: Let a user correct the analyzed musical grid before editing chords.
+
+Deliverables:
+- User can adjust bar 1/downbeat start point.
+- User can adjust BPM through half/double tempo and/or a numeric BPM field. Done on 2026-07-07: the Harmony panel shows `/2`, editable BPM, and `x2`; the override persists as `practiceState.gridOverrides.bpm`; timeline markers, chord bar labels, selected-song tempo text, and grid click use the corrected tempo.
+- User can switch time signature between 4/4 and 3/4.
+- User can apply a small grid offset while listening to the metronome.
+- Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops.
+
+Verification:
+- Open a processed song, enable the metronome, and adjust each grid control.
+- Confirm timeline markers and click timing update immediately.
+- Reload the app and confirm the corrected grid persists.
+- Confirm analyzer metadata remains available as provenance.
+
+Status: In progress. Tempo correction is complete for automated verification on 2026-07-07. Bar 1/downbeat start point, time signature, and small offset controls remain.
+
+Overall Phase 3 status: In progress. Grid audition is complete; tempo correction is implemented; remaining grid correction controls and editable chords remain planned.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 
@@ -578,6 +623,30 @@ Verification:
   - dedicated context agent
 
 Status: Planned. Logging is off until explicitly requested.
+
+## Process Task: Fragmentation Cleanup Review
+
+Goal: Inspect the codebase for avoidable fragmentation caused by repeatedly preserving dirty worktree changes across tasks, then consolidate only where it improves clarity, demo reliability, or future iteration speed.
+
+Scope:
+- Review current uncommitted changes before starting and separate completed work from incomplete or ambiguous work.
+- Inspect `server.js`, `public/app.js`, `public/styles.css`, `tests/`, and documentation for duplicated logic, stale branches, obsolete compatibility paths, inconsistent naming, and half-integrated task remnants.
+- Prioritize cleanup that preserves the current user journey and reduces future implementation friction.
+- Avoid broad rewrites, aesthetic refactors, or architectural changes unless they directly remove demonstrable fragmentation.
+
+Deliverables:
+- A short findings list describing any fragmentation found and why it matters.
+- Focused code or documentation cleanup for high-confidence findings.
+- Updated `STATUS.md` if cleanup changes current behavior, verification status, or the next recommended task.
+- A focused commit after verification if the reviewed changes are complete.
+
+Verification:
+- Run `npm test`.
+- Run `npm run test:gui` if frontend behavior or Playwright-covered flows are touched.
+- Manually smoke the relevant demo path if cleanup changes runtime behavior not covered by tests.
+- Confirm `git status` contains only intentional follow-up work after the cleanup commit.
+
+Status: Planned. Run before the next large feature task if the current dirty worktree contains completed but uncommitted implementation work.
 
 ## Next Task
 

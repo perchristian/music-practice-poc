@@ -2,11 +2,11 @@
 
 ## Current Status
 
-The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, Phase 2G-QA Demucs bakeoff, and the Phase 2H real harmonic-analysis spike are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav`, separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default, then analyzed for approximate beat-aware harmonic cues. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration; and the song list prefers media duration over the fixed harmonic cue length.
+The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, Phase 2G-QA Demucs bakeoff, Phase 2H real harmonic-analysis spike, Phase 3A grid-audition pass, and the tempo portion of Phase 3B grid correction are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, see beat/bar markers, turn on a grid-aligned metronome/click, manually halve/double or type-correct the displayed tempo, and inspect harmonic cues. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav`, separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default, then analyzed for approximate beat-aware harmonic cues. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration; and the song list prefers media duration over the fixed harmonic cue length.
 
-Phase 0, Phase 1, Phase 1B, and Phase 2A through the Phase 2H beat-aware hardening pass are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings is still required.
+Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening pass, and Phase 3A grid audition are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings and manual listening for metronome alignment are still required.
 
-The next planned iteration is Phase 3: Musical Grid Calibration and Editable Chords. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
+The next planned iteration is to finish Phase 3B by adding bar 1/downbeat start point, time signature, and small offset correction controls. BPM half/double and numeric tempo override are already implemented and persisted separately from analyzer metadata in `practiceState.gridOverrides.bpm`. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 Phase 2A spike frame:
 
@@ -48,6 +48,7 @@ Local web POC:
 - GUI Mock/Real switch changes the active backend pipeline mode for new jobs in the current server session; `PIPELINE_MODE` remains the startup default
 - desktop/wide tablet uses a split view with song list on the left and selected detail/practice on the right
 - mobile uses a list-first stack with a back button from detail/practice to the same song list
+- beat/bar markers render from an effective grid derived from job `metadata.beatGrid` plus per-song `practiceState.gridOverrides.bpm`; the Web Audio metronome clicks against that same effective grid with downbeat accent and volume controls
 
 ## Completed Work
 
@@ -204,6 +205,12 @@ Local web POC:
 - Aligned Markdown phase references after the Phase 2 / Phase 3 roadmap order change:
   - earlier stale references were corrected when notes and multiple named practice loops moved out of the immediate Phase 2 scope.
   - `TASKS.md` was later reprioritized so Phase 3 is grid calibration/editable chords and Phase 4 is bar-based loops/practice notes.
+- Completed Phase 3A grid-audition pass:
+  - Mock metadata now includes a 60 BPM, 4/4 beat grid so the processed demo can exercise grid UI without real-mode analysis.
+  - The practice view renders beat and bar markers from `metadata.beatGrid`.
+  - A Web Audio metronome can click against the same grid while playback runs, with downbeat accent, on/off, and volume controls.
+  - Metronome enabled/volume/accent settings persist in each song's `practiceState`.
+  - Existing chord labels remain analyzer suggestions; user correction controls and editable chords are still planned.
 
 ## In Progress
 
@@ -211,7 +218,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Start Phase 3: Musical Grid Calibration and Editable Chords. Build the metronome/click as the first grid-validation tool, then add minimal correction controls for bar 1, tempo, time signature, and offset before investing more in automatic chord-model accuracy.
+Start Phase 3B: add minimal musical-grid correction controls for bar 1/downbeat start point, BPM half/double or numeric BPM, time signature 4/4 vs 3/4, and small grid offset. These corrections should persist separately from analyzer output and should drive the metronome, timeline markers, chord placement, and later bar-snapped loops.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
@@ -234,6 +241,10 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Verification Log
 
+- `node --check server.js` and `node --check public/app.js`: passed on 2026-07-07 after adding Phase 3A beat-grid timeline and Web Audio metronome controls.
+- `npm test`: passed on 2026-07-07 with 11 backend tests after adding mock beat-grid metadata and persisted metronome practice-state fields.
+- `npx playwright test tests/gui.spec.js -g "beat grid timeline"`: passed on 2026-07-07 after adding browser coverage for grid markers and metronome click scheduling.
+- `npm run test:gui`: passed on 2026-07-07 with 12 Playwright tests after adding Phase 3A grid-audition UI and persistence coverage.
 - `node --check server.js` and `node --check tests/real-mode-upload.test.js`: passed on 2026-07-07 after hardening Phase 2H against the local `f9e9cf9d` calibration job.
 - Direct analyzer check on `data/jobs/f9e9cf9d-0998-494d-82cf-3dc89fcf4d76/source-audio.wav`: returned 106 BPM, 4/4, downbeat 0:00, and C, Dm, Am, Am, C, Dm, Am, Am.
 - `npm test`: passed on 2026-07-07 with 8 backend tests, including the generated pre-roll bar-grid regression and a local-skip calibration regression for `f9e9cf9d`.

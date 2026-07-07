@@ -1096,6 +1096,17 @@ function parseMultipart(buffer, boundary) {
 }
 
 function createMockMetadata(durationSeconds = MOCK_DURATION_SECONDS) {
+  const beatDurationSeconds = 1;
+  const beatsPerBar = 4;
+  const bars = [];
+  for (let start = 0, number = 1; start < durationSeconds; start += beatDurationSeconds * beatsPerBar, number += 1) {
+    bars.push({
+      number,
+      start,
+      end: Math.min(durationSeconds, start + beatDurationSeconds * beatsPerBar)
+    });
+  }
+
   return {
     durationSeconds,
     key: {
@@ -1103,11 +1114,20 @@ function createMockMetadata(durationSeconds = MOCK_DURATION_SECONDS) {
       mode: "major",
       confidence: 0.72
     },
+    beatGrid: {
+      bpm: 60,
+      beatsPerBar,
+      beatDurationSeconds,
+      beatOffsetSeconds: 0,
+      downbeatOffsetSeconds: 0,
+      downbeatConfidence: 1,
+      bars
+    },
     chords: [
-      { start: 0, end: 4, name: "Cmaj7", roman: "Imaj7" },
-      { start: 4, end: 8, name: "Am7", roman: "vi7" },
-      { start: 8, end: 12, name: "Fmaj7", roman: "IVmaj7" },
-      { start: 12, end: 16, name: "G7", roman: "V7" }
+      { bar: 1, beat: 1, start: 0, end: 4, name: "Cmaj7", roman: "Imaj7" },
+      { bar: 2, beat: 1, start: 4, end: 8, name: "Am7", roman: "vi7" },
+      { bar: 3, beat: 1, start: 8, end: 12, name: "Fmaj7", roman: "IVmaj7" },
+      { bar: 4, beat: 1, start: 12, end: 16, name: "G7", roman: "V7" }
     ],
     melody: [
       { time: 0, notes: ["E4", "G4"] },
@@ -1305,6 +1325,10 @@ async function createJobRecord({
       loopEnd: 4,
       loopEnabled: false,
       lastPosition: 0,
+      metronomeEnabled: false,
+      metronomeVolume: 0.45,
+      metronomeAccent: true,
+      gridOverrides: {},
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1328,6 +1352,11 @@ function clampNumber(value, fallback, min, max) {
 function ensurePracticeState(job) {
   const existingStemStates = job.practiceState?.stemStates || {};
   const stemStates = {};
+  const gridOverrides = {};
+  const overrideBpm = Number(job.practiceState?.gridOverrides?.bpm);
+  if (Number.isFinite(overrideBpm) && overrideBpm > 0) {
+    gridOverrides.bpm = Number(clampNumber(overrideBpm, 60, 30, 260).toFixed(1));
+  }
 
   for (const stem of stemsForJob(job)) {
     stemStates[stem.id] = {
@@ -1347,6 +1376,10 @@ function ensurePracticeState(job) {
     loopEnd: clampNumber(Number(job.practiceState?.loopEnd), 4, 0, 60 * 60),
     loopEnabled: Boolean(job.practiceState?.loopEnabled),
     lastPosition: clampNumber(Number(job.practiceState?.lastPosition), 0, 0, 60 * 60),
+    metronomeEnabled: Boolean(job.practiceState?.metronomeEnabled),
+    metronomeVolume: clampNumber(Number(job.practiceState?.metronomeVolume), 0.45, 0, 1),
+    metronomeAccent: job.practiceState?.metronomeAccent !== false,
+    gridOverrides,
     stemStates
   };
 
@@ -2054,6 +2087,22 @@ async function handleUpdatePracticeState(req, id, res) {
   }
   if (typeof payload.lastPosition === "number") {
     practiceState.lastPosition = clampNumber(payload.lastPosition, practiceState.lastPosition, 0, 60 * 60);
+  }
+  if (typeof payload.metronomeEnabled === "boolean") {
+    practiceState.metronomeEnabled = payload.metronomeEnabled;
+  }
+  if (typeof payload.metronomeVolume === "number") {
+    practiceState.metronomeVolume = clampNumber(payload.metronomeVolume, practiceState.metronomeVolume, 0, 1);
+  }
+  if (typeof payload.metronomeAccent === "boolean") {
+    practiceState.metronomeAccent = payload.metronomeAccent;
+  }
+  if (payload.gridOverrides && typeof payload.gridOverrides === "object") {
+    const bpm = Number(payload.gridOverrides.bpm);
+    practiceState.gridOverrides = {};
+    if (Number.isFinite(bpm) && bpm > 0) {
+      practiceState.gridOverrides.bpm = Number(clampNumber(bpm, 60, 30, 260).toFixed(1));
+    }
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
     practiceState.stemStates = {

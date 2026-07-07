@@ -119,6 +119,7 @@
                   <button type="button" id="playButton" class="play-button">Play</button>
                   <input id="scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Playback position">
                 </div>
+                <div class="grid-timeline" id="gridTimeline" data-testid="grid-timeline" aria-label="Beat and bar grid"></div>
 
                 <div>
                   <div class="control-row stem-heading">
@@ -135,6 +136,21 @@
                     <button type="button" data-speed="1" data-testid="speed-1" class="active">1x</button>
                     <button type="button" data-speed="1.25" data-testid="speed-125">1.25x</button>
                   </div>
+                </div>
+
+                <div class="metronome-grid">
+                  <label class="toggle">
+                    <input id="metronomeEnabled" data-testid="metronome-enabled" type="checkbox">
+                    <span>Grid click</span>
+                  </label>
+                  <label class="toggle">
+                    <input id="metronomeAccent" data-testid="metronome-accent" type="checkbox" checked>
+                    <span>Downbeat accent</span>
+                  </label>
+                  <label>
+                    <span>Click volume</span>
+                    <input id="metronomeVolume" data-testid="metronome-volume" type="range" min="0" max="1" step="0.05" value="0.45">
+                  </label>
                 </div>
 
                 <div class="loop-grid">
@@ -159,7 +175,15 @@
                     <p class="eyebrow">Learning cues</p>
                     <h2 id="harmonyTitle">Harmony</h2>
                   </div>
-                  <div class="key-badge" id="keyBadge" data-testid="key-badge">Key</div>
+                  <div class="harmony-summary">
+                    <div class="key-badge" id="keyBadge" data-testid="key-badge">Key</div>
+                    <div class="tempo-control" id="tempoControl" hidden>
+                      <button type="button" class="tempo-nudge" id="tempoHalf" data-testid="tempo-half" aria-label="Halve tempo">/2</button>
+                      <button type="button" class="tempo-display" id="tempoDisplay" data-testid="tempo-display" aria-label="Edit tempo">Tempo</button>
+                      <input id="tempoInput" data-testid="tempo-input" type="number" min="30" max="260" step="0.1" inputmode="decimal" aria-label="Tempo BPM" hidden>
+                      <button type="button" class="tempo-nudge" id="tempoDouble" data-testid="tempo-double" aria-label="Double tempo">x2</button>
+                    </div>
+                  </div>
                 </div>
                 <div class="chord-list" id="chordList"></div>
               </section>

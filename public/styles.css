@@ -563,6 +563,54 @@ audio {
   accent-color: var(--accent);
 }
 
+.grid-timeline {
+  position: relative;
+  overflow: hidden;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(37, 99, 235, 0.04)),
+    #fff;
+  margin-bottom: 16px;
+}
+
+.grid-timeline.empty::after {
+  content: "No beat grid";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.grid-marker {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 42%;
+  background: rgba(102, 112, 133, 0.55);
+}
+
+.grid-marker.downbeat {
+  top: 0;
+  bottom: auto;
+  width: 2px;
+  height: 100%;
+  background: var(--accent);
+}
+
+.grid-marker span {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
 .stem-toggle {
   border: 1px solid var(--line);
   background: #fff;
@@ -681,17 +729,32 @@ audio {
   color: #1d4ed8;
 }
 
+.metronome-grid,
 .loop-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
   gap: 12px;
   align-items: end;
   margin-top: 18px;
 }
 
+.metronome-grid {
+  grid-template-columns: auto auto minmax(140px, 1fr);
+}
+
+.loop-grid {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.metronome-grid label,
 .loop-grid label {
   display: grid;
   gap: 7px;
+}
+
+.metronome-grid label > span,
+.loop-grid label > span {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .loop-grid input[type="number"] {
@@ -700,6 +763,72 @@ audio {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px 10px;
+}
+
+.metronome-grid input[type="range"] {
+  width: 100%;
+  min-height: 42px;
+  accent-color: var(--accent);
+}
+
+.harmony-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tempo-control {
+  display: inline-grid;
+  grid-template-columns: 36px minmax(84px, auto) 36px;
+  gap: 4px;
+  align-items: center;
+}
+
+.tempo-control[hidden] {
+  display: none;
+}
+
+.tempo-control button,
+.tempo-control input {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.tempo-control button {
+  cursor: pointer;
+}
+
+.tempo-control button:hover,
+.tempo-control button:focus-visible {
+  border-color: rgba(37, 99, 235, 0.55);
+  outline: none;
+}
+
+.tempo-display {
+  padding: 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tempo-display.overridden {
+  border-color: rgba(180, 83, 9, 0.65);
+  background: #fff7ed;
+  color: var(--warm);
+}
+
+.tempo-nudge {
+  padding: 0;
+}
+
+.tempo-control input {
+  width: 90px;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .toggle {
@@ -775,8 +904,13 @@ audio {
     max-height: none;
   }
 
+  .metronome-grid,
   .loop-grid {
     grid-template-columns: 1fr;
+  }
+
+  .harmony-summary {
+    justify-content: flex-start;
   }
 
   .song-workspace:not(.detail-open) .song-detail {

@@ -182,6 +182,24 @@ Avoid optimization unless measurements indicate a problem.
 
 ---
 
+## Git workflow
+
+At the start of each iteration, inspect `git status`.
+
+If the worktree contains uncommitted changes from a completed previous task, verify them, update documentation as needed, and commit them before starting a new task.
+
+Do not automatically commit ambiguous, broken, or experimental changes. If changes appear to be user edits or incomplete work, inspect them and either integrate them into the current task or ask before committing.
+
+Each completed iteration should normally end with:
+
+1. relevant verification
+2. documentation updates
+3. a focused git commit
+
+Avoid accumulating multiple unrelated tasks in one dirty worktree.
+
+---
+
 ## Architecture
 
 Before implementation, evaluate alternative solutions **only for major irreversible decisions**.
