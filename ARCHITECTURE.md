@@ -118,7 +118,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 3.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Grid corrections and editable chord charts are planned for Phase 3; notes and multiple named practice loops are deferred to Phase 4.
 
 ## Library UX
 
@@ -142,11 +142,16 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
-Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `beat-aware-chroma-v2` over the full mix plus usable separated stems to estimate tempo, meter, first downbeat, beat/bar grid, key, chord names, and roman numerals. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it scores beat-length segments, merges adjacent repeated labels within each bar, and can emit multiple chord cues inside one bar when evidence is strong. It can still pick the wrong tempo, meter, downbeat, key, or chord quality on real recordings. Real mode should next improve:
+Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `beat-aware-chroma-v2` over the full mix plus usable separated stems to estimate tempo, meter, first downbeat, beat/bar grid, key, chord names, and roman numerals. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it scores beat-length segments, merges adjacent repeated labels within each bar, and can emit multiple chord cues inside one bar when evidence is strong. It can still pick the wrong tempo, meter, downbeat, key, or chord quality on real recordings.
 
-1. manual validation and hardening of beat/bar and chord accuracy on real screen recordings
-2. melody or piano transcription
-3. separator setup/runtime UX if Demucs remains the default real path
+The next architecture priority is not a more complex chord labeler. It is a user-correctable musical grid and chord chart:
+
+1. make the analyzed beat/bar grid audible with a metronome/click
+2. let the user correct bar 1, tempo, time signature, and grid offset while listening
+3. store analyzer chord output as draft suggestions
+4. let the user add, edit, split, merge, move, and delete chord labels on bars/beats
+5. persist user-edited chords as the song's working chart, overriding analyzer suggestions
+6. continue evaluating better analyzers such as librosa/Essentia/LLM-hybrid as ways to improve the first draft
 
 one subsystem at a time.
 
@@ -170,7 +175,11 @@ source-audio.wav + optional stems
 
 The first implementation should use a conservative vocabulary: major/minor triads, dominant 7, minor 7, major 7, sus chords, and diminished chords. Extensions such as 9, 11, 13, altered dominants, slash chords, and borrowed chords should only be displayed when confidence is high. If the evidence is ambiguous, the app should show the simpler musically useful label, such as `C7`, instead of a more specific but weakly supported label such as `C13`.
 
-The implemented Phase 2H spike currently records `harmonySource: "real-audio-analysis-v1"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, and analyzer limitations. It emits beat-aware chord cues and merges repeated labels within a bar, while preserving repeated labels across bar boundaries. Melody extraction can use a piano stem later, but melody extraction should remain separate from whole-song chord estimation.
+The implemented Phase 2H spike currently records `harmonySource: "real-audio-analysis-v1"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, and analyzer limitations. It emits beat-aware chord cues and merges repeated labels within a bar, while preserving repeated labels across bar boundaries. These cues should be treated as draft chart data. User edits must be stored separately from analyzer suggestions and should become authoritative for playback, bar-based loops, roman numerals, and practice notes.
+
+Chord text should remain user-preserving. The app may parse root, quality, bass note, and extensions for display, roman numerals, and future transposition, but it must keep the original entered label because useful musician notation can be ambiguous. For example, `Csus2`, `C9`, `C7/F`, and `F11` can be different names for similar harmonic evidence depending on context.
+
+The metronome is part of grid calibration. It should play against the song from the current `beatGrid`, with downbeat emphasis and simple volume/on-off controls. Its first purpose is to let the user hear whether the analyzed rhythm is aligned, then adjust bar 1, tempo, time signature, or offset quickly.
 
 ## Native iOS Transition Criteria
 

@@ -451,39 +451,62 @@ Result:
 
 Status: Initial implementation complete on 2026-07-06, downbeat-offset hardening added on 2026-07-07, local calibration added on 2026-07-07 for job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`, and beat-aware hardening added on 2026-07-07 after manual inspection found half-tempo and missed-chord behavior. `npm test` covers real-derived harmonic analysis on generated test media that does not start exactly on the first downbeat, multiple chord changes inside 4/4 bars, 3/4 meter, inversion bass, and, when the local calibration job is present, 106 BPM, 4/4, and C, Dm, Am, Am, C, Dm, Am, Am. Manual listening/inspection on more real screen recordings is still required before treating the analysis as user-test ready.
 
-## Phase 3: Problem Areas and Practice Notes
+## Phase 3: Musical Grid Calibration and Editable Chords
 
-Goal: A user can track difficult passages and use the app as an ongoing practice workspace, not just a one-off player.
+Goal: A user can turn the analyzer's timing and chord estimates into a useful personal chord chart by correcting the musical grid first, then editing chords on that grid.
+
+Rationale:
+- Chord labels do not always have one canonical answer. `Csus2`, `C9`, `C7/F`, and `F11` can describe overlapping musical evidence depending on context and intended use.
+- For practice, the user's corrected chord chart should become the working truth for that song.
+- Tempo, downbeat, bar positions, and time signature are the foundation for editable chords, bar-snapped loops, count-in, and later practice notes.
+- A metronome/click against the original audio is the fastest way for a user to hear whether the analyzed grid is wrong and adjust it.
 
 Demonstrable outcome:
+- Bar and beat markers appear in the timeline.
+- The app can play an optional metronome/click aligned to the analyzed grid while the song plays.
+- The user can adjust at minimum:
+  - BPM or half/double tempo
+  - time signature, initially 4/4 and 3/4
+  - bar 1 / downbeat start point
+  - small grid offset if the click drifts against the music
+- Chords are displayed as draft suggestions on bars/beats.
+- The user can add, edit, split, merge, move, and delete chord labels on the grid.
+- User-edited chord labels persist and override analyzer suggestions for the song.
+- Chord labels preserve user-entered text, even when parsing is ambiguous.
+
+Implementation notes:
+- Treat automatic chord analysis as a first draft, not a source of truth.
+- Store both analyzer suggestions and user chord edits so the app can distinguish "machine estimate" from "user-approved chart".
+- The chord parser should be best-effort. It may extract root, quality, extensions, and bass note when possible, but free-text chord labels must remain valid.
+- The metronome should be an audition/calibration tool first, not a performance feature. Keep controls direct: click on/off, downbeat emphasis, volume, and grid adjustment.
+
+Verification:
+- Open a processed song and confirm bar/beat markers are visible.
+- Enable metronome and confirm the click follows the displayed grid.
+- Adjust bar 1, tempo, and time signature, then confirm the metronome and chord placement update.
+- Create/edit/split/merge/delete chords on bars or beats.
+- Reload the app and confirm user grid corrections and chord edits persist.
+- Confirm analyzer suggestions remain available as provenance but do not overwrite user edits.
+
+Status: Planned as the next recommended implementation phase.
+
+## Phase 4: Bar-Based Loops and Practice Notes
+
+Goal: A user can use the corrected musical grid as an ongoing practice workspace, not just a one-off player.
+
+Demonstrable outcome:
+- Loops can snap to bars or beats.
+- Count-in can be enabled before loop playback.
 - Multiple saved loops can be attached to one song.
 - Each loop can have a name, note, and status such as `difficult`, `improving`, or `learned`.
 - Saved loops can be selected quickly from the practice view.
 
 Verification:
-- Create, edit, select, and delete multiple loops on one processed song.
-- Reload the app and confirm notes and loop status persist.
-
-Status: Planned.
-
-## Phase 4: Musical Grid and Bar-Based Practice
-
-Goal: Playback, loops, and harmonic cues align to musical structure instead of only raw seconds.
-
-Demonstrable outcome:
-- BPM is detected or mocked.
-- Time signature is detected or mocked.
-- Downbeat / first bar position is detected or mocked.
-- Bar markers appear in the timeline.
-- Chords are displayed relative to bars.
-- Loops can snap to bars.
-- Count-in and/or metronome can be enabled for loop practice.
-
-Verification:
-- Open a processed song and confirm bar markers, chord placement, and bar-based loop boundaries are visible.
 - Start a loop with count-in and confirm playback begins at the expected bar.
+- Create, edit, select, and delete multiple loops on one processed song.
+- Reload the app and confirm notes, loop boundaries, and loop status persist.
 
-Status: Planned.
+Status: Planned after Phase 3 grid/chord editing.
 
 ## Phase 5: Expand Practice Targets Without Losing Piano Focus
 
@@ -558,4 +581,4 @@ Status: Planned. Logging is off until explicitly requested.
 
 ## Next Task
 
-Manually inspect Phase 2H real harmonic-analysis output on at least one real screen recording, then either harden the analysis if timing/chord labels are misleading or move to Phase 3: problem areas and practice notes.
+Start Phase 3: Musical Grid Calibration and Editable Chords. Implement the metronome/click as the first grid-validation tool, then add minimal controls for downbeat, tempo, and time-signature correction before investing further in automatic chord-model accuracy.

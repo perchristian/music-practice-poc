@@ -465,3 +465,26 @@ Medium for generated fixtures and POC demo readiness; low-to-medium for arbitrar
 
 Date:
 2026-07-07
+
+## Decision 21
+
+Decision:
+Prioritize user-correctable musical grid, metronome calibration, and editable chord charts before further automatic chord-recognition complexity.
+
+Reason:
+Chord labels often do not have one canonical answer. Real-book-style symbols are useful reductions, not complete harmonic truth, and labels such as `Csus2`, `C9`, `C7/F`, and `F11` can be musically defensible in overlapping contexts. For the POC, the user needs a practical chord chart for learning, not an analyzer that claims final authority. A reliable grid is the foundation for chord placement, bar-snapped loops, count-in, practice notes, and later correction workflows. A metronome/click against the song gives the user immediate feedback on whether tempo, bar 1, and time signature are usable.
+
+Alternatives considered:
+- Continue prioritizing automatic chord-recognition accuracy before manual editing.
+- Build a librosa/Essentia/LLM-hybrid analyzer before grid correction tools.
+- Treat generated chord labels as the app's canonical chart.
+- Defer manual chord entry until after transcription or notation work.
+
+Tradeoffs:
+This shifts effort from analyzer sophistication to interaction design and persistent editing. It may expose that the current beat grid is not good enough, but that is useful risk reduction because grid quality affects loops and practice even without chord labels. Automatic analyzers still matter, but they become first-draft generators whose output can be corrected rather than a single source of truth.
+
+Confidence:
+High for product direction; medium for the exact first UI because it needs hands-on testing with real songs.
+
+Date:
+2026-07-07

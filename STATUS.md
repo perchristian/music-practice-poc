@@ -6,7 +6,7 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 
 Phase 0, Phase 1, Phase 1B, and Phase 2A through the Phase 2H beat-aware hardening pass are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings is still required.
 
-The next planned iteration is manual Phase 2H validation on real screen recordings, then either harden the timing/chord analysis if labels are misleading or move to Phase 3 problem areas and practice notes. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
+The next planned iteration is Phase 3: Musical Grid Calibration and Editable Chords. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 Phase 2A spike frame:
 
@@ -91,8 +91,8 @@ Local web POC:
 - Added a phased forward roadmap in `TASKS.md`:
   - Phase 1: processed-song library and saved practice state.
   - Phase 2: first real-pipeline spike.
-  - Phase 3: problem areas and practice notes.
-  - Phase 4: musical grid and bar-based practice.
+  - Phase 3: musical grid calibration and editable chords.
+  - Phase 4: bar-based loops and practice notes.
   - Phase 5: expanded practice targets.
   - Phase 6: native iOS feasibility spike.
 - Expanded Phase 2 into subphases 2A-2F, starting with FFmpeg audio extraction before any heavy ML integration.
@@ -196,9 +196,14 @@ Local web POC:
   - Beat-grid estimation now considers 3/4 as a limited POC meter candidate and records `beatGrid.meterCandidates` for inspection.
   - Bass root weighting was reduced and bass chord-tone support was added so inverted bass notes are less likely to overwrite the harmonic root.
   - `npm run generate:test-media` now creates known-answer fixtures for 120 BPM multiple-chords-per-bar, 90 BPM 3/4, and 100 BPM inversion-bass cases.
+- Reprioritized the next product phase toward editable musical structure:
+  - Chord analysis is now treated as a draft chart, not a canonical truth source.
+  - Phase 3 is now Musical Grid Calibration and Editable Chords.
+  - The next UI should make the analyzed grid audible with a metronome/click so users can quickly correct bar 1, tempo, time signature, and offset.
+  - User-entered chord labels should persist as the song's working chord chart and override analyzer suggestions.
 - Aligned Markdown phase references after the Phase 2 / Phase 3 roadmap order change:
-  - earlier stale references were corrected when notes and multiple named practice loops were still deferred to Phase 3.
-  - `TASKS.md` was updated at that time to point the next task at Phase 2B instead of the already-completed Phase 2A.
+  - earlier stale references were corrected when notes and multiple named practice loops moved out of the immediate Phase 2 scope.
+  - `TASKS.md` was later reprioritized so Phase 3 is grid calibration/editable chords and Phase 4 is bar-based loops/practice notes.
 
 ## In Progress
 
@@ -206,7 +211,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Manually inspect Phase 2H real harmonic-analysis output on at least one real screen recording. If beat/bar placement or chord labels are misleading, harden the analyzer before user testing; otherwise move to Phase 3 problem areas and practice notes.
+Start Phase 3: Musical Grid Calibration and Editable Chords. Build the metronome/click as the first grid-validation tool, then add minimal correction controls for bar 1, tempo, time signature, and offset before investing more in automatic chord-model accuracy.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 
