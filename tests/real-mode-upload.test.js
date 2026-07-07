@@ -2,6 +2,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { analyzeHarmonyFromAudio } from "../server.js";
@@ -10,6 +11,8 @@ const port = Number(process.env.REAL_BACKEND_TEST_PORT || 3211);
 const baseUrl = `http://127.0.0.1:${port}`;
 const extractionPort = Number(process.env.REAL_EXTRACTION_TEST_PORT || 3212);
 const extractionBaseUrl = `http://127.0.0.1:${extractionPort}`;
+const maxUploadBytes = 150 * 1024 * 1024;
+const maxUploadRequestBytes = maxUploadBytes + 1024 * 1024;
 let server;
 let extractionServer;
 let demucsServer;
@@ -103,6 +106,34 @@ async function uploadSample(url = baseUrl, filename = "phase-2a-source.wav") {
 
   assert.equal(createResponse.status, 202);
   return { job: await createResponse.json(), mediaBytes };
+}
+
+async function postDeclaredOversizedUpload(url = baseUrl) {
+  const target = new URL(`${url}/api/jobs`);
+  return new Promise((resolve, reject) => {
+    const req = request(target, {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=poc-oversized-upload",
+        "content-length": String(maxUploadRequestBytes + 1)
+      }
+    }, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => {
+        resolve({ statusCode: res.statusCode, body });
+      });
+    });
+
+    req.setTimeout(5000, () => {
+      req.destroy(new Error("Oversized upload request timed out."));
+    });
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 async function readTestMedia(filename) {
@@ -204,6 +235,14 @@ describe("real-mode upload contract with missing FFmpeg", () => {
     assert.match(persistedJob.error, /FFmpeg was not found/);
     assert.equal(persistedJob.metadata.failure.sourceStored, true);
     assert.equal(persistedJob.metadata.failure.ffmpeg.missingCommand, true);
+  });
+
+  it("rejects real-mode multipart uploads larger than 150 MB", async () => {
+    const response = await postDeclaredOversizedUpload();
+
+    assert.equal(response.statusCode, 413);
+    const payload = JSON.parse(response.body);
+    assert.match(payload.error, /150 MB/);
   });
 });
 

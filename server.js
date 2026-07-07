@@ -24,7 +24,10 @@ const SOURCE_AUDIO_CODEC = "pcm_s16le";
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
 const PUBLIC_DIR = join(__dirname, "public");
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_MEGABYTES = 150;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MEGABYTES * 1024 * 1024;
+const MAX_UPLOAD_REQUEST_OVERHEAD_BYTES = 1024 * 1024;
+const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + MAX_UPLOAD_REQUEST_OVERHEAD_BYTES;
 const MOCK_DURATION_SECONDS = 16;
 const DEFAULT_BEATS_PER_BAR = 4;
 const METER_CANDIDATES = [4, 3];
@@ -51,6 +54,13 @@ const BASS_STEM_WEIGHTS = {
 };
 
 const jobs = new Map();
+
+class UploadTooLargeError extends Error {
+  constructor() {
+    super(`Upload too large. Use a file up to ${MAX_UPLOAD_MEGABYTES} MB for the POC.`);
+    this.name = "UploadTooLargeError";
+  }
+}
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -1038,11 +1048,19 @@ async function serveStatic(req, res) {
 async function readRequestBody(req) {
   const chunks = [];
   let size = 0;
+  const contentLengthHeader = req.headers["content-length"];
+  const contentLength = Array.isArray(contentLengthHeader)
+    ? Number(contentLengthHeader[0])
+    : Number(contentLengthHeader);
+
+  if (Number.isFinite(contentLength) && contentLength > MAX_UPLOAD_REQUEST_BYTES) {
+    throw new UploadTooLargeError();
+  }
 
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > MAX_UPLOAD_BYTES) {
-      throw new Error("Upload too large. Use a file under 100 MB for the POC.");
+    if (size > MAX_UPLOAD_REQUEST_BYTES) {
+      throw new UploadTooLargeError();
     }
     chunks.push(chunk);
   }
@@ -2077,6 +2095,9 @@ async function handleCreateJob(req, res) {
       badRequest(res, "Upload must include a file field named media.");
       return;
     }
+    if (media.data.length > MAX_UPLOAD_BYTES) {
+      throw new UploadTooLargeError();
+    }
 
     const sourceExt = extname(media.filename) || ".upload";
     const sourceFilename = `source${sourceExt}`;
@@ -2507,6 +2528,10 @@ async function startServer() {
 
   return createServer((req, res) => {
     route(req, res).catch((error) => {
+      if (error instanceof UploadTooLargeError) {
+        json(res, 413, { error: error.message });
+        return;
+      }
       console.error(error);
       json(res, 500, { error: "Internal server error" });
     });
