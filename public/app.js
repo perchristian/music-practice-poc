@@ -114,6 +114,7 @@ let keyOverride = null;
 let chordChart = null;
 let harmonyView = { barsPerRow: 2, chordDisplay: "both" };
 let chordResizeState = null;
+let loopDragState = null;
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
@@ -533,49 +534,70 @@ function currentLoopGrid() {
 }
 
 function loopMode() {
-  return currentLoopGrid() ? "beats" : "seconds";
+  return currentLoopGrid() ? "bars" : "seconds";
 }
 
-function loopSecondsFromValue(value, mode = loopMode()) {
+function loopSecondsFromValue(value, mode = loopMode(), edge = "start") {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) return 0;
 
-  if (mode !== "beats") {
+  if (mode !== "bars") {
     return boundTransportTime(numericValue);
   }
 
   const grid = currentLoopGrid();
   if (!grid) return boundTransportTime(numericValue);
-  const beatPosition = Math.max(1, Math.round(numericValue));
-  return boundTransportTime(grid.downbeatOffsetSeconds + (beatPosition - 1) * grid.beatDurationSeconds);
+  const barPosition = Math.max(1, Math.round(numericValue));
+  const beatOffset = (edge === "end" ? barPosition : barPosition - 1) * grid.beatsPerBar;
+  return boundTransportTime(grid.downbeatOffsetSeconds + beatOffset * grid.beatDurationSeconds);
 }
 
-function loopBeatPositionFromSeconds(seconds) {
+function loopBarPositionFromSeconds(seconds, edge = "start") {
   const grid = currentLoopGrid();
   if (!grid) return null;
-  return Math.max(1, Math.round((Number(seconds) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) + 1);
+  const beatOffset = (Number(seconds) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
+  const barOffset = beatOffset / grid.beatsPerBar;
+  return edge === "end"
+    ? Math.max(1, Math.ceil(barOffset - 0.001))
+    : Math.max(1, Math.floor(barOffset + 0.001) + 1);
 }
 
 function loopInputSeconds(input) {
-  return loopSecondsFromValue(input?.value, input?.dataset.loopMode || loopMode());
+  return loopSecondsFromValue(input?.value, input?.dataset.loopMode || loopMode(), input === loopEnd ? "end" : "start");
 }
 
-function setLoopInputFromSeconds(input, seconds, mode = loopMode()) {
+function setLoopInputFromSeconds(input, seconds, mode = loopMode(), edge = input === loopEnd ? "end" : "start") {
   if (!input) return;
 
-  if (mode === "beats") {
-    const beatPosition = loopBeatPositionFromSeconds(seconds);
-    input.value = String(beatPosition || 1);
+  if (mode === "bars") {
+    const barPosition = loopBarPositionFromSeconds(seconds, edge);
+    input.value = String(barPosition || 1);
     return;
   }
 
   input.value = String(roundedSeconds(seconds, 0, 60 * 60) ?? 0);
 }
 
-function sanitizeLoopBeatInput(input) {
-  if (!input || input.dataset.loopMode !== "beats") return;
+function sanitizeLoopBarInput(input) {
+  if (!input || input.dataset.loopMode !== "bars") return;
   const nextValue = Math.max(1, Math.round(Number(input.value) || 1));
   input.value = String(nextValue);
+}
+
+function normalizeLoopBarInputs(changedInput = null) {
+  if (!loopStart || !loopEnd || loopStart.dataset.loopMode !== "bars") return;
+  sanitizeLoopBarInput(loopStart);
+  sanitizeLoopBarInput(loopEnd);
+
+  const startBar = Math.max(1, Math.round(Number(loopStart.value) || 1));
+  const endBar = Math.max(1, Math.round(Number(loopEnd.value) || 1));
+  if (endBar >= startBar) return;
+
+  if (changedInput === loopStart || changedInput === null) {
+    loopEnd.value = String(startBar);
+  } else {
+    loopStart.value = String(endBar);
+  }
 }
 
 function updateLoopControlMode() {
@@ -583,21 +605,21 @@ function updateLoopControlMode() {
 
   const nextMode = loopMode();
   const previousMode = loopStart.dataset.loopMode || "seconds";
-  const startSeconds = loopSecondsFromValue(loopStart.value, previousMode);
-  const endSeconds = loopSecondsFromValue(loopEnd.value, previousMode);
+  const startSeconds = loopSecondsFromValue(loopStart.value, previousMode, "start");
+  const endSeconds = loopSecondsFromValue(loopEnd.value, previousMode, "end");
 
   loopStart.dataset.loopMode = nextMode;
   loopEnd.dataset.loopMode = nextMode;
 
-  if (nextMode === "beats") {
+  if (nextMode === "bars") {
     loopStart.min = "1";
     loopEnd.min = "1";
     loopStart.step = "1";
     loopEnd.step = "1";
     loopStart.inputMode = "numeric";
     loopEnd.inputMode = "numeric";
-    if (loopStartLabel) loopStartLabel.textContent = "Start beat";
-    if (loopEndLabel) loopEndLabel.textContent = "End beat";
+    if (loopStartLabel) loopStartLabel.textContent = "Start bar";
+    if (loopEndLabel) loopEndLabel.textContent = "End bar";
   } else {
     loopStart.min = "0";
     loopEnd.min = "0";
@@ -610,11 +632,10 @@ function updateLoopControlMode() {
   }
 
   if (previousMode !== nextMode) {
-    setLoopInputFromSeconds(loopStart, startSeconds, nextMode);
-    setLoopInputFromSeconds(loopEnd, endSeconds, nextMode);
-  } else if (nextMode === "beats") {
-    sanitizeLoopBeatInput(loopStart);
-    sanitizeLoopBeatInput(loopEnd);
+    setLoopInputFromSeconds(loopStart, startSeconds, nextMode, "start");
+    setLoopInputFromSeconds(loopEnd, endSeconds, nextMode, "end");
+  } else if (nextMode === "bars") {
+    normalizeLoopBarInputs();
   }
 }
 
@@ -918,6 +939,43 @@ function updateHarmonyViewControls() {
   }
 }
 
+function activeLoopBeatRange(grid) {
+  if (!loopEnabled?.checked || !grid || !Number.isFinite(grid.beatDurationSeconds) || grid.beatDurationSeconds <= 0) {
+    return null;
+  }
+
+  const start = loopInputSeconds(loopStart);
+  const end = loopInputSeconds(loopEnd);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+
+  return {
+    startBeat: Math.max(0, (start - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds),
+    endBeat: Math.max(0, (end - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds)
+  };
+}
+
+function activeLoopBarRange() {
+  if (!loopEnabled?.checked || loopStart?.dataset.loopMode !== "bars") return null;
+  const startBar = Math.max(1, Math.round(Number(loopStart?.value) || 1));
+  const endBar = Math.max(startBar, Math.round(Number(loopEnd?.value) || startBar));
+  return { startBar, endBar };
+}
+
+function loopGridRangeForBar(bar, grid, beatsPerBar) {
+  const range = activeLoopBeatRange(grid);
+  if (!range) return null;
+
+  const barStartBeat = (bar - 1) * beatsPerBar;
+  const barEndBeat = barStartBeat + beatsPerBar;
+  const startBeat = Math.max(barStartBeat, range.startBeat);
+  const endBeat = Math.min(barEndBeat, range.endBeat);
+  if (endBeat <= startBeat) return null;
+
+  const startCell = Math.min(beatsPerBar, Math.max(1, Math.floor(startBeat - barStartBeat + 0.001) + 1));
+  const endBoundary = Math.min(beatsPerBar + 1, Math.max(startCell + 1, Math.ceil(endBeat - barStartBeat - 0.001) + 1));
+  return { startCell, endBoundary };
+}
+
 function renderChordGrid(chords, grid) {
   const chartGrid = fallbackChartGrid(grid);
   const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
@@ -981,6 +1039,10 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   barNumber.className = "chord-bar-number";
   barNumber.textContent = String(bar);
 
+  const loopRange = loopGridRangeForBar(bar, grid, beatsPerBar);
+  const loopBars = activeLoopBarRange();
+  const loopRegion = loopRange ? renderChordLoopRegion(bar, loopRange, loopBars) : null;
+
   const sortedEntries = entries.sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index);
   const occupiedCells = new Set();
   const cards = sortedEntries.map((entry) => {
@@ -1011,8 +1073,39 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
     return button;
   });
 
-  segment.append(barNumber, ...addButtons, ...cards);
+  segment.classList.toggle("loop-active", Boolean(loopRange));
+  segment.append(barNumber, ...(loopRegion ? [loopRegion] : []), ...addButtons, ...cards);
   return segment;
+}
+
+function renderChordLoopRegion(bar, range, loopBars) {
+  const region = document.createElement("div");
+  region.className = "chord-loop-region";
+  region.dataset.loopAction = "move";
+  region.dataset.bar = String(bar);
+  region.dataset.testid = `chord-loop-region-${bar}`;
+  region.style.gridColumn = `${range.startCell} / ${range.endBoundary}`;
+  region.style.gridRow = "1";
+
+  if (loopBars?.startBar === bar) {
+    region.append(renderChordLoopHandle("start", bar));
+  }
+  if (loopBars?.endBar === bar) {
+    region.append(renderChordLoopHandle("end", bar));
+  }
+  return region;
+}
+
+function renderChordLoopHandle(action, bar) {
+  const handle = document.createElement("button");
+  handle.type = "button";
+  handle.className = `chord-loop-handle chord-loop-${action}`;
+  handle.dataset.loopAction = action;
+  handle.dataset.bar = String(bar);
+  handle.dataset.testid = `chord-loop-${action}-${bar}`;
+  handle.setAttribute("aria-label", action === "start" ? "Move loop start" : "Move loop end");
+  handle.setAttribute("title", action === "start" ? "Move loop start" : "Move loop end");
+  return handle;
 }
 
 function renderChordCard(chord, index, grid, hit = null) {
@@ -1168,6 +1261,65 @@ function clearChordResizePreview(restore = false) {
     renderMetadata(currentAnalyzedMetadata);
   }
   chordResizeState = null;
+}
+
+function setLoopBarInputs(startBar, endBar) {
+  if (!loopStart || !loopEnd) return;
+  const safeStart = Math.max(1, Math.round(Number(startBar) || 1));
+  const safeEnd = Math.max(safeStart, Math.round(Number(endBar) || safeStart));
+  loopStart.value = String(safeStart);
+  loopEnd.value = String(safeEnd);
+  loopEnabled.checked = true;
+  updateLoopSettingsVisibility();
+  renderTimelineIndicators();
+}
+
+function loopBarFromPointer(clientX, clientY) {
+  const segments = [...(chordList?.querySelectorAll(".chord-bar-segment") || [])];
+  const segment = segments.find((candidate) => {
+    const rect = candidate.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  });
+  const bar = Number(segment?.dataset.bar);
+  return Number.isFinite(bar) && bar > 0 ? Math.round(bar) : null;
+}
+
+function updateLoopDragFromPointer(state, clientX, clientY) {
+  const targetBar = loopBarFromPointer(clientX, clientY);
+  if (!targetBar) return;
+
+  if (state.action === "start") {
+    setLoopBarInputs(Math.min(targetBar, state.endBar), state.endBar);
+    return;
+  }
+
+  if (state.action === "end") {
+    setLoopBarInputs(state.startBar, Math.max(targetBar, state.startBar));
+    return;
+  }
+
+  const nextStart = Math.max(1, targetBar);
+  setLoopBarInputs(nextStart, nextStart + state.lengthBars - 1);
+}
+
+function finishLoopDrag(cancelled = false) {
+  if (!loopDragState) return;
+  chordList?.classList.remove("loop-dragging");
+  chordList?.querySelectorAll(".chord-loop-region.dragging").forEach((element) => element.classList.remove("dragging"));
+  if (!cancelled) {
+    normalizeLoopBarInputs();
+    resetMetronomeSchedule();
+    if (currentAnalyzedMetadata) {
+      renderMetadata(currentAnalyzedMetadata);
+    }
+    queuePracticeStatePersist();
+  } else {
+    setLoopBarInputs(loopDragState.startBar, loopDragState.endBar);
+    if (currentAnalyzedMetadata) {
+      renderMetadata(currentAnalyzedMetadata);
+    }
+  }
+  loopDragState = null;
 }
 
 function applyHarmonyView(nextView = {}) {
@@ -1485,6 +1637,32 @@ function scheduleLoopCountInClicks(config) {
   }
 }
 
+function beginLoopCountIn(countIn) {
+  if (!countIn) return false;
+  for (const player of stemPlayers) {
+    player.audio.pause();
+  }
+  isPlaying = false;
+  countInTargetTime = countIn.targetTime;
+  isCountingIn = true;
+  anchorTransport(countIn.targetTime);
+  syncStemTimes(countIn.targetTime);
+  stopTransportTick();
+  scheduleLoopCountInClicks(countIn);
+  updateTimeDisplay();
+  highlightCurrentChord();
+  playButton.textContent = "||";
+  playButton.setAttribute("aria-label", "Pause");
+
+  const delayMs = Math.max(0, (countIn.durationSeconds / Math.max(0.1, playbackRate)) * 1000);
+  countInTimer = window.setTimeout(() => {
+    countInTimer = null;
+    isCountingIn = false;
+    startStemPlaybackAt(countIn.targetTime).catch(console.error);
+  }, delayMs);
+  return true;
+}
+
 function scheduleMetronomeClicks(currentTime = transportTime()) {
   if (!metronomeEnabled || !isPlaying || !currentMetadata) return;
 
@@ -1643,6 +1821,11 @@ function tickTransport() {
   let current = transportTime();
 
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
+    const countIn = loopCountInConfig();
+    if (countIn) {
+      beginLoopCountIn(countIn);
+      return;
+    }
     setTransportTime(start);
     resetMetronomeSchedule();
     current = transportTime();
@@ -1717,27 +1900,11 @@ async function playAll() {
   if (!stemPlayers.length) return;
 
   const countIn = loopCountInConfig();
-  if (!countIn) {
+  if (countIn) {
+    beginLoopCountIn(countIn);
+  } else {
     await startStemPlaybackAt(transportTime());
-    return;
   }
-
-  countInTargetTime = countIn.targetTime;
-  isCountingIn = true;
-  anchorTransport(countIn.targetTime);
-  syncStemTimes(countIn.targetTime);
-  scheduleLoopCountInClicks(countIn);
-  updateTimeDisplay();
-  highlightCurrentChord();
-  playButton.textContent = "||";
-  playButton.setAttribute("aria-label", "Pause");
-
-  const delayMs = Math.max(0, (countIn.durationSeconds / Math.max(0.1, playbackRate)) * 1000);
-  countInTimer = window.setTimeout(() => {
-    countInTimer = null;
-    isCountingIn = false;
-    startStemPlaybackAt(countIn.targetTime).catch(console.error);
-  }, delayMs);
 }
 
 function resumeAudibleStem(player) {
@@ -2585,6 +2752,45 @@ chordList?.addEventListener("drop", (event) => {
 });
 
 chordList?.addEventListener("pointerdown", (event) => {
+  const loopTarget = event.target.closest("[data-loop-action]");
+  if (!loopTarget || event.target.closest(".chord-card, input")) return;
+  const loopBars = activeLoopBarRange();
+  if (!loopBars || loopStart?.dataset.loopMode !== "bars") return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  loopTarget.setPointerCapture?.(event.pointerId);
+  const action = loopTarget.dataset.loopAction || "move";
+  loopDragState = {
+    action,
+    pointerId: event.pointerId,
+    startBar: loopBars.startBar,
+    endBar: loopBars.endBar,
+    lengthBars: loopBars.endBar - loopBars.startBar + 1
+  };
+  chordList.classList.add("loop-dragging");
+  loopTarget.closest(".chord-loop-region")?.classList.add("dragging");
+});
+
+chordList?.addEventListener("pointermove", (event) => {
+  if (!loopDragState || loopDragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  updateLoopDragFromPointer(loopDragState, event.clientX, event.clientY);
+});
+
+chordList?.addEventListener("pointerup", (event) => {
+  if (!loopDragState || loopDragState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  updateLoopDragFromPointer(loopDragState, event.clientX, event.clientY);
+  finishLoopDrag();
+});
+
+chordList?.addEventListener("pointercancel", (event) => {
+  if (!loopDragState || loopDragState.pointerId !== event.pointerId) return;
+  finishLoopDrag(true);
+});
+
+chordList?.addEventListener("pointerdown", (event) => {
   const handle = event.target.closest("button[data-chord-action='resize']");
   if (!handle) return;
   const card = handle.closest(".chord-card");
@@ -2640,16 +2846,22 @@ chordList?.addEventListener("change", (event) => {
 [loopStart, loopEnd, loopEnabled, countInBars].forEach((element) => {
   if (!element) return;
   element.addEventListener("change", (event) => {
-    sanitizeLoopBeatInput(event.target);
+    normalizeLoopBarInputs(event.target);
     updateLoopSettingsVisibility();
     resetMetronomeSchedule();
     renderTimelineIndicators();
+    if (currentAnalyzedMetadata) {
+      renderMetadata(currentAnalyzedMetadata);
+    }
     queuePracticeStatePersist();
   });
   element.addEventListener("input", () => {
     updateLoopSettingsVisibility();
     resetMetronomeSchedule();
     renderTimelineIndicators();
+    if (currentAnalyzedMetadata) {
+      renderMetadata(currentAnalyzedMetadata);
+    }
     queuePracticeStatePersist();
   });
 });

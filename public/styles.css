@@ -1107,11 +1107,57 @@ audio {
     #f0fdfa;
 }
 
+.chord-bar-segment.loop-active {
+  box-shadow: inset 0 0 0 2px rgba(180, 83, 9, 0.28);
+}
+
+.chord-loop-region {
+  position: relative;
+  min-height: 40px;
+  border: 1px solid rgba(180, 83, 9, 0.45);
+  border-radius: 6px;
+  background: rgba(255, 247, 237, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.12);
+  cursor: grab;
+}
+
+.chord-loop-region.dragging,
+.loop-dragging .chord-loop-region {
+  cursor: grabbing;
+}
+
+.chord-loop-handle {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  z-index: 4;
+  width: 10px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--warm);
+  padding: 0;
+  cursor: ew-resize;
+}
+
+.chord-loop-handle:hover,
+.chord-loop-handle:focus-visible {
+  background: #92400e;
+  outline: none;
+}
+
+.chord-loop-start {
+  left: 3px;
+}
+
+.chord-loop-end {
+  right: 3px;
+}
+
 .chord-bar-number {
   position: absolute;
   top: 3px;
   left: 6px;
-  z-index: 2;
+  z-index: 3;
   color: var(--accent-strong);
   font-size: 0.68rem;
   font-weight: 850;
@@ -1144,7 +1190,7 @@ audio {
 
 .chord-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 2px;

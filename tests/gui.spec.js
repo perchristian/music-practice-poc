@@ -15,7 +15,8 @@ test.afterEach(async ({ request }) => {
     "mobile-workspace-",
     "editable-chords-",
     "resize-chords-",
-    "delete-last-chord-"
+    "delete-last-chord-",
+    "loop-bars-"
   ];
   const entries = await request.get("/api/library").then((response) => (response.ok() ? response.json() : []));
   await Promise.all(
@@ -113,6 +114,22 @@ async function resizeChordToBarBoundary(page, chordIndex, bar, boundaryBeat) {
   await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(targetBox.x + targetBox.width * (boundaryBeat / beatsPerBar), targetBox.y + targetBox.height / 2);
+  await page.mouse.up();
+}
+
+async function dragLoopHandleToBar(page, action, fromBar, toBar) {
+  const handle = page.getByTestId(`chord-loop-${action}-${fromBar}`);
+  const target = page.locator(`.chord-bar-segment[data-bar="${toBar}"]`);
+  await handle.scrollIntoViewIfNeeded();
+  const handleBox = await handle.boundingBox();
+  const targetBox = await target.boundingBox();
+  if (!handleBox || !targetBox) {
+    throw new Error("Could not resolve loop drag target boxes.");
+  }
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
   await page.mouse.up();
 }
 
@@ -556,7 +573,7 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
   await page.getByTestId("bar-start-input").press("Enter");
   await page.getByTestId("loop-enabled").check();
   await page.getByTestId("loop-start").fill("1");
-  await page.getByTestId("loop-end").fill("3");
+  await page.getByTestId("loop-end").fill("1");
   await page.getByTestId("count-in-bars").selectOption("1");
 
   await page.getByRole("button", { name: "Play" }).click();
@@ -575,6 +592,35 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
 
   const playCalls = await page.evaluate(() => window.__playCalls);
   expect(playCalls.every((call) => call.currentTime === 0.5)).toBe(true);
+
+  await expect
+    .poll(async () => page.evaluate(() => window.__metronomeClicks.length), { timeout: 4_000 })
+    .toBeGreaterThan(4);
+});
+
+test("loop range can be marked and extended from the harmony chord grid", async ({ page }) => {
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await page.getByTestId("bars-per-row-select").selectOption("2");
+  await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("loop-start").fill("2");
+  await page.getByTestId("loop-end").fill("2");
+
+  await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-region-3")).toHaveCount(0);
+
+  await dragLoopHandleToBar(page, "end", 2, 3);
+  await expect(page.getByTestId("loop-start")).toHaveValue("2");
+  await expect(page.getByTestId("loop-end")).toHaveValue("3");
+  await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-region-3")).toBeVisible();
+
+  await dragLoopHandleToBar(page, "start", 2, 1);
+  await expect(page.getByTestId("loop-start")).toHaveValue("1");
+  await expect(page.getByTestId("loop-end")).toHaveValue("3");
+  await expect(page.getByTestId("chord-loop-region-1")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-region-3")).toBeVisible();
 });
 
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
@@ -1251,7 +1297,7 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("loop-enabled").check();
   await expect(page.getByTestId("loop-settings")).toBeVisible();
   await page.getByTestId("loop-start").fill("2");
-  await page.getByTestId("loop-end").fill("6");
+  await page.getByTestId("loop-end").fill("2");
   await page.getByTestId("count-in-bars").selectOption("1");
   await page.getByTestId("metronome-mute").click();
   await page.getByTestId("metronome-volume").evaluate((slider) => {
@@ -1301,8 +1347,8 @@ test("processed song library reopens songs and persists practice state", async (
     .toEqual({
       learningStatus: "practicing",
       playbackRate: 0.75,
-      loopStart: 0.25,
-      loopEnd: 2.25,
+      loopStart: 2.75,
+      loopEnd: 5.75,
       loopEnabled: true,
       countInBars: 1,
       lastPosition: 3.2,
@@ -1325,7 +1371,7 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("learning-status")).toHaveValue("practicing");
   await expect(page.getByTestId("speed-075")).toHaveClass(/active/);
   await expect(page.getByTestId("loop-start")).toHaveValue("2");
-  await expect(page.getByTestId("loop-end")).toHaveValue("6");
+  await expect(page.getByTestId("loop-end")).toHaveValue("2");
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
   await expect(page.getByTestId("count-in-bars")).toHaveValue("1");
   await expect(page.getByTestId("metronome-mute")).toHaveAttribute("aria-pressed", "false");

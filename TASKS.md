@@ -714,27 +714,30 @@ Goal: A user can set one musically correct loop that follows the corrected grid 
 
 Reason:
 - One reliable loop has more immediate learning value than multiple saved loops.
-- The current loop UI should snap to beats/bars instead of exposing high-resolution decimal seconds.
+- The current loop UI should snap to bars instead of exposing high-resolution decimal seconds or requiring beat-level loop starts.
 - Count-in and metronome behavior must respect `Bar 1 start` before loop workflows are expanded.
 - Timeline markers become unreadable on full songs if every bar label is rendered.
 
 Demonstrable outcome:
-- The existing single loop can snap to beats from the corrected grid.
-- Loop start/end controls show beat positions when a beat grid exists, while existing persisted loop start/end seconds remain supported.
+- The existing single loop can snap to bars from the corrected grid.
+- Loop start/end controls show bar positions when a beat grid exists, while existing persisted loop start/end seconds remain supported.
 - Count-in can be enabled before loop playback and starts playback at the correct audio time when `Bar 1 start` is nonzero or negative.
+- Count-in repeats on every loop pass so the second pass is not a hard jump back to loop start.
+- The active loop is visible in the Harmony chart and its start/end handles can be dragged across rows, including extending the loop earlier from the front.
 - Metronome clicks follow loop boundaries and reset cleanly after loop jumps.
 - Dense full-song timelines simplify marker rendering so bar numbers do not overlap.
 - The existing single loop persists per song and restores after reload.
 
 Verification:
-- Start a loop at beat 1 with a nonzero `Bar 1 start`, enable count-in, and confirm playback begins at the offset-correct audio time.
-- Set loop start/end with whole beat values and confirm the persisted seconds match the corrected grid.
+- Start a loop at Bar 1 with a nonzero `Bar 1 start`, enable count-in, and confirm playback begins at the offset-correct audio time.
+- Set loop start/end with whole bar values and confirm the persisted seconds match the corrected grid.
 - Confirm decimal loop input is not treated as a high-resolution editing mode when a grid exists.
+- Drag the active loop in the Harmony chart across multiple rows and confirm its persisted seconds match the selected bars.
 - Confirm metronome clicks do not continue past the loop end after the loop jumps back to start.
 - Load or simulate a full-song timeline and confirm bar labels remain readable.
 - Reload the app and confirm the single-loop settings persist.
 
-Status: Phase 4A implemented on 2026-07-08 for beat-position loop controls, offset-aware count-in verification, and dense timeline simplification. Full manual listening on real long songs is still useful.
+Status: Phase 4A implemented on 2026-07-08 for grid-snapped loop controls, offset-aware count-in verification, and dense timeline simplification. Updated later on 2026-07-08 so loop start/end are bar-based, count-in repeats on every loop pass, and the active loop can be seen and adjusted from the Harmony chart. Full manual listening on real long songs is still useful.
 
 ### Deferred: Multiple Saved Loops and Practice Notes
 
@@ -844,6 +847,6 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 
 ## Next Task
 
-Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose beat-based loop start/end, enable count-in, listen to grid click through repeated loop jumps, and inspect whether the simplified timeline is readable enough.
+Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
