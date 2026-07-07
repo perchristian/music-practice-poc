@@ -48,6 +48,8 @@ Phase 2A spike frame:
 
 A process task for on-demand context overhead auditing is documented in `TASKS.md`. Context-overhead logging is off by default and should only be enabled after an explicit human request.
 
+UI system note added on 2026-07-08: a small internal design system pass is now planned in `TASKS.md`. The current recommendation is to keep the static HTML/CSS/vanilla JS frontend and standardize existing primitives before adding any broad component library. `ARCHITECTURE.md` documents the frontend UI-system direction, and `DECISIONS.md` records Decision 24 to defer React/shadcn/Radix, Ionic, Material, Tailwind, and broad web-component adoption for the current POC phase. Web Awesome can be reconsidered later for specific repeated primitives if the internal pass shows real maintenance cost.
+
 ## Current Architecture
 
 Local web POC:

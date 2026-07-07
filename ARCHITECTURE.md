@@ -132,6 +132,26 @@ The backend API and storage model should remain the same. This is primarily a cl
 - full-row song selection instead of a separate Open button
 - selected-song header actions for rename, delete, and future overflow actions
 
+## Frontend UI System
+
+The current frontend remains a static HTML, CSS, and vanilla JavaScript app. The recommended UI direction is a small internal design system extracted from existing patterns, not a migration to React, shadcn/Radix, Ionic, Material, Tailwind, or a broad web-component library.
+
+Reason:
+- The current UI is already heavily domain-specific: synchronized transport, stem mixer, grid-snapped loops, metronome controls, and the editable Harmony chart would remain custom even with a component library.
+- The POC still benefits from a no-build frontend that another developer can inspect and run quickly.
+- Mobile validation depends more on predictable layout, touch targets, no overflow, and responsive density than on adopting a full external design system.
+
+The internal design system should standardize the primitives already present:
+
+- colors, spacing, borders, shadows, type sizes, focus rings, and disabled states
+- primary, secondary, danger, and icon buttons
+- segmented controls for modes and speed
+- selects, numeric nudge fields, range sliders, toggles, and search fields
+- panels, menus, list rows, status chips, progress, and mixer/control rows
+- responsive rules for the list-first mobile workspace, Harmony chart, and stem mixer
+
+Web Awesome or another web-component library can be reconsidered later for isolated primitives such as menu, dialog, tooltip, switch, or slider if repeated internal implementations become a real maintenance cost. That should be a specific dependency decision, not a default migration.
+
 ## Pipeline Strategy
 
 The pipeline boundary should be stable:

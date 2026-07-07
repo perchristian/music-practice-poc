@@ -534,3 +534,27 @@ High for POC iteration speed and model clarity; medium for the exact JSON shape 
 
 Date:
 2026-07-07
+
+## Decision 24
+
+Decision:
+Use a small internal CSS/HTML design system for the current web POC instead of adopting a broad component library or migrating the frontend framework.
+
+Reason:
+The frontend is currently a no-build static HTML, CSS, and vanilla JavaScript app. Most of the important UI is domain-specific: transport, synchronized stem controls, loop handles, metronome controls, and the editable Harmony chart. A broad library would not replace those surfaces and would add migration cost before the POC has finished validating learning value. The immediate need is consistency and mobile reliability across existing primitives.
+
+Alternatives considered:
+- React with shadcn/Radix primitives.
+- Ionic for a mobile-app-like component model.
+- Material Web or another Material-style web-component library.
+- Web Awesome as a framework-agnostic web-component layer.
+- Continue with entirely ad hoc CSS.
+
+Tradeoffs:
+An internal design system requires discipline and does not provide prebuilt accessibility behavior for complex primitives such as dialogs or popovers. The benefit is that mock mode stays dependency-light, the current static frontend remains easy to run, and improvements can be made incrementally around the real POC workflow. Web Awesome remains a reasonable future option for specific repeated primitives if internal implementations become costly, and Ionic should be reconsidered only if native/hybrid mobile becomes the next validated direction.
+
+Confidence:
+High for the current POC phase; medium for later mobile/native phases.
+
+Date:
+2026-07-08

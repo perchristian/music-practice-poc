@@ -765,6 +765,51 @@ Verification:
 
 Status: Planned.
 
+## UI System Task: Small Internal Design System
+
+Goal: Make the existing mobile-friendly web POC more consistent and easier to iterate on by extracting a small internal design system from the current HTML/CSS patterns, without migrating to a frontend framework or adding a broad component library.
+
+Reason:
+- The app now has enough repeated UI primitives that small inconsistencies slow down further work: buttons, icon buttons, segmented controls, toggles, form fields, menus, progress, song rows, mixer rows, panels, and dense Harmony controls.
+- The current static HTML/vanilla JS stack is still appropriate for the POC. A React/shadcn/Radix migration would spend effort on framework conversion instead of learning value.
+- Most important UI surfaces are domain-specific, especially transport, stem mixer, loop controls, and the chord chart. A general component library would not replace those.
+- Mobile usability matters for validation, so this task should focus on touch targets, responsive density, overflow prevention, and predictable navigation rather than visual polish alone.
+
+Scope:
+- Keep the current no-build static frontend unless a later task proves it is blocking.
+- Do not add React, Vue, shadcn, Radix, Ionic, Material, Tailwind, or a broad web-component dependency in the first pass.
+- Web Awesome or another web-component library may be reconsidered later for specific repeated primitives such as menu, dialog, tooltip, switch, or slider if the internal pass shows clear maintenance cost.
+- Preserve existing behavior and test hooks.
+
+Deliverables:
+- Inventory the repeated UI primitives in `public/index.html`, `public/app.js`, and `public/styles.css`.
+- Define a compact token/primitives layer for:
+  - colors, spacing, borders, shadows, type sizes, focus rings, and disabled states
+  - primary/secondary/danger/icon buttons
+  - segmented controls
+  - form fields, selects, numeric nudge fields, range sliders, and toggles
+  - panels, menus, list rows, progress, and status chips
+  - mixer/control rows with stable mobile dimensions
+- Separate reusable primitive CSS from app-specific layout where it materially improves clarity. This can be a documented section in `styles.css` or a new static CSS file if that is cleaner.
+- Replace obvious one-off styles with the shared primitives.
+- Improve the mobile floor for common controls:
+  - no horizontal page overflow at narrow widths
+  - touch targets stay at least 42px where practical
+  - button text does not clip
+  - song list/detail navigation remains list-first on mobile
+  - Harmony and mixer controls remain readable at 390px width
+- Document the internal UI rules in `ARCHITECTURE.md` or a small dedicated UI note if the rules become too long.
+
+Verification:
+- Run `npm test`.
+- Run `npm run test:gui`.
+- Use a Playwright layout probe or screenshots at approximately 1180px, 820px, and 390px widths.
+- Confirm there is no horizontal overflow in the main demo path.
+- Confirm upload, song selection, playback controls, stem mute/solo/volume, loop controls, and Harmony editing still work.
+- Delete any test-created songs/jobs before considering the task complete.
+
+Status: Planned. This is a focused maintainability and mobile-usability task, not a redesign and not a component-library migration.
+
 ## Phase 6: Native iOS Feasibility Spike
 
 Goal: Test whether native iOS materially reduces friction once the web POC has demonstrated learning value.
@@ -850,3 +895,5 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
+
+Alternative next maintainability task: complete the small internal design system pass before adding more practice controls, especially if mobile usability or CSS drift is starting to slow iteration.
