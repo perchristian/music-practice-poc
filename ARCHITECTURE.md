@@ -147,7 +147,7 @@ Real mode now stores uploaded source media, extracts `source-audio.wav` through 
 The next architecture priority is not a more complex chord labeler. It is a user-correctable musical grid and chord chart:
 
 1. make the analyzed beat/bar grid audible with a metronome/click: implemented for Phase 3A
-2. let the user correct bar 1, tempo, time signature, and grid offset while listening
+2. let the user correct bar 1, tempo, time signature, and grid offset while listening: implemented for Phase 3B with numeric fields, 0.01-second nudges, and a 4/4 vs 3/4 selector
 3. store analyzer chord output as draft suggestions
 4. let the user add, edit, split, merge, move, and delete chord labels on bars/beats
 5. persist user-edited chords as the song's working chart, overriding analyzer suggestions
@@ -179,7 +179,7 @@ The implemented Phase 2H spike currently records `harmonySource: "real-audio-ana
 
 Chord text should remain user-preserving. The app may parse root, quality, bass note, and extensions for display, roman numerals, and future transposition, but it must keep the original entered label because useful musician notation can be ambiguous. For example, `Csus2`, `C9`, `C7/F`, and `F11` can be different names for similar harmonic evidence depending on context.
 
-The metronome is part of grid calibration. It now plays against the song from the current `beatGrid`, with downbeat emphasis and simple volume/on-off controls stored in `practiceState`. Its first purpose is to let the user hear whether the analyzed rhythm is aligned. The next step is to add persistent user corrections for bar 1, tempo, time signature, and offset.
+The metronome is part of grid calibration. It now plays against the song from the current effective `beatGrid`, with downbeat emphasis and simple volume/on-off controls stored in `practiceState`. Phase 3B adds persistent user corrections for BPM, bar 1 start, 4/4 vs 3/4, and small grid offset in `practiceState.gridOverrides`, while preserving analyzer metadata as provenance. The current UI uses direct numeric fields and 0.01-second nudge buttons instead of a waveform editor; waveform should be considered later only if manual listening shows the nudge-only flow is too blind for users.
 
 ## Native iOS Transition Criteria
 

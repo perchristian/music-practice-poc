@@ -519,11 +519,11 @@ Status: Complete for automated verification on 2026-07-07.
 Goal: Let a user correct the analyzed musical grid before editing chords.
 
 Deliverables:
-- User can adjust bar 1/downbeat start point.
+- User can adjust bar 1/downbeat start point. Done on 2026-07-07: the Harmony panel shows a `Bar 1 start` seconds field with 0.01-second nudge buttons.
 - User can adjust BPM through half/double tempo and/or a numeric BPM field. Done on 2026-07-07: the Harmony panel shows `/2`, editable BPM, and `x2`; the override persists as `practiceState.gridOverrides.bpm`; timeline markers, chord bar labels, selected-song tempo text, and grid click use the corrected tempo.
-- User can switch time signature between 4/4 and 3/4.
-- User can apply a small grid offset while listening to the metronome.
-- Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops.
+- User can switch time signature between 4/4 and 3/4. Done on 2026-07-07: the Harmony panel shows a compact 4/4 vs 3/4 selector.
+- User can apply a small grid offset while listening to the metronome. Done on 2026-07-07: the Harmony panel shows a `Grid offset` seconds field with 0.01-second nudge buttons, clamped to +/- 2 seconds.
+- Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops. Done on 2026-07-07: corrections persist in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `downbeatOffsetSeconds`, and `gridOffsetSeconds`, while analyzer metadata remains unchanged.
 
 Verification:
 - Open a processed song, enable the metronome, and adjust each grid control.
@@ -531,9 +531,9 @@ Verification:
 - Reload the app and confirm the corrected grid persists.
 - Confirm analyzer metadata remains available as provenance.
 
-Status: In progress. Tempo correction is complete for automated verification on 2026-07-07. Bar 1/downbeat start point, time signature, and small offset controls remain.
+Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass; a local Playwright layout probe checked the new controls at 1100px and 390px without horizontal overflow. Manual listening on varied real recordings is still needed to judge whether nudge-only calibration is intuitive enough, or whether a waveform view should be added later.
 
-Overall Phase 3 status: In progress. Grid audition is complete; tempo correction is implemented; remaining grid correction controls and editable chords remain planned.
+Overall Phase 3 status: In progress. Grid audition and minimal grid correction are complete; editable chords remain planned.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 

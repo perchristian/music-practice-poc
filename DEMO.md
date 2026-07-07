@@ -156,11 +156,13 @@ npm run generate:test-media
 7. Confirm the chord list shows bar-aligned cue times such as `Bar 1 · 0:00-0:04` when the analysis can estimate a grid.
 8. Enable Grid click and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
-10. Reload the page, reopen the song, and confirm the corrected BPM persists.
-11. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
-12. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
-13. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
-14. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
+10. Adjust `Bar 1 start` or the `Grid offset` nudge buttons in 0.01-second steps while listening to the click. Switch 4/4 vs 3/4 if the downbeat accents are wrong.
+11. Confirm the beat markers and chord `Bar` labels update immediately after the grid correction.
+12. Reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, and offset persist.
+13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
+14. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+15. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
+16. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
 
 `source-audio.wav` is intentionally kept in each real-mode job directory so it can be compared against the original upload and the separated stems. The FFmpeg extraction step writes uncompressed `pcm_s16le` WAV rather than MP3/AAC, so compression artifacts heard after separation are more likely from the original screen recording or the separator than from FFmpeg's source-audio extraction.
 

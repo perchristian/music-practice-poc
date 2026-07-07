@@ -386,6 +386,16 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   await expect(page.getByTestId("grid-timeline")).not.toHaveClass(/empty/);
   await expect(page.locator(".grid-marker.downbeat")).toHaveCount(5);
   await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0");
+  await expect(page.getByTestId("bar-start-input")).toHaveValue("0");
+  await expect(page.getByTestId("grid-offset-input")).toHaveValue("0");
+
+  await page.getByTestId("bar-start-input").fill("0.5");
+  await page.getByTestId("bar-start-input").press("Enter");
+  await page.getByTestId("grid-offset-plus").click();
+  await page.getByTestId("meter-3").click();
+  await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0.51");
+  await expect(page.locator(".grid-marker.downbeat")).toHaveCount(6);
+  await expect(page.getByTestId("meter-3")).toHaveClass(/active/);
 
   await page.getByTestId("metronome-enabled").check();
   await page.getByRole("button", { name: "Play" }).click();
@@ -395,7 +405,7 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
     .poll(async () => page.evaluate(() => window.__metronomeClicks.length))
     .toBeGreaterThan(0);
   const clicks = await page.evaluate(() => window.__metronomeClicks);
-  expect(clicks[0]).toMatchObject({ time: 10, frequency: 1320 });
+  expect(clicks[0]).toMatchObject({ time: 10.51, frequency: 1320 });
 });
 
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
@@ -678,6 +688,10 @@ test("processed song library reopens songs and persists practice state", async (
   });
   await page.getByTestId("metronome-accent").uncheck();
   await page.getByTestId("tempo-double").click();
+  await page.getByTestId("bar-start-input").fill("0.25");
+  await page.getByTestId("bar-start-input").press("Enter");
+  await page.getByTestId("grid-offset-minus").click();
+  await page.getByTestId("meter-3").click();
   await setPlaybackPosition(page, 3.2);
   await page.getByTestId("stem-mute-piano").click();
   await page.getByTestId("stem-volume-piano").evaluate((slider) => {
@@ -703,6 +717,9 @@ test("processed song library reopens songs and persists practice state", async (
         metronomeVolume: state.metronomeVolume,
         metronomeAccent: state.metronomeAccent,
         tempoBpm: state.gridOverrides?.bpm,
+        beatsPerBar: state.gridOverrides?.beatsPerBar,
+        downbeatOffsetSeconds: state.gridOverrides?.downbeatOffsetSeconds,
+        gridOffsetSeconds: state.gridOverrides?.gridOffsetSeconds,
         pianoMuted: state.stemStates.piano.muted,
         pianoVolume: state.stemStates.piano.volume
       };
@@ -718,6 +735,9 @@ test("processed song library reopens songs and persists practice state", async (
       metronomeVolume: 0.65,
       metronomeAccent: false,
       tempoBpm: 120,
+      beatsPerBar: 3,
+      downbeatOffsetSeconds: 0.25,
+      gridOffsetSeconds: -0.01,
       pianoMuted: true,
       pianoVolume: 0.35
     });
@@ -735,6 +755,9 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("metronome-volume")).toHaveValue("0.65");
   await expect(page.getByTestId("metronome-accent")).not.toBeChecked();
   await expect(page.getByTestId("tempo-display")).toHaveText("120 BPM");
+  await expect(page.getByTestId("bar-start-input")).toHaveValue("0.25");
+  await expect(page.getByTestId("grid-offset-input")).toHaveValue("-0.01");
+  await expect(page.getByTestId("meter-3")).toHaveClass(/active/);
   await expect(page.locator("#scrubber")).toHaveValue("3.2");
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);
   await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");

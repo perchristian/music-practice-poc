@@ -831,6 +831,90 @@ audio {
   font-variant-numeric: tabular-nums;
 }
 
+.grid-correction {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 14px 0 12px;
+}
+
+.grid-correction[hidden] {
+  display: none;
+}
+
+.grid-correction label,
+.grid-correction > div {
+  display: grid;
+  gap: 7px;
+}
+
+.grid-correction label > span,
+.grid-correction > div > span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.nudge-field,
+.meter-control {
+  display: grid;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.nudge-field {
+  grid-template-columns: 34px minmax(70px, 1fr) 34px;
+}
+
+.meter-control {
+  grid-template-columns: repeat(2, 48px);
+}
+
+.nudge-field button,
+.nudge-field input,
+.meter-control button {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+}
+
+.nudge-field button:last-child,
+.meter-control button:last-child {
+  border-right: 0;
+}
+
+.nudge-field input {
+  width: 100%;
+  padding: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nudge-field button,
+.meter-control button {
+  cursor: pointer;
+}
+
+.nudge-field button:hover,
+.nudge-field button:focus-visible,
+.meter-control button:hover,
+.meter-control button:focus-visible {
+  background: #f6f9ff;
+  outline: none;
+}
+
+.meter-control button.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .toggle {
   min-height: 42px;
   grid-template-columns: auto auto;
@@ -905,7 +989,8 @@ audio {
   }
 
   .metronome-grid,
-  .loop-grid {
+  .loop-grid,
+  .grid-correction {
     grid-template-columns: 1fr;
   }
 

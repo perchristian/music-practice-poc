@@ -185,6 +185,31 @@
                     </div>
                   </div>
                 </div>
+                <div class="grid-correction" id="gridCorrection" hidden>
+                  <label>
+                    <span>Bar 1 start</span>
+                    <div class="nudge-field">
+                      <button type="button" data-grid-nudge="bar-start:-0.01" data-testid="bar-start-minus" aria-label="Move bar 1 start earlier">-</button>
+                      <input id="barStartInput" data-testid="bar-start-input" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Bar 1 start seconds">
+                      <button type="button" data-grid-nudge="bar-start:0.01" data-testid="bar-start-plus" aria-label="Move bar 1 start later">+</button>
+                    </div>
+                  </label>
+                  <div>
+                    <span>Time signature</span>
+                    <div class="meter-control" id="meterControl" role="group" aria-label="Time signature">
+                      <button type="button" data-meter="4" data-testid="meter-4">4/4</button>
+                      <button type="button" data-meter="3" data-testid="meter-3">3/4</button>
+                    </div>
+                  </div>
+                  <label>
+                    <span>Grid offset</span>
+                    <div class="nudge-field">
+                      <button type="button" data-grid-nudge="offset:-0.01" data-testid="grid-offset-minus" aria-label="Move grid earlier">-</button>
+                      <input id="gridOffsetInput" data-testid="grid-offset-input" type="number" min="-2" max="2" step="0.01" inputmode="decimal" aria-label="Grid offset seconds">
+                      <button type="button" data-grid-nudge="offset:0.01" data-testid="grid-offset-plus" aria-label="Move grid later">+</button>
+                    </div>
+                  </label>
+                </div>
                 <div class="chord-list" id="chordList"></div>
               </section>
             </section>

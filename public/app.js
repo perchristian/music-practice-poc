@@ -44,6 +44,10 @@ const tempoHalf = document.querySelector("#tempoHalf");
 const tempoDisplay = document.querySelector("#tempoDisplay");
 const tempoInput = document.querySelector("#tempoInput");
 const tempoDouble = document.querySelector("#tempoDouble");
+const gridCorrection = document.querySelector("#gridCorrection");
+const barStartInput = document.querySelector("#barStartInput");
+const meterControl = document.querySelector("#meterControl");
+const gridOffsetInput = document.querySelector("#gridOffsetInput");
 const chordList = document.querySelector("#chordList");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
@@ -139,25 +143,85 @@ function roundedBpm(value) {
   return Math.round(Math.max(30, Math.min(260, bpm)) * 10) / 10;
 }
 
+function roundedSeconds(value, min, max) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return null;
+  return Math.round(Math.max(min, Math.min(max, seconds)) * 100) / 100;
+}
+
+function hasGridOverride(source, key) {
+  return Object.prototype.hasOwnProperty.call(source || {}, key);
+}
+
 function normalizedGridOverrides(state = null) {
   const source = state?.gridOverrides || {};
+  const overrides = {};
   const bpm = roundedBpm(source.bpm);
-  return bpm ? { bpm } : {};
+  if (bpm) {
+    overrides.bpm = bpm;
+  }
+
+  const beatsPerBar = Number(source.beatsPerBar);
+  if (beatsPerBar === 3 || beatsPerBar === 4) {
+    overrides.beatsPerBar = beatsPerBar;
+  }
+
+  const downbeatOffsetSeconds = roundedSeconds(source.downbeatOffsetSeconds, 0, 60 * 60);
+  if (hasGridOverride(source, "downbeatOffsetSeconds") && downbeatOffsetSeconds !== null) {
+    overrides.downbeatOffsetSeconds = downbeatOffsetSeconds;
+  }
+
+  const gridOffsetSeconds = roundedSeconds(source.gridOffsetSeconds, -2, 2);
+  if (hasGridOverride(source, "gridOffsetSeconds") && gridOffsetSeconds !== null) {
+    overrides.gridOffsetSeconds = gridOffsetSeconds;
+  }
+
+  return overrides;
+}
+
+function metadataGridDefaults(metadata) {
+  const grid = metadata?.beatGrid || {};
+  const bpm = roundedBpm(grid.bpm);
+  const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
+  const downbeatOffsetSeconds = roundedSeconds(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0, 0, 60 * 60) ?? 0;
+  return {
+    bpm,
+    beatDurationSeconds: Number(grid.beatDurationSeconds) || (bpm ? 60 / bpm : null),
+    beatsPerBar: beatsPerBar === 3 ? 3 : 4,
+    downbeatOffsetSeconds
+  };
 }
 
 function effectiveMetadata(metadata) {
   if (!metadata) return metadata;
 
-  const bpm = roundedBpm(gridOverrides.bpm);
-  if (!bpm) return metadata;
+  const defaults = metadataGridDefaults(metadata);
+  const bpm = roundedBpm(gridOverrides.bpm) || defaults.bpm;
+  const beatDurationSeconds = bpm ? 60 / bpm : defaults.beatDurationSeconds;
+  const beatsPerBar = gridOverrides.beatsPerBar || defaults.beatsPerBar;
+  const baseDownbeat = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
+    ? gridOverrides.downbeatOffsetSeconds
+    : defaults.downbeatOffsetSeconds;
+  const gridOffsetSeconds = hasGridOverride(gridOverrides, "gridOffsetSeconds")
+    ? gridOverrides.gridOffsetSeconds
+    : 0;
+  const downbeatOffsetSeconds = roundedSeconds(baseDownbeat + gridOffsetSeconds, -2, 60 * 60) ?? 0;
+
+  if (!bpm && !beatDurationSeconds) return metadata;
 
   return {
     ...metadata,
     beatGrid: {
       ...(metadata.beatGrid || {}),
       bpm,
-      beatDurationSeconds: 60 / bpm,
-      tempoOverride: true
+      beatsPerBar,
+      beatDurationSeconds,
+      beatOffsetSeconds: downbeatOffsetSeconds,
+      downbeatOffsetSeconds,
+      meter: { beatsPerBar, beatUnit: 4 },
+      timeSignature: { beatsPerBar, beatUnit: 4 },
+      tempoOverride: Boolean(roundedBpm(gridOverrides.bpm)),
+      gridOverride: Object.keys(gridOverrides).length > 0
     }
   };
 }
@@ -591,6 +655,7 @@ function renderMetadata(metadata) {
   currentMetadata = effectiveMetadata(metadata);
   keyBadge.textContent = keyLabel(currentMetadata);
   updateTempoControl();
+  updateGridCorrectionControls();
   renderGridTimeline(currentMetadata);
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
@@ -631,7 +696,13 @@ function applyTempoOverride(nextBpm) {
   const bpm = roundedBpm(nextBpm);
   if (!bpm || !currentAnalyzedMetadata) return;
 
-  gridOverrides = { ...gridOverrides, bpm };
+  applyGridOverrides({ bpm });
+}
+
+function applyGridOverrides(nextOverrides = {}) {
+  if (!currentAnalyzedMetadata) return;
+
+  gridOverrides = normalizedGridOverrides({ gridOverrides: { ...gridOverrides, ...nextOverrides } });
   if (currentJob?.practiceState) {
     currentJob.practiceState.gridOverrides = gridOverrides;
   }
@@ -640,6 +711,68 @@ function applyTempoOverride(nextBpm) {
   renderMetadata(currentAnalyzedMetadata);
   updateSelectedSongMeta();
   queuePracticeStatePersist();
+}
+
+function updateGridCorrectionControls() {
+  if (!gridCorrection || !currentAnalyzedMetadata || !currentMetadata) return;
+
+  const analyzedDefaults = metadataGridDefaults(currentAnalyzedMetadata);
+  const effectiveGrid = normalizedBeatGrid(currentMetadata, transportDuration());
+  gridCorrection.hidden = !effectiveGrid;
+  if (!effectiveGrid) return;
+
+  const baseDownbeat = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
+    ? gridOverrides.downbeatOffsetSeconds
+    : analyzedDefaults.downbeatOffsetSeconds;
+  if (barStartInput && document.activeElement !== barStartInput) {
+    barStartInput.value = String(roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0);
+  }
+
+  if (gridOffsetInput && document.activeElement !== gridOffsetInput) {
+    gridOffsetInput.value = String(roundedSeconds(gridOverrides.gridOffsetSeconds ?? 0, -2, 2) ?? 0);
+  }
+
+  for (const button of meterControl?.querySelectorAll("button[data-meter]") || []) {
+    const active = Number(button.dataset.meter) === effectiveGrid.beatsPerBar;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+}
+
+function applyBarStartFromInput() {
+  const seconds = roundedSeconds(barStartInput?.value, 0, 60 * 60);
+  if (seconds === null) return;
+  applyGridOverrides({ downbeatOffsetSeconds: seconds });
+}
+
+function applyGridOffsetFromInput() {
+  const seconds = roundedSeconds(gridOffsetInput?.value, -2, 2);
+  if (seconds === null) return;
+  applyGridOverrides({ gridOffsetSeconds: seconds });
+}
+
+function nudgeGridValue(target, delta) {
+  const step = Number(delta);
+  if (!Number.isFinite(step)) return;
+
+  if (target === "bar-start") {
+    const defaults = metadataGridDefaults(currentAnalyzedMetadata);
+    const current = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
+      ? gridOverrides.downbeatOffsetSeconds
+      : defaults.downbeatOffsetSeconds;
+    const next = roundedSeconds(current + step, 0, 60 * 60);
+    if (next !== null) {
+      applyGridOverrides({ downbeatOffsetSeconds: next });
+    }
+  }
+
+  if (target === "offset") {
+    const current = hasGridOverride(gridOverrides, "gridOffsetSeconds") ? gridOverrides.gridOffsetSeconds : 0;
+    const next = roundedSeconds(current + step, -2, 2);
+    if (next !== null) {
+      applyGridOverrides({ gridOffsetSeconds: next });
+    }
+  }
 }
 
 function openTempoInput() {
@@ -1498,6 +1631,41 @@ tempoInput?.addEventListener("keydown", (event) => {
 
 tempoInput?.addEventListener("blur", () => {
   closeTempoInput(true);
+});
+
+barStartInput?.addEventListener("change", applyBarStartFromInput);
+barStartInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyBarStartFromInput();
+    barStartInput.blur();
+  }
+});
+
+gridOffsetInput?.addEventListener("change", applyGridOffsetFromInput);
+gridOffsetInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyGridOffsetFromInput();
+    gridOffsetInput.blur();
+  }
+});
+
+gridCorrection?.addEventListener("click", (event) => {
+  const nudgeButton = event.target.closest("button[data-grid-nudge]");
+  if (nudgeButton) {
+    const [target, delta] = nudgeButton.dataset.gridNudge.split(":");
+    nudgeGridValue(target, delta);
+    return;
+  }
+
+  const meterButton = event.target.closest("button[data-meter]");
+  if (meterButton) {
+    const beatsPerBar = Number(meterButton.dataset.meter);
+    if (beatsPerBar === 3 || beatsPerBar === 4) {
+      applyGridOverrides({ beatsPerBar });
+    }
+  }
 });
 
 [loopStart, loopEnd, loopEnabled, metronomeEnabled, metronomeAccent, metronomeVolume].forEach((element) => {

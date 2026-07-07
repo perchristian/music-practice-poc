@@ -164,7 +164,12 @@ describe("mock backend", () => {
         metronomeEnabled: true,
         metronomeVolume: 0.65,
         metronomeAccent: false,
-        gridOverrides: { bpm: 106.4 },
+        gridOverrides: {
+          bpm: 106.4,
+          beatsPerBar: 3,
+          downbeatOffsetSeconds: 0.37,
+          gridOffsetSeconds: -0.02
+        },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
         }
@@ -182,6 +187,9 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.metronomeVolume, 0.65);
     assert.equal(updatedJob.practiceState.metronomeAccent, false);
     assert.equal(updatedJob.practiceState.gridOverrides.bpm, 106.4);
+    assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 3);
+    assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, 0.37);
+    assert.equal(updatedJob.practiceState.gridOverrides.gridOffsetSeconds, -0.02);
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 

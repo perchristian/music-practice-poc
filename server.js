@@ -1357,6 +1357,18 @@ function ensurePracticeState(job) {
   if (Number.isFinite(overrideBpm) && overrideBpm > 0) {
     gridOverrides.bpm = Number(clampNumber(overrideBpm, 60, 30, 260).toFixed(1));
   }
+  const overrideBeatsPerBar = Number(job.practiceState?.gridOverrides?.beatsPerBar);
+  if (overrideBeatsPerBar === 3 || overrideBeatsPerBar === 4) {
+    gridOverrides.beatsPerBar = overrideBeatsPerBar;
+  }
+  const overrideDownbeat = Number(job.practiceState?.gridOverrides?.downbeatOffsetSeconds);
+  if (Number.isFinite(overrideDownbeat)) {
+    gridOverrides.downbeatOffsetSeconds = Number(clampNumber(overrideDownbeat, 0, 0, 60 * 60).toFixed(2));
+  }
+  const overrideGridOffset = Number(job.practiceState?.gridOverrides?.gridOffsetSeconds);
+  if (Number.isFinite(overrideGridOffset)) {
+    gridOverrides.gridOffsetSeconds = Number(clampNumber(overrideGridOffset, 0, -2, 2).toFixed(2));
+  }
 
   for (const stem of stemsForJob(job)) {
     stemStates[stem.id] = {
@@ -2102,6 +2114,20 @@ async function handleUpdatePracticeState(req, id, res) {
     practiceState.gridOverrides = {};
     if (Number.isFinite(bpm) && bpm > 0) {
       practiceState.gridOverrides.bpm = Number(clampNumber(bpm, 60, 30, 260).toFixed(1));
+    }
+    const beatsPerBar = Number(payload.gridOverrides.beatsPerBar);
+    if (beatsPerBar === 3 || beatsPerBar === 4) {
+      practiceState.gridOverrides.beatsPerBar = beatsPerBar;
+    }
+    const downbeatOffsetSeconds = Number(payload.gridOverrides.downbeatOffsetSeconds);
+    if (Number.isFinite(downbeatOffsetSeconds)) {
+      practiceState.gridOverrides.downbeatOffsetSeconds = Number(
+        clampNumber(downbeatOffsetSeconds, 0, 0, 60 * 60).toFixed(2)
+      );
+    }
+    const gridOffsetSeconds = Number(payload.gridOverrides.gridOffsetSeconds);
+    if (Number.isFinite(gridOffsetSeconds)) {
+      practiceState.gridOverrides.gridOffsetSeconds = Number(clampNumber(gridOffsetSeconds, 0, -2, 2).toFixed(2));
     }
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
