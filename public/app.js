@@ -1284,28 +1284,63 @@ function loopBarFromPointer(clientX, clientY) {
   return Number.isFinite(bar) && bar > 0 ? Math.round(bar) : null;
 }
 
+function loopDragRangeForTarget(state, targetBar) {
+  if (state.action === "start") {
+    return { startBar: Math.min(targetBar, state.endBar), endBar: state.endBar };
+  }
+
+  if (state.action === "end") {
+    return { startBar: state.startBar, endBar: Math.max(targetBar, state.startBar) };
+  }
+
+  const nextStart = Math.max(1, targetBar);
+  return { startBar: nextStart, endBar: nextStart + state.lengthBars - 1 };
+}
+
+function clearLoopDragPreview() {
+  chordList?.querySelectorAll(".chord-loop-preview-region").forEach((element) => element.remove());
+  chordList?.querySelectorAll(".loop-preview-active, .loop-preview-start, .loop-preview-end").forEach((element) => {
+    element.classList.remove("loop-preview-active", "loop-preview-start", "loop-preview-end");
+  });
+}
+
+function renderLoopDragPreview(startBar, endBar) {
+  clearLoopDragPreview();
+  if (!Number.isFinite(startBar) || !Number.isFinite(endBar)) return;
+
+  for (const segment of chordList?.querySelectorAll(".chord-bar-segment") || []) {
+    const bar = Number(segment.dataset.bar);
+    if (!Number.isFinite(bar) || bar < startBar || bar > endBar) continue;
+
+    const preview = document.createElement("div");
+    preview.className = "chord-loop-preview-region";
+    preview.dataset.testid = `chord-loop-preview-${bar}`;
+    preview.style.gridColumn = "1 / -1";
+    preview.style.gridRow = "1";
+
+    segment.classList.add("loop-preview-active");
+    segment.classList.toggle("loop-preview-start", bar === startBar);
+    segment.classList.toggle("loop-preview-end", bar === endBar);
+    segment.append(preview);
+  }
+}
+
 function updateLoopDragFromPointer(state, clientX, clientY) {
   const targetBar = loopBarFromPointer(clientX, clientY);
   if (!targetBar) return;
 
-  if (state.action === "start") {
-    setLoopBarInputs(Math.min(targetBar, state.endBar), state.endBar);
-    return;
-  }
-
-  if (state.action === "end") {
-    setLoopBarInputs(state.startBar, Math.max(targetBar, state.startBar));
-    return;
-  }
-
-  const nextStart = Math.max(1, targetBar);
-  setLoopBarInputs(nextStart, nextStart + state.lengthBars - 1);
+  const nextRange = loopDragRangeForTarget(state, targetBar);
+  state.previewStartBar = nextRange.startBar;
+  state.previewEndBar = nextRange.endBar;
+  setLoopBarInputs(nextRange.startBar, nextRange.endBar);
+  renderLoopDragPreview(nextRange.startBar, nextRange.endBar);
 }
 
 function finishLoopDrag(cancelled = false) {
   if (!loopDragState) return;
   chordList?.classList.remove("loop-dragging");
   chordList?.querySelectorAll(".chord-loop-region.dragging").forEach((element) => element.classList.remove("dragging"));
+  clearLoopDragPreview();
   if (!cancelled) {
     normalizeLoopBarInputs();
     resetMetronomeSchedule();

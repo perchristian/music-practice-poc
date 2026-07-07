@@ -723,7 +723,7 @@ Demonstrable outcome:
 - Loop start/end controls show bar positions when a beat grid exists, while existing persisted loop start/end seconds remain supported.
 - Count-in can be enabled before loop playback and starts playback at the correct audio time when `Bar 1 start` is nonzero or negative.
 - Count-in repeats on every loop pass so the second pass is not a hard jump back to loop start.
-- The active loop is visible in the Harmony chart and its start/end handles can be dragged across rows, including extending the loop earlier from the front.
+- The active loop is visible in the Harmony chart and its start/end handles can be dragged across rows, including extending the loop earlier from the front; while dragging, Harmony previews the bar range that will be applied on release.
 - Metronome clicks follow loop boundaries and reset cleanly after loop jumps.
 - Dense full-song timelines simplify marker rendering so bar numbers do not overlap.
 - The existing single loop persists per song and restores after reload.
@@ -737,7 +737,7 @@ Verification:
 - Load or simulate a full-song timeline and confirm bar labels remain readable.
 - Reload the app and confirm the single-loop settings persist.
 
-Status: Phase 4A implemented on 2026-07-08 for grid-snapped loop controls, offset-aware count-in verification, and dense timeline simplification. Updated later on 2026-07-08 so loop start/end are bar-based, count-in repeats on every loop pass, and the active loop can be seen and adjusted from the Harmony chart. Full manual listening on real long songs is still useful.
+Status: Phase 4A implemented on 2026-07-08 for grid-snapped loop controls, offset-aware count-in verification, and dense timeline simplification. Updated later on 2026-07-08 so loop start/end are bar-based, count-in repeats on every loop pass, the active loop can be seen and adjusted from the Harmony chart, and loop handle dragging shows an in-grid preview before release. Full manual listening on real long songs is still useful.
 
 ### Deferred: Multiple Saved Loops and Practice Notes
 

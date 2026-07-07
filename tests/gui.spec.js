@@ -117,7 +117,7 @@ async function resizeChordToBarBoundary(page, chordIndex, bar, boundaryBeat) {
   await page.mouse.up();
 }
 
-async function dragLoopHandleToBar(page, action, fromBar, toBar) {
+async function beginLoopHandleDragToBar(page, action, fromBar, toBar) {
   const handle = page.getByTestId(`chord-loop-${action}-${fromBar}`);
   const target = page.locator(`.chord-bar-segment[data-bar="${toBar}"]`);
   await handle.scrollIntoViewIfNeeded();
@@ -130,7 +130,14 @@ async function dragLoopHandleToBar(page, action, fromBar, toBar) {
   await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
   await page.mouse.down();
   await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
-  await page.mouse.up();
+  return async () => {
+    await page.mouse.up();
+  };
+}
+
+async function dragLoopHandleToBar(page, action, fromBar, toBar) {
+  const finishDrag = await beginLoopHandleDragToBar(page, action, fromBar, toBar);
+  await finishDrag();
 }
 
 test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
@@ -609,13 +616,20 @@ test("loop range can be marked and extended from the harmony chord grid", async 
   await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
   await expect(page.getByTestId("chord-loop-region-3")).toHaveCount(0);
 
-  await dragLoopHandleToBar(page, "end", 2, 3);
+  const finishEndDrag = await beginLoopHandleDragToBar(page, "end", 2, 3);
+  await expect(page.getByTestId("chord-loop-preview-2")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-preview-3")).toBeVisible();
+  await finishEndDrag();
+  await expect(page.locator(".chord-loop-preview-region")).toHaveCount(0);
   await expect(page.getByTestId("loop-start")).toHaveValue("2");
   await expect(page.getByTestId("loop-end")).toHaveValue("3");
   await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
   await expect(page.getByTestId("chord-loop-region-3")).toBeVisible();
 
-  await dragLoopHandleToBar(page, "start", 2, 1);
+  const finishStartDrag = await beginLoopHandleDragToBar(page, "start", 2, 1);
+  await expect(page.getByTestId("chord-loop-preview-1")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-preview-3")).toBeVisible();
+  await finishStartDrag();
   await expect(page.getByTestId("loop-start")).toHaveValue("1");
   await expect(page.getByTestId("loop-end")).toHaveValue("3");
   await expect(page.getByTestId("chord-loop-region-1")).toBeVisible();
