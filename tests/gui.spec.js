@@ -2,6 +2,25 @@ import { test, expect } from "@playwright/test";
 
 test.afterEach(async ({ request }) => {
   await request.put("/api/settings/pipeline-mode", { data: { mode: "mock" } });
+  const testSongNames = [
+    "demo-processed-screen-recording.mov",
+    "Renamed Phase 1 song"
+  ];
+  const testSongPrefixes = [
+    "screen-recording-",
+    "phase-one-library-",
+    "queue-first-",
+    "queue-second-",
+    "recent-",
+    "mobile-workspace-",
+    "editable-chords-"
+  ];
+  const entries = await request.get("/api/library").then((response) => (response.ok() ? response.json() : []));
+  await Promise.all(
+    entries
+      .filter((entry) => testSongNames.includes(entry.originalFilename) || testSongPrefixes.some((prefix) => entry.originalFilename.startsWith(prefix)))
+      .map((entry) => request.delete(`/api/jobs/${entry.id}`))
+  );
 });
 
 async function setPlaybackPosition(page, seconds) {
@@ -251,8 +270,8 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
 
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("60 BPM");
-  await expect(page.getByText("Cmaj7")).toBeVisible();
-  await expect(page.getByText("Imaj7")).toBeVisible();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Cmaj7");
+  await expect(page.locator(".cue-roman").first()).toHaveText("Imaj7");
   await expect(page.getByText("E4 G4")).toHaveCount(0);
 });
 
@@ -305,7 +324,7 @@ test("processed demo shortcut opens practice view without selecting a file", asy
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("60 BPM");
-  await expect(page.getByText("Cmaj7")).toBeVisible();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Cmaj7");
 });
 
 test("beat grid timeline and metronome click follow the analyzed grid", async ({ page }) => {
@@ -774,6 +793,60 @@ test("harmony chord cue times follow manual grid tempo and bar start corrections
   await page.getByTestId("bar-start-input").press("Enter");
   await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:02-0:04");
   await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:04-0:06");
+});
+
+test("editable chord chart persists user overrides without replacing analyzer metadata", async ({ page }) => {
+  await page.goto("/");
+  const filename = `editable-chords-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Cmaj7");
+  await expect(page.locator(".chord-card")).toHaveCount(4);
+
+  await page.getByTestId("chord-name-0").fill("Csus2/G");
+  await page.getByTestId("chord-name-0").press("Tab");
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
+  await expect(page.locator(".cue-roman").first()).toHaveText("Isus2");
+
+  await page.getByTestId("chord-split-0").click();
+  await expect(page.locator(".chord-card")).toHaveCount(5);
+  await expect(page.getByTestId("chord-name-1")).toHaveValue("Csus2/G");
+
+  await page.getByTestId("chord-merge-next-0").click();
+  await expect(page.locator(".chord-card")).toHaveCount(4);
+
+  await page.getByTestId("chord-move-right-0").click();
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:01-0:05");
+
+  await page.getByTestId("add-chord-button").click();
+  await expect(page.locator(".chord-card")).toHaveCount(5);
+  await page.getByTestId("chord-delete-4").click();
+  await expect(page.locator(".chord-card")).toHaveCount(4);
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return {
+          analyzerName: job.result.metadata.chords[0].name,
+          editName: job.practiceState.chordEdits?.[0]?.name,
+          editStart: job.practiceState.chordEdits?.[0]?.start
+        };
+      }, jobId);
+    })
+    .toEqual({
+      analyzerName: "Cmaj7",
+      editName: "Csus2/G",
+      editStart: 1
+    });
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:01-0:05");
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {

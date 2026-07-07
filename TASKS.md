@@ -470,9 +470,9 @@ Demonstrable outcome:
   - bar 1 / downbeat start point
   - selected key so roman numerals match the user's working chart
 - Chords are displayed as draft suggestions on bars/beats.
-- The user can add, edit, split, merge, move, and delete chord labels on the grid.
-- User-edited chord labels persist and override analyzer suggestions for the song.
-- Chord labels preserve user-entered text, even when parsing is ambiguous.
+- The user can add, edit, split, merge, move, and delete chord labels on the grid. Done on 2026-07-07: the Harmony panel now renders chord labels as editable fields with per-cue move, split, merge, and delete controls plus an Add chord action.
+- User-edited chord labels persist and override analyzer suggestions for the song. Done on 2026-07-07: edits persist as `practiceState.chordEdits` and drive the displayed chord chart when present.
+- Chord labels preserve user-entered text, even when parsing is ambiguous. Done on 2026-07-07: chord names are stored as user text, while roman numerals are recalculated best-effort from the selected key.
 
 Implementation notes:
 - Treat automatic chord analysis as a first draft, not a source of truth.
@@ -539,7 +539,37 @@ Verification:
 
 Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass after the correction pass. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
-Overall Phase 3 status: In progress. Grid audition and minimal grid correction are complete; editable chords remain planned.
+### Phase 3C: Editable Chord Chart
+
+Goal: Let users turn analyzer chord suggestions into their own working chart after grid calibration.
+
+Deliverables:
+- Chord cues render as editable labels.
+- Add chord creates a new user chord after the current chart.
+- Split divides a chord into two adjacent cues.
+- Merge combines a cue with the next cue.
+- Move shifts a cue earlier or later by one beat on the corrected grid.
+- Delete removes a cue while keeping at least one chord.
+- User-edited chord labels persist in `practiceState.chordEdits` and override analyzer suggestions.
+- Analyzer chord metadata remains unchanged for provenance.
+- Free-text labels remain valid even when roman-numeral parsing is only approximate.
+
+Verification:
+- Edit, add, split, merge, move, and delete chords in the Harmony panel.
+- Reload the app and confirm the edited chart returns.
+- Confirm `job.result.metadata.chords` still contains analyzer suggestions while `practiceState.chordEdits` contains the user chart.
+- Run `npm test`.
+- Run `npm run test:gui`.
+
+Result:
+- Phase 3C is implemented in mock-compatible UI and practice-state storage.
+- Backend validation normalizes chord edit timing, caps chart size, and stores user text without requiring a strict chord parser.
+- Playwright coverage verifies edit/add/split/merge/move/delete behavior, persistence, and analyzer-provenance preservation.
+- Test-created songs are cleaned up by GUI test teardown for the known test filename prefixes.
+
+Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass.
+
+Overall Phase 3 status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 

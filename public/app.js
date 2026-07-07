@@ -52,6 +52,7 @@ const gridCorrection = document.querySelector("#gridCorrection");
 const barStartInput = document.querySelector("#barStartInput");
 const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
+const addChordButton = document.querySelector("#addChordButton");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
 const backToHomeButton = document.querySelector("#backToHomeButton");
@@ -83,6 +84,7 @@ let currentJobId = null;
 let currentAnalyzedMetadata = null;
 let gridOverrides = {};
 let keyOverride = null;
+let chordEdits = null;
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
@@ -271,6 +273,36 @@ function normalizedGridOverrides(state = null) {
   return overrides;
 }
 
+function normalizedChordEdits(state = null) {
+  const source = state?.chordEdits;
+  if (!Array.isArray(source)) return null;
+
+  const edits = source
+    .map((chord) => {
+      const name = String(chord?.name || "").trim().slice(0, 48);
+      const start = roundedSeconds(chord?.start, 0, maxBarStartSeconds);
+      const end = roundedSeconds(chord?.end, 0, maxBarStartSeconds);
+      if (!name || start === null || end === null || end <= start) return null;
+
+      const normalized = {
+        start,
+        end,
+        name,
+        source: "user"
+      };
+      const bar = Number(chord?.bar);
+      const beat = Number(chord?.beat);
+      if (Number.isFinite(bar) && bar > 0) normalized.bar = Math.round(bar);
+      if (Number.isFinite(beat) && beat > 0) normalized.beat = Math.round(beat * 100) / 100;
+      return normalized;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.start - right.start)
+    .slice(0, 128);
+
+  return edits.length ? edits : null;
+}
+
 function metadataGridDefaults(metadata) {
   const grid = metadata?.beatGrid || {};
   const bpm = roundedBpm(grid.bpm);
@@ -369,9 +401,11 @@ function effectiveMetadata(metadata) {
     }
     : null;
   const hasTimingGridOverride = Boolean(roundedBpm(gridOverrides.bpm)) || hasGridOverride(gridOverrides, "downbeatOffsetSeconds");
-  const chords = (metadata.chords || []).map((chord) => ({
-    ...(hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
-    roman: romanNumeralForChord(chord.name, key) || chord.roman
+  const sourceChords = normalizedChordEdits({ chordEdits }) || metadata.chords || [];
+  const chords = sourceChords.map((chord) => ({
+    ...(chord.source === "user" ? chord : hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
+    roman: romanNumeralForChord(chord.name, key) || chord.roman || "",
+    source: chord.source || "analysis"
   }));
 
   if (!bpm && !beatDurationSeconds) {
@@ -660,6 +694,7 @@ async function persistPracticeState(refreshLibrary = false) {
     metronomeSolo,
     gridOverrides,
     keyOverride,
+    chordEdits,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -693,6 +728,7 @@ function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
   gridOverrides = normalizedGridOverrides(state);
   keyOverride = normalizedKeyOverride(state);
+  chordEdits = normalizedChordEdits(state);
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
@@ -874,6 +910,8 @@ function renderCompletedJob(job) {
     ? job.result.stems
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
   gridOverrides = normalizedGridOverrides(job.practiceState);
+  keyOverride = normalizedKeyOverride(job.practiceState);
+  chordEdits = normalizedChordEdits(job.practiceState);
   showSelectedHeader({
     eyebrow: "Song",
     title: job.originalFilename,
@@ -902,20 +940,162 @@ function renderMetadata(metadata) {
   renderGridTimeline(currentMetadata);
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  chordList.replaceChildren(
-    ...currentMetadata.chords.map((chord, index) => {
-      const card = document.createElement("div");
-      card.className = "chord-card";
-      card.dataset.index = String(index);
-      const cuePrefix = chordBarLabel(chord, grid);
-      card.innerHTML = `
-        <span class="cue-time">${cuePrefix}${formatCueTime(chord.start)}-${formatCueTime(chord.end)}</span>
-        <span class="cue-name">${chord.name}</span>
-        <span class="cue-roman">${chord.roman}</span>
-      `;
-      return card;
-    })
-  );
+  chordList.replaceChildren(...currentMetadata.chords.map((chord, index) => renderChordCard(chord, index, grid)));
+}
+
+function renderChordCard(chord, index, grid) {
+  const card = document.createElement("div");
+  card.className = "chord-card";
+  card.dataset.index = String(index);
+  card.classList.toggle("user-edited", chord.source === "user");
+
+  const cueTime = document.createElement("span");
+  cueTime.className = "cue-time";
+  cueTime.textContent = `${chordBarLabel(chord, grid)}${formatCueTime(chord.start)}-${formatCueTime(chord.end)}`;
+
+  const nameInput = document.createElement("input");
+  nameInput.className = "cue-name-input";
+  nameInput.value = chord.name;
+  nameInput.dataset.chordAction = "name";
+  nameInput.dataset.index = String(index);
+  nameInput.dataset.testid = `chord-name-${index}`;
+  nameInput.setAttribute("aria-label", `Chord ${index + 1} name`);
+
+  const roman = document.createElement("span");
+  roman.className = "cue-roman";
+  roman.textContent = chord.roman;
+
+  const actions = document.createElement("div");
+  actions.className = "chord-actions";
+  const actionButtons = [
+    ["move-left", "<", `Move chord ${index + 1} earlier`],
+    ["move-right", ">", `Move chord ${index + 1} later`],
+    ["split", "Split", `Split chord ${index + 1}`],
+    ["merge-next", "Merge", `Merge chord ${index + 1} with next chord`],
+    ["delete", "Delete", `Delete chord ${index + 1}`]
+  ];
+  for (const [action, label, ariaLabel] of actionButtons) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.chordAction = action;
+    button.dataset.index = String(index);
+    button.dataset.testid = `chord-${action}-${index}`;
+    button.setAttribute("aria-label", ariaLabel);
+    button.textContent = label;
+    actions.append(button);
+  }
+
+  card.append(cueTime, nameInput, roman, actions);
+  return card;
+}
+
+function chordGridFields(chord) {
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!grid || !Number.isFinite(Number(chord.start))) return {};
+
+  const beatIndex = (Number(chord.start) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
+  const position = chordGridPosition(beatIndex, grid);
+  return { bar: position.bar, beat: position.beat };
+}
+
+function seedChordEdits() {
+  const source = normalizedChordEdits({ chordEdits }) || currentMetadata?.chords || [];
+  chordEdits = source.map((chord) => {
+    const start = roundedSeconds(chord.start, 0, maxBarStartSeconds) ?? 0;
+    const end = roundedSeconds(chord.end, 0, maxBarStartSeconds) ?? start + 1;
+    const seeded = {
+      start,
+      end: end > start ? end : start + 1,
+      name: String(chord.name || "C").trim() || "C",
+      source: "user"
+    };
+    return { ...seeded, ...chordGridFields(seeded) };
+  });
+}
+
+function commitChordEdits(nextEdits) {
+  chordEdits = normalizedChordEdits({ chordEdits: nextEdits });
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.chordEdits = chordEdits;
+  }
+  renderMetadata(currentAnalyzedMetadata);
+  queuePracticeStatePersist();
+}
+
+function beatStepSeconds() {
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  return grid?.beatDurationSeconds || 1;
+}
+
+function moveChord(index, direction) {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  const chord = edits[index];
+  if (!chord) return;
+  const step = beatStepSeconds() * direction;
+  const duration = Math.max(0.1, chord.end - chord.start);
+  const start = Math.max(0, chord.start + step);
+  edits[index] = { ...chord, start, end: start + duration };
+  edits[index] = { ...edits[index], ...chordGridFields(edits[index]) };
+  commitChordEdits(edits);
+}
+
+function splitChord(index) {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  const chord = edits[index];
+  if (!chord) return;
+  const midpoint = roundedSeconds(chord.start + (chord.end - chord.start) / 2, 0, maxBarStartSeconds);
+  if (midpoint === null || midpoint <= chord.start || midpoint >= chord.end) return;
+  const left = { ...chord, end: midpoint };
+  const right = { ...chord, start: midpoint };
+  edits.splice(index, 1, left, { ...right, ...chordGridFields(right) });
+  commitChordEdits(edits);
+}
+
+function mergeChordWithNext(index) {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  const chord = edits[index];
+  const next = edits[index + 1];
+  if (!chord || !next) return;
+  edits.splice(index, 2, { ...chord, end: Math.max(chord.end, next.end) });
+  commitChordEdits(edits);
+}
+
+function deleteChord(index) {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  if (edits.length <= 1 || !edits[index]) return;
+  edits.splice(index, 1);
+  commitChordEdits(edits);
+}
+
+function updateChordName(index, value) {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  if (!edits[index]) return;
+  const name = String(value || "").trim().slice(0, 48);
+  if (!name) return;
+  edits[index] = { ...edits[index], name };
+  commitChordEdits(edits);
+}
+
+function addChord() {
+  seedChordEdits();
+  const edits = [...chordEdits];
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const last = edits.at(-1);
+  const start = last ? last.end : transportTime();
+  const duration = grid ? grid.beatDurationSeconds * grid.beatsPerBar : 4;
+  const chord = {
+    start: roundedSeconds(start, 0, maxBarStartSeconds) ?? 0,
+    end: roundedSeconds(start + duration, 0, maxBarStartSeconds) ?? start + duration,
+    name: last?.name || "C",
+    source: "user"
+  };
+  edits.push({ ...chord, ...chordGridFields(chord) });
+  commitChordEdits(edits);
 }
 
 function updateKeyControl() {
@@ -2233,6 +2413,30 @@ meterSelect?.addEventListener("change", () => {
   const signature = parseTimeSignature(meterSelect.value);
   if (signature) {
     applyGridOverrides(signature);
+  }
+});
+
+addChordButton?.addEventListener("click", addChord);
+
+chordList?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-chord-action]");
+  if (!button) return;
+  const index = Number(button.dataset.index);
+  if (!Number.isInteger(index)) return;
+
+  if (button.dataset.chordAction === "move-left") moveChord(index, -1);
+  if (button.dataset.chordAction === "move-right") moveChord(index, 1);
+  if (button.dataset.chordAction === "split") splitChord(index);
+  if (button.dataset.chordAction === "merge-next") mergeChordWithNext(index);
+  if (button.dataset.chordAction === "delete") deleteChord(index);
+});
+
+chordList?.addEventListener("change", (event) => {
+  const input = event.target.closest("input[data-chord-action='name']");
+  if (!input) return;
+  const index = Number(input.dataset.index);
+  if (Number.isInteger(index)) {
+    updateChordName(index, input.value);
   }
 });
 

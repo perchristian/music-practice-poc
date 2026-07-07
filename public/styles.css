@@ -570,7 +570,7 @@ h3 {
   grid-column: 1 / -1;
 }
 
-@container (max-width: 620px) {
+@container (max-width: 960px) {
   .practice-grid {
     grid-template-columns: 1fr;
   }
@@ -913,6 +913,12 @@ audio {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  align-items: end;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 7px 10px;
 }
 
 .key-control {
@@ -1064,8 +1070,8 @@ audio {
 
 .chord-card {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(88px, 0.85fr) minmax(94px, 1fr) minmax(44px, auto) minmax(214px, auto);
+  gap: 8px;
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1088,9 +1094,53 @@ audio {
   font-weight: 800;
 }
 
+.cue-name-input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: #f8fafc;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.cue-name-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+  background: #fff;
+  outline: none;
+}
+
 .cue-roman {
   color: var(--warm);
   font-weight: 800;
+}
+
+.chord-actions {
+  display: grid;
+  grid-template-columns: 28px 28px repeat(3, minmax(48px, auto));
+  gap: 4px;
+  justify-content: end;
+}
+
+.chord-actions button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 7px;
+}
+
+.chord-actions button:hover,
+.chord-actions button:focus-visible {
+  border-color: rgba(37, 99, 235, 0.55);
+  outline: none;
 }
 
 @media (max-width: 820px) {
@@ -1131,6 +1181,21 @@ audio {
 
   .harmony-summary {
     justify-content: flex-start;
+  }
+
+  .chord-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cue-time,
+  .cue-name-input {
+    grid-column: span 2;
+  }
+
+  .chord-actions {
+    grid-column: span 2;
+    justify-content: stretch;
+    grid-template-columns: 34px 34px repeat(3, minmax(0, 1fr));
   }
 
   .song-workspace:not(.detail-open) .song-detail {

@@ -1343,6 +1343,7 @@ async function createJobRecord({
       metronomeSolo: false,
       gridOverrides: {},
       keyOverride: null,
+      chordEdits: null,
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1361,6 +1362,35 @@ function defaultStemState(stemId) {
 function clampNumber(value, fallback, min, max) {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, value));
+}
+
+function normalizeChordEdits(value) {
+  if (!Array.isArray(value)) return null;
+
+  const edits = value
+    .map((chord) => {
+      const name = String(chord?.name || "").trim().slice(0, 48);
+      const start = clampNumber(Number(chord?.start), null, 0, MAX_BAR_START_SECONDS);
+      const end = clampNumber(Number(chord?.end), null, 0, MAX_BAR_START_SECONDS);
+      if (!name || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+
+      const normalized = {
+        start: Number(start.toFixed(2)),
+        end: Number(end.toFixed(2)),
+        name,
+        source: "user"
+      };
+      const bar = Number(chord?.bar);
+      const beat = Number(chord?.beat);
+      if (Number.isFinite(bar) && bar > 0) normalized.bar = Math.round(bar);
+      if (Number.isFinite(beat) && beat > 0) normalized.beat = Number(beat.toFixed(2));
+      return normalized;
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.start - right.start)
+    .slice(0, 128);
+
+  return edits.length ? edits : null;
 }
 
 function ensurePracticeState(job) {
@@ -1420,6 +1450,7 @@ function ensurePracticeState(job) {
     metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
     keyOverride: normalizedKeyOverride,
+    chordEdits: normalizeChordEdits(job.practiceState?.chordEdits),
     stemStates
   };
 
@@ -2175,6 +2206,9 @@ async function handleUpdatePracticeState(req, id, res) {
         mode: payload.keyOverride.mode
       };
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "chordEdits")) {
+    practiceState.chordEdits = normalizeChordEdits(payload.chordEdits);
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
     practiceState.stemStates = {

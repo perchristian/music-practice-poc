@@ -118,7 +118,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, and last position is stored per song in `job.json`. Grid corrections and editable chord charts are planned for Phase 3; notes and multiple named practice loops are deferred to Phase 4.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and user chord edits is stored per song in `job.json`. Notes and multiple named practice loops are deferred to Phase 4.
 
 ## Library UX
 
@@ -147,10 +147,10 @@ Real mode now stores uploaded source media, extracts `source-audio.wav` through 
 The next architecture priority is not a more complex chord labeler. It is a user-correctable musical grid and chord chart:
 
 1. make the analyzed beat/bar grid audible with a metronome/click: implemented for Phase 3A
-2. let the user correct bar 1, tempo, time signature, and grid offset while listening: implemented for Phase 3B with numeric fields, 0.01-second nudges, and a 4/4 vs 3/4 selector
-3. store analyzer chord output as draft suggestions
-4. let the user add, edit, split, merge, move, and delete chord labels on bars/beats
-5. persist user-edited chords as the song's working chart, overriding analyzer suggestions
+2. let the user correct bar 1, tempo, time signature, and key while listening: implemented for Phase 3B with numeric fields, 0.01-second nudges, half/double tempo buttons, typed BPM, and 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8 options
+3. store analyzer chord output as draft suggestions: implemented by keeping `job.result.metadata.chords` unchanged
+4. let the user add, edit, split, merge, move, and delete chord labels on bars/beats: implemented for Phase 3C
+5. persist user-edited chords as the song's working chart, overriding analyzer suggestions: implemented as `practiceState.chordEdits`
 6. continue evaluating better analyzers such as librosa/Essentia/LLM-hybrid as ways to improve the first draft
 
 one subsystem at a time.
@@ -179,7 +179,7 @@ The implemented Phase 2H spike currently records `harmonySource: "real-audio-ana
 
 Chord text should remain user-preserving. The app may parse root, quality, bass note, and extensions for display, roman numerals, and future transposition, but it must keep the original entered label because useful musician notation can be ambiguous. For example, `Csus2`, `C9`, `C7/F`, and `F11` can be different names for similar harmonic evidence depending on context.
 
-The metronome is part of grid calibration. It now plays against the song from the current effective `beatGrid`, with downbeat emphasis and simple volume/on-off controls stored in `practiceState`. Phase 3B adds persistent user corrections for BPM, bar 1 start, 4/4 vs 3/4, and small grid offset in `practiceState.gridOverrides`, while preserving analyzer metadata as provenance. The current UI uses direct numeric fields and 0.01-second nudge buttons instead of a waveform editor; waveform should be considered later only if manual listening shows the nudge-only flow is too blind for users.
+The metronome is part of grid calibration. It now plays against the song from the current effective `beatGrid`, with downbeat emphasis and mixer-style mute/solo/volume controls stored in `practiceState`. Phase 3B adds persistent user corrections for BPM, bar 1 start, and time signature in `practiceState.gridOverrides`, while preserving analyzer metadata as provenance. Phase 3C adds `practiceState.chordEdits` as the user's working chart. The current UI uses direct numeric fields and 0.01-second nudge buttons instead of a waveform editor; waveform should be considered later only if manual listening shows the nudge-only flow is too blind for users.
 
 ## Native iOS Transition Criteria
 
