@@ -260,6 +260,25 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
 
+    const emptyChartResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chordChart: {
+          version: 1,
+          divisionsPerQuarter: 4,
+          chords: []
+        }
+      })
+    });
+    assert.equal(emptyChartResponse.status, 200);
+    const emptyChartJob = await emptyChartResponse.json();
+    assert.deepEqual(emptyChartJob.practiceState.chordChart, {
+      version: 1,
+      divisionsPerQuarter: 4,
+      chords: []
+    });
+
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);
 

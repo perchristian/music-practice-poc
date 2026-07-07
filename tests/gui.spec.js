@@ -14,7 +14,8 @@ test.afterEach(async ({ request }) => {
     "recent-",
     "mobile-workspace-",
     "editable-chords-",
-    "resize-chords-"
+    "resize-chords-",
+    "delete-last-chord-"
   ];
   const entries = await request.get("/api/library").then((response) => (response.ok() ? response.json() : []));
   await Promise.all(
@@ -101,6 +102,7 @@ async function dragChordToBarBeat(page, chordIndex, bar, beat) {
 async function resizeChordToBarBoundary(page, chordIndex, bar, boundaryBeat) {
   const handle = page.getByTestId(`chord-resize-${chordIndex}`);
   const target = page.locator(`.chord-bar-segment[data-bar="${bar}"]`);
+  await handle.scrollIntoViewIfNeeded();
   const handleBox = await handle.boundingBox();
   const targetBox = await target.boundingBox();
   const beatsPerBar = await target.evaluate((element) => Number(getComputedStyle(element).getPropertyValue("--beats-per-bar")) || 4);
@@ -967,8 +969,29 @@ test("chord cards can be resized to expose beat cells for inserting chords", asy
   await page.getByTestId(`song-row-${jobId}`).click();
   await page.getByTestId("bars-per-row-select").selectOption("4");
   await expect(page.locator(".chord-card")).toHaveCount(4);
+  await expect(page.getByTestId("chord-add-1-2")).toBeHidden();
+  await expect(page.getByTestId("chord-add-1-3")).toBeHidden();
 
-  await resizeChordToBarBoundary(page, 0, 1, 2);
+  const handle = page.getByTestId("chord-resize-0");
+  const target = page.locator('.chord-bar-segment[data-bar="1"]');
+  await handle.scrollIntoViewIfNeeded();
+  const handleBox = await handle.boundingBox();
+  const targetBox = await target.boundingBox();
+  const beatsPerBar = await target.evaluate((element) => Number(getComputedStyle(element).getPropertyValue("--beats-per-bar")) || 4);
+  if (!handleBox || !targetBox) {
+    throw new Error("Could not resolve resize preview target boxes.");
+  }
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width * (2 / beatsPerBar), targetBox.y + targetBox.height / 2);
+  await expect
+    .poll(async () => page.getByTestId("chord-card-0").evaluate((card) => card.style.gridColumn))
+    .toBe("1 / span 2");
+  await expect(page.getByTestId("chord-add-1-2")).toBeHidden();
+  await expect(page.getByTestId("chord-add-1-3")).toBeVisible();
+  await page.mouse.up();
+
   await expect(page.getByTestId("chord-add-1-3")).toBeVisible();
   await page.getByTestId("chord-add-1-3").click();
   await expect(page.locator(".chord-card")).toHaveCount(5);
@@ -991,6 +1014,38 @@ test("chord cards can be resized to expose beat cells for inserting chords", asy
       firstDurationDiv: 8,
       insertedOffsetDiv: 8
     });
+});
+
+test("last chord can be deleted without restoring analyzer chords", async ({ page }) => {
+  await page.goto("/");
+  const filename = `delete-last-chord-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("bars-per-row-select").selectOption("4");
+
+  while ((await page.locator(".chord-card").count()) > 0) {
+    await page.getByTestId("chord-delete-0").click();
+  }
+
+  await expect(page.locator(".chord-card")).toHaveCount(0);
+  await expect(page.getByTestId("chord-add-1-1")).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.chordChart?.chords?.length;
+      }, jobId);
+    })
+    .toBe(0);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.locator(".chord-card")).toHaveCount(0);
+  await expect(page.getByTestId("chord-add-1-1")).toBeVisible();
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {

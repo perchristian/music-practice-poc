@@ -1421,13 +1421,11 @@ function normalizeChordChart(value) {
     .sort((left, right) => left.bar - right.bar || left.offsetDiv - right.offsetDiv)
     .slice(0, MAX_CHORD_CHART_CHORDS);
 
-  return chords.length
-    ? {
-      version: CHORD_CHART_VERSION,
-      divisionsPerQuarter,
-      chords
-    }
-    : null;
+  return {
+    version: CHORD_CHART_VERSION,
+    divisionsPerQuarter,
+    chords
+  };
 }
 
 function normalizeHarmonyView(value) {

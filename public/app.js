@@ -306,13 +306,11 @@ function normalizedChordChart(state = null) {
     .sort((left, right) => left.bar - right.bar || left.offsetDiv - right.offsetDiv)
     .slice(0, maxChordChartChords);
 
-  return chords.length
-    ? {
-      version: chordChartVersion,
-      divisionsPerQuarter,
-      chords
-    }
-    : null;
+  return {
+    version: chordChartVersion,
+    divisionsPerQuarter,
+    chords
+  };
 }
 
 function normalizedHarmonyView(state = null) {
@@ -1169,12 +1167,15 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   barNumber.textContent = String(bar);
 
   const sortedEntries = entries.sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index);
-  const occupiedStartCells = new Set();
+  const occupiedCells = new Set();
   const cards = sortedEntries.map((entry) => {
     const span = chordEntrySpan(entry, sortedEntries, grid, beatsPerBar);
-    occupiedStartCells.add(entry.beatCell);
+    for (let beat = entry.beatCell; beat < entry.beatCell + span && beat <= beatsPerBar; beat += 1) {
+      occupiedCells.add(beat);
+    }
     const card = renderChordCard(entry.chord, entry.index, grid, entry.hit);
     card.style.gridColumn = `${entry.beatCell} / span ${span}`;
+    card.style.gridRow = "1";
     return card;
   });
 
@@ -1190,7 +1191,8 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
     button.setAttribute("aria-label", `Add chord in bar ${bar}, beat ${beat}`);
     button.textContent = "+";
     button.style.gridColumn = String(beat);
-    button.hidden = occupiedStartCells.has(beat);
+    button.style.gridRow = "1";
+    button.hidden = occupiedCells.has(beat);
     return button;
   });
 
@@ -1307,7 +1309,7 @@ function commitChordChart(nextChords) {
 function deleteChord(index) {
   seedChordChart();
   const chords = [...chordChart.chords];
-  if (chords.length <= 1 || !chords[index]) return;
+  if (!chords[index]) return;
   chords.splice(index, 1);
   commitChordChart(chords);
 }
@@ -1419,10 +1421,53 @@ function chordResizeBoundaryFromPointer(state, clientX) {
   return clampedInteger(Math.round(ratio * beatsPerBar), 1, 1, beatsPerBar);
 }
 
-function clearChordResizePreview() {
+function chordCardGridStart(card) {
+  const explicitStart = String(card.style.gridColumn || "").match(/^\s*(\d+)\s*\//)?.[1];
+  const fallbackStart = Math.floor(Number(card.dataset.beat) || 1);
+  return clampedInteger(explicitStart || fallbackStart, 1, 1, maxChordChartDivisions);
+}
+
+function chordCardGridSpan(card) {
+  const explicitSpan = String(card.style.gridColumn || "").match(/span\s+(\d+)/)?.[1];
+  return clampedInteger(explicitSpan, 1, 1, maxChordChartDivisions);
+}
+
+function setChordResizeCoveredCells(segment, resizingCard, previewSpan) {
+  const beatsPerBar = Number(getComputedStyle(segment).getPropertyValue("--beats-per-bar")) || defaultTimeSignature.beatsPerBar;
+  const occupiedCells = new Set();
+  for (const card of segment.querySelectorAll(".chord-card")) {
+    const start = chordCardGridStart(card);
+    const span = card === resizingCard ? previewSpan : chordCardGridSpan(card);
+    for (let beat = start; beat < start + span && beat <= beatsPerBar; beat += 1) {
+      occupiedCells.add(beat);
+    }
+  }
+  for (const button of segment.querySelectorAll(".chord-add-cell")) {
+    button.hidden = occupiedCells.has(Number(button.dataset.beat));
+  }
+}
+
+function updateChordResizePreview(state, boundaryBeat) {
+  const beatsPerBar = Number(getComputedStyle(state.segment).getPropertyValue("--beats-per-bar")) || defaultTimeSignature.beatsPerBar;
+  const start = state.startBeatCell;
+  const nextStart = [...state.segment.querySelectorAll(".chord-card")]
+    .filter((card) => card !== state.card)
+    .map(chordCardGridStart)
+    .filter((candidateStart) => candidateStart > start)
+    .sort((left, right) => left - right)[0];
+  const maxSpan = Math.max(1, (nextStart || beatsPerBar + 1) - start);
+  const requestedSpan = Number(boundaryBeat) - start + 1;
+  const previewSpan = Math.max(1, Math.min(requestedSpan, maxSpan, beatsPerBar - start + 1));
+  state.card.style.gridColumn = `${start} / span ${previewSpan}`;
+  setChordResizeCoveredCells(state.segment, state.card, previewSpan);
+}
+
+function clearChordResizePreview(restore = false) {
   if (!chordResizeState) return;
   chordResizeState.card.classList.remove("resizing");
-  chordResizeState.segment.style.removeProperty("--resize-preview-end");
+  if (restore && currentAnalyzedMetadata) {
+    renderMetadata(currentAnalyzedMetadata);
+  }
   chordResizeState = null;
 }
 
@@ -2842,15 +2887,18 @@ chordList?.addEventListener("pointerdown", (event) => {
     index,
     bar: Number(segment.dataset.bar) || 1,
     pointerId: event.pointerId,
+    startBeatCell: chordCardGridStart(card),
     boundaryBeat: chordResizeBoundaryFromPointer({ segment }, event.clientX)
   };
   card.classList.add("resizing");
+  updateChordResizePreview(chordResizeState, chordResizeState.boundaryBeat);
 });
 
 chordList?.addEventListener("pointermove", (event) => {
   if (!chordResizeState || chordResizeState.pointerId !== event.pointerId) return;
   event.preventDefault();
   chordResizeState.boundaryBeat = chordResizeBoundaryFromPointer(chordResizeState, event.clientX);
+  updateChordResizePreview(chordResizeState, chordResizeState.boundaryBeat);
 });
 
 chordList?.addEventListener("pointerup", (event) => {
@@ -2863,7 +2911,7 @@ chordList?.addEventListener("pointerup", (event) => {
 
 chordList?.addEventListener("pointercancel", (event) => {
   if (!chordResizeState || chordResizeState.pointerId !== event.pointerId) return;
-  clearChordResizePreview();
+  clearChordResizePreview(true);
 });
 
 chordList?.addEventListener("change", (event) => {
