@@ -591,6 +591,84 @@ test("harmony panel shows analysis tempo and sub-second cue times", async ({ pag
   await expect(page.locator(".cue-roman").first()).toHaveText("III");
 });
 
+test("harmony chord cue times follow manual grid tempo and bar start corrections", async ({ page }) => {
+  const jobId = "44444444-4444-4444-8444-444444444444";
+  const job = {
+    id: jobId,
+    mode: "real",
+    status: "complete",
+    progress: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    originalFilename: "grid-correction.mov",
+    practiceState: { learningStatus: "not_started", stemStates: {} },
+    result: {
+      stems: [{ id: "piano", name: "Piano", audioUrl: `/api/jobs/${jobId}/stems/piano.wav` }],
+      metadata: {
+        durationSeconds: 12,
+        key: { tonic: "C", mode: "major" },
+        beatGrid: {
+          bpm: 60,
+          beatsPerBar: 4,
+          beatUnit: 4,
+          beatDurationSeconds: 1,
+          downbeatOffsetSeconds: 1
+        },
+        chords: [
+          { bar: 1, beat: 1, start: 1, end: 5, name: "C", roman: "I" },
+          { bar: 2, beat: 1, start: 5, end: 9, name: "F", roman: "IV" }
+        ],
+        melody: []
+      }
+    }
+  };
+
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 12;
+      }
+    });
+  });
+
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([job])
+    });
+  });
+  await page.route(`**/api/jobs/${jobId}`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
+  await page.route(`**/api/jobs/${jobId}/practice-state`, async (route) => {
+    const payload = route.request().postDataJSON();
+    job.practiceState = { ...job.practiceState, ...payload };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
+
+  await page.goto("/");
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:01-0:05");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:05-0:09");
+
+  await page.getByTestId("tempo-display").click();
+  await page.getByTestId("tempo-input").fill("120");
+  await page.getByTestId("tempo-input").press("Enter");
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:01-0:03");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:03-0:05");
+
+  await page.getByTestId("bar-start-input").fill("2");
+  await page.getByTestId("bar-start-input").press("Enter");
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:02-0:04");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:04-0:06");
+});
+
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];

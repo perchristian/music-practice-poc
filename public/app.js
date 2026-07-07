@@ -282,6 +282,64 @@ function metadataGridDefaults(metadata) {
   };
 }
 
+function chordBeatRange(chord, grid) {
+  if (!grid || !Number.isFinite(grid.beatDurationSeconds) || grid.beatDurationSeconds <= 0) {
+    return null;
+  }
+
+  const startSeconds = Number(chord.start);
+  const endSeconds = Number(chord.end);
+  const bar = Number(chord.bar);
+  const beat = Number(chord.beat || 1);
+  let startBeat = null;
+
+  if (Number.isFinite(startSeconds)) {
+    startBeat = (startSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
+  } else if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
+    startBeat = (bar - 1) * grid.beatsPerBar + (beat - 1);
+  }
+
+  if (!Number.isFinite(startBeat)) return null;
+
+  let endBeat = Number.isFinite(endSeconds)
+    ? (endSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds
+    : startBeat + 1;
+  if (!Number.isFinite(endBeat) || endBeat <= startBeat) {
+    endBeat = startBeat + 1;
+  }
+
+  return { startBeat, endBeat };
+}
+
+function chordGridPosition(beatIndex, grid) {
+  const roundedBeatIndex = Math.max(0, Math.floor(beatIndex + 0.001));
+  return {
+    bar: Math.floor(roundedBeatIndex / grid.beatsPerBar) + 1,
+    beat: (roundedBeatIndex % grid.beatsPerBar) + 1
+  };
+}
+
+function adjustChordTimingForGrid(chord, sourceGrid, targetGrid) {
+  if (!sourceGrid || !targetGrid || !Number.isFinite(targetGrid.beatDurationSeconds) || targetGrid.beatDurationSeconds <= 0) {
+    return chord;
+  }
+
+  const beatRange = chordBeatRange(chord, sourceGrid);
+  if (!beatRange) return chord;
+
+  const start = targetGrid.downbeatOffsetSeconds + beatRange.startBeat * targetGrid.beatDurationSeconds;
+  const end = targetGrid.downbeatOffsetSeconds + beatRange.endBeat * targetGrid.beatDurationSeconds;
+  const gridPosition = chordGridPosition(beatRange.startBeat, targetGrid);
+
+  return {
+    ...chord,
+    start,
+    end,
+    bar: gridPosition.bar,
+    beat: gridPosition.beat
+  };
+}
+
 function effectiveMetadata(metadata) {
   if (!metadata) return metadata;
 
@@ -296,8 +354,18 @@ function effectiveMetadata(metadata) {
   const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0;
 
   const key = keyOverride || metadata.key;
+  const effectiveGrid = bpm || beatDurationSeconds
+    ? {
+      bpm,
+      beatDurationSeconds,
+      beatsPerBar,
+      beatUnit,
+      downbeatOffsetSeconds
+    }
+    : null;
+  const hasTimingGridOverride = Boolean(roundedBpm(gridOverrides.bpm)) || hasGridOverride(gridOverrides, "downbeatOffsetSeconds");
   const chords = (metadata.chords || []).map((chord) => ({
-    ...chord,
+    ...(hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
     roman: romanNumeralForChord(chord.name, key) || chord.roman
   }));
 
