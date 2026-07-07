@@ -147,6 +147,13 @@ function normalizedDurationSeconds(value) {
   return finitePositiveNumber(duration) && duration < 24 * 60 * 60 ? duration : null;
 }
 
+function normalizedThumbnailDataUrl(value) {
+  if (typeof value !== "string") return null;
+  if (!/^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(value)) return null;
+  if (Buffer.byteLength(value, "utf8") > 180_000) return null;
+  return value;
+}
+
 function wavDurationSeconds(buffer) {
   if (
     buffer.length < 44 ||
@@ -1297,6 +1304,7 @@ async function createJobRecord({
   sourceFilename = null,
   mockUpload = false,
   originalDurationSeconds = null,
+  thumbnailDataUrl = null,
   mode = activePipelineMode
 }) {
   const id = randomUUID();
@@ -1312,6 +1320,7 @@ async function createJobRecord({
     originalSize,
     originalType,
     originalDurationSeconds: normalizedDurationSeconds(originalDurationSeconds),
+    thumbnailDataUrl: normalizedThumbnailDataUrl(thumbnailDataUrl),
     sourcePath,
     sourceFilename,
     mockUpload,
@@ -1427,6 +1436,7 @@ function publicJob(job) {
     originalFilename: job.originalFilename,
     originalSize: job.originalSize,
     originalType: job.originalType,
+    thumbnailDataUrl: job.thumbnailDataUrl || null,
     mockUpload: job.mockUpload,
     error: job.error || null,
     source: job.sourceFilename
@@ -1997,6 +2007,7 @@ async function handleCreateJob(req, res) {
       originalSize: payload.size,
       originalType: payload.type,
       originalDurationSeconds: payload.durationSeconds,
+      thumbnailDataUrl: payload.thumbnailDataUrl,
       mockUpload: true,
       mode: selectedMode
     });
@@ -2011,6 +2022,7 @@ async function handleCreateJob(req, res) {
     const parts = parseMultipart(body, boundaryMatch[1] || boundaryMatch[2]);
     const media = parts.find((part) => part.name === "media" && part.filename);
     const durationPart = parts.find((part) => part.name === "durationSeconds" && !part.filename);
+    const thumbnailPart = parts.find((part) => part.name === "thumbnailDataUrl" && !part.filename);
     if (!media) {
       badRequest(res, "Upload must include a file field named media.");
       return;
@@ -2023,6 +2035,7 @@ async function handleCreateJob(req, res) {
       originalSize: media.data.length,
       originalType: media.contentType,
       originalDurationSeconds: durationPart?.data?.toString("utf8"),
+      thumbnailDataUrl: thumbnailPart?.data?.toString("utf8"),
       sourceFilename,
       mode: selectedMode
     });

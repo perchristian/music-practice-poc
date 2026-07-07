@@ -519,15 +519,16 @@ Status: Complete for automated verification on 2026-07-07.
 Goal: Let a user correct the analyzed musical grid before editing chords.
 
 Deliverables:
-- User can adjust bar 1/downbeat start point. Done on 2026-07-07: the Harmony panel shows a `Bar 1 start` seconds field with 0.01-second nudge buttons.
-- User can adjust BPM through half/double tempo and/or a numeric BPM field. Done on 2026-07-07: the Harmony panel shows `/2`, editable BPM, and `x2`; the override persists as `practiceState.gridOverrides.bpm`; timeline markers, chord bar labels, selected-song tempo text, and grid click use the corrected tempo.
-- User can switch time signature. Done on 2026-07-07: the Harmony panel now uses a dropdown for 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8; per-song overrides persist as `practiceState.gridOverrides.beatsPerBar` and `beatUnit`.
+- User can adjust bar 1/downbeat start point. Done on 2026-07-07: the Time panel shows a `Bar 1 start` seconds field with 0.01-second nudge buttons.
+- User can adjust BPM through half/double tempo and/or a numeric BPM field. Done on 2026-07-07: the Time panel shows `/2`, editable BPM, and `x2`; the override persists as `practiceState.gridOverrides.bpm`; timeline markers, chord bar labels, selected-song tempo text, and grid click use the corrected tempo.
+- User can switch time signature. Done on 2026-07-07: the Time panel now uses a dropdown for 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8; per-song overrides persist as `practiceState.gridOverrides.beatsPerBar` and `beatUnit`.
 - User can change key. Done on 2026-07-07: the Harmony panel has a key dropdown with natural, sharp, and flat spellings for major/minor keys; roman numerals are recalculated from the selected key and persisted as `practiceState.keyOverride`.
 - Grid offset is intentionally removed from the active UI after product review; Bar 1 start plus BPM should cover the current calibration need without an extra offset concept.
 - Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops. Done on 2026-07-07: corrections persist in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `beatUnit`, and `downbeatOffsetSeconds`, while analyzer metadata remains unchanged.
 - Transport, speed, current/total time, playhead, and loop markers are grouped with the timeline. Loop markers appear only when looping is enabled.
-- Loop count-in has a first-pass 1-bar option. The current implementation starts playback one bar before loop start when enough source audio exists.
+- Loop count-in has a first-pass 1-bar option. The current implementation starts playback one bar before loop start when enough source audio exists, and loop start/end/count-in controls are only shown while Loop is enabled.
 - Metronome/click is presented as a mixer row with mute, solo, and volume. Downbeat accent is always enabled without a user-facing preference.
+- Product-review cleanup after Phase 3B moved learning status to the selected-song header, moved Rename/Delete under a more menu, removed user-facing `Processed result`, `Learning cues`, `Ready`, and `Offset` labels, split the practice UI into Time, Harmony, and Stems/Mixer sections, persisted browser-extracted video thumbnails, and fixed scheduled metronome clicks continuing after pause or across loop jumps.
 
 Verification:
 - Open a processed song, enable the metronome, and adjust each grid control.

@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, Phase 2G-QA Demucs bakeoff, Phase 2H real harmonic-analysis spike, Phase 3A grid-audition pass, and Phase 3B minimal grid correction are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the detail header, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, see beat/bar markers, turn on a grid-aligned metronome/click from the mixer row, manually halve/double or type-correct the displayed tempo, set bar 1 start, switch time signature with 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8 options, change key with natural/sharp/flat spellings, see roman numerals update to the selected key, use timeline-relative playhead and loop markers, use a first-pass 1-bar loop count-in, and inspect harmonic cues. Grid corrections persist separately from analyzer metadata in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `beatUnit`, and `downbeatOffsetSeconds`; key correction persists as `practiceState.keyOverride`; the corrected grid drives timeline markers, chord bar labels, selected-song tempo text, and metronome clicks. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav`, separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default, then analyzed for approximate beat-aware harmonic cues. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration; and the song list prefers media duration over the fixed harmonic cue length.
+The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B unified song workspace UX, Phase 2 real-mode FFmpeg extraction spike, Phase 2G piano-focused real separation spike, Phase 2G-QA Demucs bakeoff, Phase 2H real harmonic-analysis spike, Phase 3A grid-audition pass, and Phase 3B minimal grid correction are implemented and functionally verified by automated backend and browser tests. A developer can start the local web POC, switch active pipeline mode from the GUI, queue one or more media files for mock processing, keep active jobs visible in one primary song list, reopen completed processed songs from that same list, select songs without navigating through separate Recent and All songs pages, rename/delete the selected song from the header's more menu, persist practice state, mute/unmute stems, solo stems, adjust stem volume, use playback controls, see beat/bar markers, turn on a grid-aligned metronome/click from the mixer row, manually halve/double or type-correct the displayed tempo, set bar 1 start, switch time signature with 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8 options, change key with natural/sharp/flat spellings, see roman numerals update to the selected key, use timeline-relative playhead and loop markers, use a first-pass 1-bar loop count-in, and inspect harmonic cues. Grid corrections persist separately from analyzer metadata in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `beatUnit`, and `downbeatOffsetSeconds`; key correction persists as `practiceState.keyOverride`; the corrected grid drives timeline markers, chord bar labels, selected-song tempo text, and metronome clicks. The practice view is now grouped into selected-song, Time, Harmony, and Stems/Mixer sections; learning status sits in the selected-song header; loop start/end/count-in only appear while Loop is enabled; and selected video thumbnails are persisted and shown in the song row plus selected-song header when the browser can extract a frame. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, mock mode uses them for piano/accompaniment; otherwise it falls back to generated drums/bass/guitar/piano WAV stems. In real mode, uploaded media is extracted to `source-audio.wav`, separated by Demucs `htdemucs_6s` into drums, bass, guitar, piano, vocals, and other stems by default, then analyzed for approximate beat-aware harmonic cues. During Demucs separation, the backend parses best-effort percentage output from Demucs stderr and maps it into the job's overall progress so the UI no longer remains stuck at 55% until completion. Completed jobs now expose `metadata.durationSeconds` from real WAV output when available; mock uploads can store browser-read original media duration and thumbnail data; and the song list prefers media duration over the fixed harmonic cue length.
 
 Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening pass, and Phase 3A grid audition are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings and manual listening for metronome alignment are still required.
 
@@ -12,7 +12,7 @@ Fragmentation Cleanup Review was completed on 2026-07-07. Findings:
 
 - No uncommitted completed, incomplete, or ambiguous work was present at review start; `git status --short` was clean.
 - `server.js` retains compatibility/fallback paths that look old at first pass but are still intentional: `/api/jobs/:id/piano.wav` supports legacy/practice audio URLs, generated mock jobs still write a root `piano.wav`, and `REAL_SEPARATOR=ffmpeg-spectral` remains the documented lightweight fallback.
-- The frontend still uses some older internal names from the pre-unified workspace flow, such as `homeView`, `backToHomeButton`, and the `?skipUpload=1` processed-demo alias. These are minor naming fragmentation, but renaming them would touch HTML, CSS, JS, and Playwright tests without improving the demo path, so they were left unchanged.
+- The frontend still uses some older internal names from the pre-unified workspace flow, such as `homeView` and `backToHomeButton`. These are minor naming fragmentation, but renaming them would touch HTML, CSS, JS, and Playwright tests without improving the demo path, so they were left unchanged. The old `?skipUpload=1` processed-demo alias was removed on 2026-07-07.
 - Documentation had stale local-state context saying `AGENTS.md` had pre-existing uncommitted edits. The repository is currently clean, so the local-state note was updated instead of preserving obsolete context.
 - No runtime code cleanup was high-confidence enough to justify churn during this process task.
 
@@ -92,7 +92,6 @@ Local web POC:
 - Added processed demo shortcut:
   - `GET /api/demo/processed-job`
   - `/?demo=processed`
-  - `/?skipUpload=1`
 - The processed demo shortcut creates a complete mock job and jumps directly to the practice view without selecting or uploading a file.
 - Completed Phase 0 automated verification:
   - `npm test` passed on 2026-07-05.
@@ -228,6 +227,18 @@ Local web POC:
   - Loop count-in has a first-pass 1-bar option.
   - Metronome/click is represented as a mixer row with mute, solo, and volume; downbeat accent is always on.
   - Stem/mixer rows now keep stable height when mute/solo state changes.
+- Completed product-review UI cleanup after Phase 3B:
+  - Deleted local historical runtime jobs under `data/jobs`.
+  - Removed the old `?skipUpload=1` processed-demo alias from the frontend.
+  - Moved learning status into the selected-song header.
+  - Moved Rename/Delete under a selected-song more menu.
+  - Removed user-facing `Processed result`, `Learning cues`, `Ready`, and `Offset` labels from the practice UI.
+  - Split the practice view into Time, Harmony, and Stems/Mixer sections.
+  - Moved Loop next to the timeline and only shows Start, End, and Count in controls while Loop is enabled.
+  - Fixed scheduled metronome clicks being allowed to continue after pause or across a loop jump.
+  - Gave Play/Pause a fixed-width icon button and kept Back to start as a fixed-width icon button.
+  - Persisted browser-extracted video thumbnails and displays them in song rows and the selected-song header.
+  - Added container-width stacking so the timeline and mixer do not overflow the detail pane at tablet widths.
 
 ## In Progress
 
@@ -258,6 +269,9 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Verification Log
 
+- `npm test`: passed on 2026-07-07 with 11 backend tests after the Phase 3B product-review UI cleanup, thumbnail persistence, metronome cancellation fix, and local `data/jobs` cleanup.
+- `npm run test:gui`: passed on 2026-07-07 with 13 Playwright tests after moving learning status, loop controls, Rename/Delete, and thumbnail rendering into the revised UI.
+- Playwright layout probe against `http://127.0.0.1:3002/?demo=processed`: passed on 2026-07-07 at 1180px, 900px, and 390px with no horizontal overflow after adding detail-width stacking for the practice grid; Play/Pause measured as fixed 54px wide.
 - `npm test`: passed on 2026-07-07 with 11 backend tests after updating Phase 3B practice-state fields for key override, beat unit, count-in, and metronome solo.
 - `npm run test:gui`: passed on 2026-07-07 with 12 Playwright tests after regrouping transport/timeline controls, removing grid offset UI, adding key/time-signature selects, loop markers/count-in, and metronome mixer controls.
 - Playwright layout probe against `http://127.0.0.1:3003/?demo=processed`: passed on 2026-07-07 at 1100px and 390px with no horizontal overflow; piano stem row height stayed stable before/after mute at both widths.

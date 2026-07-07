@@ -11,12 +11,16 @@ const songList = document.querySelector("#songList");
 const songListEmpty = document.querySelector("#songListEmpty");
 const songSearch = document.querySelector("#songSearch");
 const selectedSongHeader = document.querySelector("#selectedSongHeader");
+const selectedSongArt = document.querySelector("#selectedSongArt");
 const selectedSongEyebrow = document.querySelector("#selectedSongEyebrow");
 const selectedSongTitle = document.querySelector("#selectedSongTitle");
 const selectedSongMeta = document.querySelector("#selectedSongMeta");
 const selectedSongActions = document.querySelector("#selectedSongActions");
+const selectedMoreButton = document.querySelector("#selectedMoreButton");
+const selectedMoreMenu = document.querySelector("#selectedMoreMenu");
 const selectedRenameButton = document.querySelector("#selectedRenameButton");
 const selectedDeleteButton = document.querySelector("#selectedDeleteButton");
+const selectedStatusControl = document.querySelector(".selected-status-control");
 const emptyDetail = document.querySelector("#emptyDetail");
 const processingDetail = document.querySelector("#processingDetail");
 const processingStatus = document.querySelector("#processingStatus");
@@ -35,6 +39,7 @@ const speedControls = document.querySelector("#speedControls");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
 const loopEnabled = document.querySelector("#loopEnabled");
+const loopSettings = document.querySelector("#loopSettings");
 const countInBars = document.querySelector("#countInBars");
 const timeReadout = document.querySelector("#timeReadout");
 const keySelect = document.querySelector("#keySelect");
@@ -69,6 +74,7 @@ let knownTransportDuration = 0;
 let transportFrame = null;
 let audioContext = null;
 let scheduledMetronomeBeats = new Set();
+let scheduledMetronomeNodes = [];
 let currentJob = null;
 let currentJobId = null;
 let currentAnalyzedMetadata = null;
@@ -82,8 +88,7 @@ let selectedQueueLocalId = null;
 let selectedReadyJobId = null;
 let isUploading = false;
 const loadProcessedDemo =
-  urlParams.get("demo") === "processed" ||
-  urlParams.get("skipUpload") === "1";
+  urlParams.get("demo") === "processed";
 
 const statusLabels = {
   not_started: "Not started",
@@ -471,14 +476,14 @@ function queueStatusLabel(queueJob) {
   if (queueJob.status === "processing") {
     return pipelineStageLabels[queueJob.pipelineStage] || "Processing stems";
   }
-  if (queueJob.status === "complete") return "Ready";
+  if (queueJob.status === "complete") return "Complete";
   if (queueJob.status === "failed") return "Failed";
   return queueJob.status || "Processing";
 }
 
 function completedStatusLabel(entry) {
   const learningStatus = entry.practiceState?.learningStatus || "not_started";
-  return learningStatus === "not_started" ? "Ready" : statusLabel(learningStatus);
+  return statusLabel(learningStatus);
 }
 
 function showDetailPane(paneName) {
@@ -493,12 +498,36 @@ function showDetailPane(paneName) {
   }
 }
 
-function showSelectedHeader({ eyebrow, title, meta, actions = false }) {
+function renderArtwork(container, title, thumbnailDataUrl = null) {
+  if (!container) return;
+  container.replaceChildren();
+  if (thumbnailDataUrl) {
+    const image = document.createElement("img");
+    image.src = thumbnailDataUrl;
+    image.alt = "";
+    container.append(image);
+    return;
+  }
+
+  container.textContent = String(title || "Song").slice(0, 1).toUpperCase();
+}
+
+function showSelectedHeader({ eyebrow, title, meta, actions = false, thumbnailDataUrl = null }) {
   selectedSongHeader.hidden = false;
   selectedSongEyebrow.textContent = eyebrow;
   selectedSongTitle.textContent = title;
   selectedSongMeta.textContent = meta;
+  renderArtwork(selectedSongArt, title, thumbnailDataUrl);
   selectedSongActions.hidden = !actions;
+  if (selectedStatusControl) {
+    selectedStatusControl.hidden = !actions;
+  }
+  if (selectedMoreMenu) {
+    selectedMoreMenu.hidden = true;
+  }
+  if (selectedMoreButton) {
+    selectedMoreButton.setAttribute("aria-expanded", "false");
+  }
 }
 
 function clearSelection() {
@@ -521,6 +550,11 @@ function setActiveSpeedButton() {
     const active = Number(speedButton.dataset.speed) === playbackRate;
     speedButton.classList.toggle("active", active);
   }
+}
+
+function updateLoopSettingsVisibility() {
+  if (!loopSettings || !loopEnabled) return;
+  loopSettings.hidden = !loopEnabled.checked;
 }
 
 function queuePracticeStatePersist(refreshLibrary = false) {
@@ -590,6 +624,7 @@ function applySavedPracticeState(job) {
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
   loopEnabled.checked = Boolean(state.loopEnabled);
+  updateLoopSettingsVisibility();
   if (countInBars) {
     countInBars.value = String(Number(state.countInBars ?? 1));
   }
@@ -639,6 +674,7 @@ function queueRowItem(queueJob) {
     status: queueStatusLabel(queueJob),
     duration: "--",
     progress: queueJob.progress,
+    thumbnailDataUrl: queueJob.thumbnailDataUrl || null,
     queueJob
   };
 }
@@ -652,6 +688,7 @@ function completedRowItem(entry) {
     activityAt: entry.createdAt,
     status: completedStatusLabel(entry),
     duration: jobDurationLabel(entry),
+    thumbnailDataUrl: entry.thumbnailDataUrl || null,
     entry
   };
 }
@@ -683,7 +720,7 @@ function renderSongRow(item) {
 
   const art = document.createElement("span");
   art.className = "song-art";
-  art.textContent = item.title.slice(0, 1).toUpperCase();
+  renderArtwork(art, item.title, item.thumbnailDataUrl);
 
   const copy = document.createElement("span");
   copy.className = "song-row-copy";
@@ -765,10 +802,11 @@ function renderCompletedJob(job) {
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
   gridOverrides = normalizedGridOverrides(job.practiceState);
   showSelectedHeader({
-    eyebrow: "Ready",
+    eyebrow: "Song",
     title: job.originalFilename,
     meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(effectiveMetadata(job.result.metadata))}`,
-    actions: true
+    actions: true,
+    thumbnailDataUrl: job.thumbnailDataUrl
   });
   renderStemPlayers(stems);
   applySavedPracticeState(job);
@@ -962,8 +1000,24 @@ function renderGridTimeline(metadata) {
   renderTimelineIndicators();
 }
 
-function resetMetronomeSchedule() {
+function cancelScheduledMetronomeAudio() {
+  if (!scheduledMetronomeNodes.length) return;
+  const now = audioContext?.currentTime || 0;
+  for (const node of scheduledMetronomeNodes) {
+    try {
+      node.oscillator.stop(now);
+    } catch {
+      // Already stopped or already playing out.
+    }
+  }
+  scheduledMetronomeNodes = [];
+}
+
+function resetMetronomeSchedule({ cancelAudio = true } = {}) {
   scheduledMetronomeBeats = new Set();
+  if (cancelAudio) {
+    cancelScheduledMetronomeAudio();
+  }
 }
 
 function timelinePercent(seconds, duration = transportDuration()) {
@@ -1032,6 +1086,10 @@ function playMetronomeClick(delaySeconds, accented) {
   gain.connect(context.destination);
   oscillator.start(startAt);
   oscillator.stop(startAt + duration);
+  scheduledMetronomeNodes.push({ oscillator, startAt, stopAt: startAt + duration });
+  oscillator.onended = () => {
+    scheduledMetronomeNodes = scheduledMetronomeNodes.filter((node) => node.oscillator !== oscillator);
+  };
 }
 
 function scheduleMetronomeClicks(currentTime = transportTime()) {
@@ -1042,11 +1100,21 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
 
   const lookaheadSeconds = 0.45;
   const startBeatIndex = Math.floor((currentTime - grid.downbeatOffsetSeconds - 0.04) / grid.beatDurationSeconds);
+  const loopStartSeconds = Number(loopStart.value);
+  const loopEndSeconds = Number(loopEnd.value);
+  const hasActiveLoop =
+    loopEnabled.checked &&
+    Number.isFinite(loopStartSeconds) &&
+    Number.isFinite(loopEndSeconds) &&
+    loopEndSeconds > loopStartSeconds &&
+    currentTime >= loopStartSeconds - 0.02 &&
+    currentTime < loopEndSeconds;
+  const scheduleEndTime = hasActiveLoop ? Math.min(grid.durationSeconds, loopEndSeconds) : grid.durationSeconds;
   const endBeatIndex = Math.ceil((currentTime + lookaheadSeconds * playbackRate - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds);
 
   for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
     const beatTime = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
-    if (beatTime < 0 || beatTime < currentTime - 0.06 || beatTime > grid.durationSeconds) continue;
+    if (beatTime < 0 || beatTime < currentTime - 0.06 || beatTime >= scheduleEndTime) continue;
     const key = `${beatIndex}:${Math.round(beatTime * 1000)}`;
     if (scheduledMetronomeBeats.has(key)) continue;
 
@@ -1230,7 +1298,8 @@ function pauseAll({ persist = true } = {}) {
   anchorTransport(current);
   resetMetronomeSchedule();
   stopTransportTick();
-  playButton.textContent = "Play";
+  playButton.textContent = "▶";
+  playButton.setAttribute("aria-label", "Play");
   updateTimeDisplay();
   highlightCurrentChord();
   if (persist) {
@@ -1256,7 +1325,8 @@ async function playAll() {
     resetMetronomeSchedule();
     scheduleMetronomeClicks(current);
     startTransportTick();
-    playButton.textContent = "Pause";
+    playButton.textContent = "||";
+    playButton.setAttribute("aria-label", "Pause");
   }
 }
 
@@ -1547,7 +1617,8 @@ function renderProcessingJob(queueJob) {
     eyebrow: queueJob.status === "failed" ? "Failed" : "Processing",
     title: queueJob.filename,
     meta: `${formatActivityTime(queueJob.updatedAt || queueJob.createdAt)} - ${queueStatusLabel(queueJob)}`,
-    actions: false
+    actions: false,
+    thumbnailDataUrl: queueJob.thumbnailDataUrl
   });
 
   if (queueJob.status === "failed") {
@@ -1566,10 +1637,11 @@ function renderReadyJob(job) {
   selectedQueueLocalId = null;
   selectedReadyJobId = job.id;
   showSelectedHeader({
-    eyebrow: "Ready",
+    eyebrow: "Song",
     title: job.originalFilename,
     meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(job.result.metadata)}`,
-    actions: true
+    actions: true,
+    thumbnailDataUrl: job.thumbnailDataUrl
   });
   showDetailPane("ready");
   openMobileDetail();
@@ -1634,8 +1706,80 @@ async function readMediaDuration(file) {
   return null;
 }
 
-async function createJob(file) {
-  const durationSeconds = await readMediaDuration(file);
+function readVideoThumbnail(file) {
+  if (!file.type.startsWith("video/")) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+    let settled = false;
+
+    const finish = (thumbnailDataUrl = null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      video.pause();
+      video.removeAttribute("src");
+      URL.revokeObjectURL(objectUrl);
+      resolve(thumbnailDataUrl);
+    };
+
+    const capture = () => {
+      try {
+        const width = video.videoWidth || 0;
+        const height = video.videoHeight || 0;
+        if (!width || !height) {
+          finish();
+          return;
+        }
+
+        const canvas = document.createElement("canvas");
+        const targetWidth = 240;
+        canvas.width = targetWidth;
+        canvas.height = Math.max(1, Math.round((height / width) * targetWidth));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          finish();
+          return;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        finish(canvas.toDataURL("image/jpeg", 0.72));
+      } catch (error) {
+        console.error(error);
+        finish();
+      }
+    };
+
+    const timeout = window.setTimeout(() => finish(), 2000);
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.addEventListener("loadedmetadata", () => {
+      const seekTime = Number.isFinite(video.duration) && video.duration > 0.5 ? Math.min(0.5, video.duration / 4) : 0;
+      try {
+        video.currentTime = seekTime;
+      } catch {
+        capture();
+      }
+    }, { once: true });
+    video.addEventListener("seeked", capture, { once: true });
+    video.addEventListener("loadeddata", capture, { once: true });
+    video.addEventListener("error", () => finish(), { once: true });
+    video.src = objectUrl;
+    video.load();
+  });
+}
+
+async function readMediaMetadata(file) {
+  const [durationSeconds, thumbnailDataUrl] = await Promise.all([
+    readMediaDuration(file),
+    readVideoThumbnail(file)
+  ]);
+  return { durationSeconds, thumbnailDataUrl };
+}
+
+async function createJob(file, mediaMetadata = {}) {
+  const { durationSeconds = null, thumbnailDataUrl = null } = mediaMetadata;
 
   if (pipelineMode === "mock") {
     const response = await fetch("/api/jobs", {
@@ -1647,7 +1791,8 @@ async function createJob(file) {
         filename: file.name,
         size: file.size,
         type: file.type,
-        durationSeconds
+        durationSeconds,
+        thumbnailDataUrl
       })
     });
 
@@ -1663,6 +1808,9 @@ async function createJob(file) {
   formData.append("media", file);
   if (durationSeconds) {
     formData.append("durationSeconds", String(durationSeconds));
+  }
+  if (thumbnailDataUrl) {
+    formData.append("thumbnailDataUrl", thumbnailDataUrl);
   }
 
   const response = await fetch("/api/jobs", {
@@ -1758,14 +1906,19 @@ async function uploadFiles(files) {
         jobId: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        error: null
+        error: null,
+        thumbnailDataUrl: null
       };
       queueJobs.set(localId, queueJob);
       renderSongList();
 
       try {
-        const job = await createJob(file);
+        const mediaMetadata = await readMediaMetadata(file);
+        queueJob.thumbnailDataUrl = mediaMetadata.thumbnailDataUrl;
+        renderSongList();
+        const job = await createJob(file, mediaMetadata);
         queueJob.jobId = job.id;
+        queueJob.thumbnailDataUrl = job.thumbnailDataUrl || queueJob.thumbnailDataUrl;
         updateQueueJob(queueJob, job);
         queueJob.timer = window.setInterval(() => {
           pollQueueJob(localId).catch((error) => {
@@ -1953,10 +2106,12 @@ meterSelect?.addEventListener("change", () => {
 [loopStart, loopEnd, loopEnabled, countInBars].forEach((element) => {
   if (!element) return;
   element.addEventListener("change", () => {
+    updateLoopSettingsVisibility();
     renderTimelineIndicators();
     queuePracticeStatePersist();
   });
   element.addEventListener("input", () => {
+    updateLoopSettingsVisibility();
     renderTimelineIndicators();
     queuePracticeStatePersist();
   });
@@ -1986,7 +2141,24 @@ songSearch.addEventListener("input", () => {
   renderSongList();
 });
 
+selectedMoreButton?.addEventListener("click", () => {
+  if (!selectedMoreMenu) return;
+  selectedMoreMenu.hidden = !selectedMoreMenu.hidden;
+  selectedMoreButton.setAttribute("aria-expanded", String(!selectedMoreMenu.hidden));
+});
+
+document.addEventListener("click", (event) => {
+  if (!selectedMoreMenu || !selectedMoreButton || selectedMoreMenu.hidden) return;
+  if (selectedMoreMenu.contains(event.target) || selectedMoreButton.contains(event.target)) return;
+  selectedMoreMenu.hidden = true;
+  selectedMoreButton.setAttribute("aria-expanded", "false");
+});
+
 selectedRenameButton.addEventListener("click", async () => {
+  if (selectedMoreMenu && selectedMoreButton) {
+    selectedMoreMenu.hidden = true;
+    selectedMoreButton.setAttribute("aria-expanded", "false");
+  }
   const jobId = currentJobId || selectedReadyJobId;
   const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
   if (!jobId || !entry) return;
@@ -2012,6 +2184,10 @@ selectedRenameButton.addEventListener("click", async () => {
 });
 
 selectedDeleteButton.addEventListener("click", async () => {
+  if (selectedMoreMenu && selectedMoreButton) {
+    selectedMoreMenu.hidden = true;
+    selectedMoreButton.setAttribute("aria-expanded", "false");
+  }
   const jobId = currentJobId || selectedReadyJobId;
   const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
   if (!jobId || !entry) return;

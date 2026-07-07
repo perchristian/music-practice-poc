@@ -243,9 +243,10 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await page.getByTestId("speed-075").click();
   await expect(page.getByTestId("speed-075")).toHaveClass(/active/);
 
+  await page.getByTestId("loop-enabled").check();
+  await expect(page.getByTestId("loop-settings")).toBeVisible();
   await page.getByTestId("loop-start").fill("1");
   await page.getByTestId("loop-end").fill("3");
-  await page.getByTestId("loop-enabled").check();
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
 
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
@@ -469,6 +470,51 @@ test("song duration labels prefer media metadata over harmonic cue length", asyn
   await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("0:16");
 });
 
+test("saved song thumbnails render in the list and selected song header", async ({ page }) => {
+  const jobId = "33333333-3333-4333-8333-333333333333";
+  const thumbnailDataUrl =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+  const job = {
+    id: jobId,
+    mode: "mock",
+    status: "complete",
+    progress: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    originalFilename: "thumbnail-source.mov",
+    thumbnailDataUrl,
+    practiceState: { learningStatus: "not_started", stemStates: {} },
+    result: {
+      stems: [{ id: "piano", name: "Piano", audioUrl: `/api/jobs/${jobId}/stems/piano.wav` }],
+      metadata: {
+        durationSeconds: 16,
+        key: { tonic: "C", mode: "major" },
+        beatGrid: { bpm: 60, beatsPerBar: 4, beatUnit: 4, beatDurationSeconds: 1, downbeatOffsetSeconds: 0 },
+        chords: [{ bar: 1, start: 0, end: 4, name: "C", roman: "I" }],
+        melody: []
+      }
+    }
+  };
+
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([job])
+    });
+  });
+  await page.route(`**/api/jobs/${jobId}`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.getByTestId(`song-row-${jobId}`).locator("img")).toHaveAttribute("src", thumbnailDataUrl);
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("selected-song-art").locator("img")).toHaveAttribute("src", thumbnailDataUrl);
+});
+
 test("harmony panel shows analysis tempo and sub-second cue times", async ({ page }) => {
   const jobId = "22222222-2222-4222-8222-222222222222";
   const job = {
@@ -681,9 +727,10 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("stem-row-piano")).toBeVisible();
 
   await page.getByTestId("speed-075").click();
+  await page.getByTestId("loop-enabled").check();
+  await expect(page.getByTestId("loop-settings")).toBeVisible();
   await page.getByTestId("loop-start").fill("1.5");
   await page.getByTestId("loop-end").fill("5.5");
-  await page.getByTestId("loop-enabled").check();
   await page.getByTestId("count-in-bars").selectOption("1");
   await page.getByTestId("metronome-mute").click();
   await page.getByTestId("metronome-volume").evaluate((slider) => {
@@ -772,11 +819,13 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("stem-volume-piano")).toHaveValue("0.35");
 
   page.once("dialog", (dialog) => dialog.accept("Renamed Phase 1 song"));
+  await page.getByTestId("selected-more-button").click();
   await page.getByTestId("selected-rename-button").click();
   await expect(page.getByTestId("selected-song-title")).toHaveText("Renamed Phase 1 song");
   await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("Renamed Phase 1 song");
 
   page.once("dialog", (dialog) => dialog.accept());
+  await page.getByTestId("selected-more-button").click();
   await page.getByTestId("selected-delete-button").click();
   await expect(page.getByTestId(`song-row-${jobId}`)).toHaveCount(0);
   await expect(page.getByTestId("empty-detail")).toBeVisible();
@@ -856,7 +905,7 @@ test("unified song list shows completed songs and filters by learning status", a
   await expect(page.getByTestId(`song-row-${jobIds[0]}`)).toBeVisible();
   await expect(page.getByTestId(`song-row-${jobIds[5]}`)).toContainText("Learned");
   await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toContainText("Practicing");
-  await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toContainText("Ready");
+  await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toContainText("Not started");
 
   await page.getByTestId("filter-practicing").click();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
