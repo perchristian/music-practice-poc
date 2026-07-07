@@ -672,6 +672,7 @@ Deliverables:
 - Add `+` controls in empty grid cells. Done on 2026-07-07.
 - Remove the global Add chord button. Done on 2026-07-07.
 - Let chord cards stretch across following empty cells when their duration implies the chord still applies. Done on 2026-07-07.
+- Let users resize a chord card's right edge so a long chord can be shortened or lengthened on beat boundaries before inserting another chord. Done on 2026-07-07.
 - Add a persisted bars-per-row control. Done on 2026-07-07: supported values are 1, 2, 4, and 8 bars per row.
 - Remove beat-number labels from the chart. Done on 2026-07-07.
 - Replace `Bar N` row labels with compact bar numbers inside each bar segment. Done on 2026-07-07.
@@ -686,9 +687,9 @@ Verification:
 Result:
 - Harmony now renders compact bar segments with small numeric bar markers and beat separators, not a separate `Bar N` label column or beat-number headers.
 - Chord cards show only the selected chord text mode, can visually span empty beats, and keep the small corner delete action.
-- Empty cells expose `+` add buttons, while drag/drop moves chords to beat positions.
+- Empty cells expose `+` add buttons, drag/drop moves chords to beat positions, and the right edge of each chord card resizes duration with beat snapping.
 - `practiceState.harmonyView` persists `barsPerRow` and `chordDisplay`.
-- Automated verification passed, and no test-created jobs with the known Playwright prefixes remained after test teardown.
+- Automated verification passed, including covered-cell insertion after resizing, and no test-created jobs with the known Playwright prefixes remained after test teardown.
 
 Status: Complete for automated verification on 2026-07-07. Manual visual review on long real songs is still useful to judge whether 4 or 8 bars per row is compact enough for full-song scanning.
 
@@ -722,7 +723,7 @@ Verification:
 - Create, edit, select, and delete multiple loops on one processed song.
 - Reload the app and confirm notes, loop boundaries, and loop status persist.
 
-Status: Planned after Phase 3D grid-first chord storage and Phase 3E beat-aligned chord chart UI.
+Status: Planned after Phase 3 grid calibration and compact editable chord chart work.
 
 ## Phase 5: Expand Practice Targets Without Losing Piano Focus
 
@@ -821,4 +822,6 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 
 ## Next Task
 
-Start Phase 3D: replace seconds-first user chord edits with a clean-break grid-first chord chart model. Do not add migration compatibility for local POC songs; delete and regenerate runtime songs/jobs that were created under the old model unless they are intentional documented fixtures.
+Start Phase 4: add bar/beat-based loop controls and saved practice notes on top of the corrected grid.
+
+Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.

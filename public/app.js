@@ -87,6 +87,7 @@ let gridOverrides = {};
 let keyOverride = null;
 let chordChart = null;
 let harmonyView = { barsPerRow: 2, chordDisplay: "both" };
+let chordResizeState = null;
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
@@ -1168,12 +1169,10 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   barNumber.textContent = String(bar);
 
   const sortedEntries = entries.sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index);
-  const occupiedCells = new Set();
+  const occupiedStartCells = new Set();
   const cards = sortedEntries.map((entry) => {
     const span = chordEntrySpan(entry, sortedEntries, grid, beatsPerBar);
-    for (let cell = entry.beatCell; cell < entry.beatCell + span; cell += 1) {
-      occupiedCells.add(cell);
-    }
+    occupiedStartCells.add(entry.beatCell);
     const card = renderChordCard(entry.chord, entry.index, grid, entry.hit);
     card.style.gridColumn = `${entry.beatCell} / span ${span}`;
     return card;
@@ -1191,7 +1190,7 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
     button.setAttribute("aria-label", `Add chord in bar ${bar}, beat ${beat}`);
     button.textContent = "+";
     button.style.gridColumn = String(beat);
-    button.hidden = occupiedCells.has(beat);
+    button.hidden = occupiedStartCells.has(beat);
     return button;
   });
 
@@ -1231,13 +1230,22 @@ function renderChordCard(chord, index, grid, hit = null) {
   deleteButton.setAttribute("aria-label", `Delete chord ${index + 1}`);
   deleteButton.textContent = "x";
 
+  const resizeHandle = document.createElement("button");
+  resizeHandle.type = "button";
+  resizeHandle.className = "chord-resize-handle";
+  resizeHandle.dataset.chordAction = "resize";
+  resizeHandle.dataset.index = String(index);
+  resizeHandle.dataset.testid = `chord-resize-${index}`;
+  resizeHandle.setAttribute("aria-label", `Resize chord ${index + 1}`);
+  resizeHandle.setAttribute("title", "Resize chord");
+
   if (harmonyView.chordDisplay !== "roman") {
     card.append(nameInput);
   }
   if (harmonyView.chordDisplay !== "name") {
     card.append(roman);
   }
-  card.append(deleteButton);
+  card.append(deleteButton, resizeHandle);
   return card;
 }
 
@@ -1373,6 +1381,49 @@ function moveChordToCell(index, bar, beat) {
     durationDiv: Math.max(beatDiv, Math.min(chord.durationDiv, (nextStart || startDiv + chord.durationDiv) - startDiv))
   };
   commitChordChart(chords);
+}
+
+function resizeChordToBeatBoundary(index, bar, boundaryBeat) {
+  seedChordChart();
+  const grid = currentChartGrid();
+  const chords = [...chordChart.chords];
+  const chord = chords[index];
+  if (!chord) return;
+
+  const divisionsPerQuarter = chordChart.divisionsPerQuarter;
+  const beatDiv = chartDivisionsPerBeat(grid, divisionsPerQuarter);
+  const barDiv = chartDivisionsPerBar(grid, divisionsPerQuarter);
+  const startDiv = chartChordTotalDiv(chord, grid, divisionsPerQuarter);
+  const barStartDiv = (Math.max(1, Number(bar) || 1) - 1) * barDiv;
+  const barEndDiv = barStartDiv + barDiv;
+  const requestedEndDiv = barStartDiv + clampedInteger(boundaryBeat, 1, 1, Number(grid.beatsPerBar) || defaultTimeSignature.beatsPerBar) * beatDiv;
+  const nextStart = chords
+    .filter((candidate, candidateIndex) => candidateIndex !== index)
+    .map((candidate) => chartChordTotalDiv(candidate, grid, divisionsPerQuarter))
+    .filter((candidateStart) => candidateStart > startDiv)
+    .sort((left, right) => left - right)[0];
+  const maxEndDiv = Math.max(startDiv + beatDiv, Math.min(nextStart || barEndDiv, barEndDiv));
+  const endDiv = Math.max(startDiv + beatDiv, Math.min(requestedEndDiv, maxEndDiv));
+  chords[index] = {
+    ...chord,
+    durationDiv: endDiv - startDiv,
+    source: "user"
+  };
+  commitChordChart(chords);
+}
+
+function chordResizeBoundaryFromPointer(state, clientX) {
+  const rect = state.segment.getBoundingClientRect();
+  const beatsPerBar = Number(getComputedStyle(state.segment).getPropertyValue("--beats-per-bar")) || defaultTimeSignature.beatsPerBar;
+  const ratio = (clientX - rect.left) / Math.max(1, rect.width);
+  return clampedInteger(Math.round(ratio * beatsPerBar), 1, 1, beatsPerBar);
+}
+
+function clearChordResizePreview() {
+  if (!chordResizeState) return;
+  chordResizeState.card.classList.remove("resizing");
+  chordResizeState.segment.style.removeProperty("--resize-preview-end");
+  chordResizeState = null;
 }
 
 function applyHarmonyView(nextView = {}) {
@@ -2728,6 +2779,10 @@ chordList?.addEventListener("click", (event) => {
 });
 
 chordList?.addEventListener("dragstart", (event) => {
+  if (event.target.closest("input, button")) {
+    event.preventDefault();
+    return;
+  }
   const card = event.target.closest(".chord-card");
   if (!card) return;
   event.dataTransfer.effectAllowed = "move";
@@ -2768,6 +2823,47 @@ chordList?.addEventListener("drop", (event) => {
       : Math.min(beatsPerBar, Math.max(1, Math.floor(((event.clientX - rect.left) / Math.max(1, rect.width)) * beatsPerBar) + 1));
     moveChordToCell(index, bar, beat);
   }
+});
+
+chordList?.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest("button[data-chord-action='resize']");
+  if (!handle) return;
+  const card = handle.closest(".chord-card");
+  const segment = handle.closest(".chord-bar-segment");
+  const index = Number(handle.dataset.index);
+  if (!card || !segment || !Number.isInteger(index)) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  handle.setPointerCapture?.(event.pointerId);
+  chordResizeState = {
+    card,
+    segment,
+    index,
+    bar: Number(segment.dataset.bar) || 1,
+    pointerId: event.pointerId,
+    boundaryBeat: chordResizeBoundaryFromPointer({ segment }, event.clientX)
+  };
+  card.classList.add("resizing");
+});
+
+chordList?.addEventListener("pointermove", (event) => {
+  if (!chordResizeState || chordResizeState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  chordResizeState.boundaryBeat = chordResizeBoundaryFromPointer(chordResizeState, event.clientX);
+});
+
+chordList?.addEventListener("pointerup", (event) => {
+  if (!chordResizeState || chordResizeState.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  const { index, bar, boundaryBeat } = chordResizeState;
+  clearChordResizePreview();
+  resizeChordToBeatBoundary(index, bar, boundaryBeat);
+});
+
+chordList?.addEventListener("pointercancel", (event) => {
+  if (!chordResizeState || chordResizeState.pointerId !== event.pointerId) return;
+  clearChordResizePreview();
 });
 
 chordList?.addEventListener("change", (event) => {

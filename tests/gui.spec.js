@@ -13,7 +13,8 @@ test.afterEach(async ({ request }) => {
     "queue-second-",
     "recent-",
     "mobile-workspace-",
-    "editable-chords-"
+    "editable-chords-",
+    "resize-chords-"
   ];
   const entries = await request.get("/api/library").then((response) => (response.ok() ? response.json() : []));
   await Promise.all(
@@ -95,6 +96,22 @@ async function dragChordToBarBeat(page, chordIndex, bar, beat) {
       y: targetBox.height / 2
     }
   });
+}
+
+async function resizeChordToBarBoundary(page, chordIndex, bar, boundaryBeat) {
+  const handle = page.getByTestId(`chord-resize-${chordIndex}`);
+  const target = page.locator(`.chord-bar-segment[data-bar="${bar}"]`);
+  const handleBox = await handle.boundingBox();
+  const targetBox = await target.boundingBox();
+  const beatsPerBar = await target.evaluate((element) => Number(getComputedStyle(element).getPropertyValue("--beats-per-bar")) || 4);
+  if (!handleBox || !targetBox) {
+    throw new Error("Could not resolve resize target boxes.");
+  }
+
+  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width * (boundaryBeat / beatsPerBar), targetBox.y + targetBox.height / 2);
+  await page.mouse.up();
 }
 
 test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
@@ -939,6 +956,41 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
+});
+
+test("chord cards can be resized to expose beat cells for inserting chords", async ({ page }) => {
+  await page.goto("/");
+  const filename = `resize-chords-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("bars-per-row-select").selectOption("4");
+  await expect(page.locator(".chord-card")).toHaveCount(4);
+
+  await resizeChordToBarBoundary(page, 0, 1, 2);
+  await expect(page.getByTestId("chord-add-1-3")).toBeVisible();
+  await page.getByTestId("chord-add-1-3").click();
+  await expect(page.locator(".chord-card")).toHaveCount(5);
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "3");
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        const chords = job.practiceState.chordChart?.chords || [];
+        return {
+          firstDurationDiv: chords[0]?.durationDiv,
+          insertedOffsetDiv: chords[1]?.offsetDiv
+        };
+      }, jobId);
+    })
+    .toEqual({
+      firstDurationDiv: 8,
+      insertedOffsetDiv: 8
+    });
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {

@@ -1152,9 +1152,15 @@ audio {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 5px 22px 5px 6px;
+  padding: 5px 30px 5px 6px;
   background: #fff;
   cursor: grab;
+}
+
+.chord-card.resizing {
+  cursor: ew-resize;
+  outline: 2px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 1px;
 }
 
 .chord-card.active {
@@ -1164,6 +1170,42 @@ audio {
 
 .chord-card.dragging {
   opacity: 0.55;
+}
+
+.chord-resize-handle {
+  position: absolute;
+  top: 24px;
+  right: 2px;
+  bottom: 5px;
+  z-index: 2;
+  width: 8px;
+  border: 0;
+  border-radius: 5px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 3px,
+      rgba(15, 118, 110, 0.42) 3px,
+      rgba(15, 118, 110, 0.42) 5px,
+      transparent 5px
+    );
+  cursor: ew-resize;
+  padding: 0;
+}
+
+.chord-resize-handle:hover,
+.chord-resize-handle:focus-visible {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 3px,
+      var(--accent-strong) 3px,
+      var(--accent-strong) 5px,
+      transparent 5px
+    );
+  outline: none;
 }
 
 .cue-name {
@@ -1204,7 +1246,8 @@ audio {
 .chord-delete-button {
   position: absolute;
   top: 3px;
-  right: 3px;
+  right: 10px;
+  z-index: 3;
   display: grid;
   width: 18px;
   height: 18px;

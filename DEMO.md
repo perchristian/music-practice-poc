@@ -141,7 +141,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
 22. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
 23. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
-24. Edit a chord label, drag a chord to another beat, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
+24. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
 25. Reload the page, reopen the song from the unified song list, and confirm those practice settings, Harmony view settings, and chord edits return.
 26. Rename the selected song from the selected-song header more menu.
 27. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
@@ -165,7 +165,7 @@ npm run generate:test-media
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
 10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
 11. Confirm the beat markers update immediately after grid correction and the Harmony chart remains expressed as musical grid placement rather than visible seconds ranges.
-12. Edit at least one chord label, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, and chord chart persist.
+12. Edit at least one chord label, resize one chord by dragging its right edge, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, and chord chart persist.
 13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
 14. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
 15. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
