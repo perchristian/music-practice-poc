@@ -8,6 +8,8 @@ Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening p
 
 The next planned iteration is Phase 3C editable chord chart: let users correct analyzer chord suggestions after the grid has been calibrated. Manual listening on varied real recordings is still needed to judge whether the Phase 3B Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
+Process note added on 2026-07-07: every implementation or verification task must delete songs/jobs created during testing before the task is considered complete. Keep only intentional demo, fixture, or calibration jobs that are explicitly documented, because accumulated test-created songs make the library noisy for later work.
+
 Fragmentation Cleanup Review was completed on 2026-07-07. Findings:
 
 - No uncommitted completed, incomplete, or ambiguous work was present at review start; `git status --short` was clean.

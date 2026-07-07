@@ -108,6 +108,11 @@ The prototype is considered complete when another developer can follow `DEMO.md`
 
 without developer intervention.
 
+For every implementation or verification task, delete all songs/jobs created
+during testing before considering the task complete. Test-created library entries
+create noise for the next iteration; keep only intentional demo, fixture, or
+calibration jobs that are explicitly documented.
+
 ---
 
 ## Product Validation Goal
