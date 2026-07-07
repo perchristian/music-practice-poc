@@ -1324,11 +1324,14 @@ async function createJobRecord({
       loopStart: 0,
       loopEnd: 4,
       loopEnabled: false,
+      countInBars: 1,
       lastPosition: 0,
       metronomeEnabled: false,
       metronomeVolume: 0.45,
       metronomeAccent: true,
+      metronomeSolo: false,
       gridOverrides: {},
+      keyOverride: null,
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1358,17 +1361,26 @@ function ensurePracticeState(job) {
     gridOverrides.bpm = Number(clampNumber(overrideBpm, 60, 30, 260).toFixed(1));
   }
   const overrideBeatsPerBar = Number(job.practiceState?.gridOverrides?.beatsPerBar);
-  if (overrideBeatsPerBar === 3 || overrideBeatsPerBar === 4) {
+  const overrideBeatUnit = Number(job.practiceState?.gridOverrides?.beatUnit) || 4;
+  const supportedMeters = new Set(["3/4", "4/4", "5/4", "6/8", "7/8", "12/8"]);
+  if (supportedMeters.has(`${overrideBeatsPerBar}/${overrideBeatUnit}`)) {
     gridOverrides.beatsPerBar = overrideBeatsPerBar;
+    gridOverrides.beatUnit = overrideBeatUnit;
   }
   const overrideDownbeat = Number(job.practiceState?.gridOverrides?.downbeatOffsetSeconds);
   if (Number.isFinite(overrideDownbeat)) {
     gridOverrides.downbeatOffsetSeconds = Number(clampNumber(overrideDownbeat, 0, 0, 60 * 60).toFixed(2));
   }
-  const overrideGridOffset = Number(job.practiceState?.gridOverrides?.gridOffsetSeconds);
-  if (Number.isFinite(overrideGridOffset)) {
-    gridOverrides.gridOffsetSeconds = Number(clampNumber(overrideGridOffset, 0, -2, 2).toFixed(2));
-  }
+
+  const keyOverride = job.practiceState?.keyOverride;
+  const noteNames = new Set(["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"]);
+  const normalizedKeyOverride =
+    keyOverride &&
+    typeof keyOverride.tonic === "string" &&
+    noteNames.has(keyOverride.tonic) &&
+    ["major", "minor"].includes(keyOverride.mode)
+      ? { tonic: keyOverride.tonic, mode: keyOverride.mode }
+      : null;
 
   for (const stem of stemsForJob(job)) {
     stemStates[stem.id] = {
@@ -1387,11 +1399,14 @@ function ensurePracticeState(job) {
     loopStart: clampNumber(Number(job.practiceState?.loopStart), 0, 0, 60 * 60),
     loopEnd: clampNumber(Number(job.practiceState?.loopEnd), 4, 0, 60 * 60),
     loopEnabled: Boolean(job.practiceState?.loopEnabled),
+    countInBars: [0, 1].includes(Number(job.practiceState?.countInBars)) ? Number(job.practiceState.countInBars) : 1,
     lastPosition: clampNumber(Number(job.practiceState?.lastPosition), 0, 0, 60 * 60),
     metronomeEnabled: Boolean(job.practiceState?.metronomeEnabled),
     metronomeVolume: clampNumber(Number(job.practiceState?.metronomeVolume), 0.45, 0, 1),
-    metronomeAccent: job.practiceState?.metronomeAccent !== false,
+    metronomeAccent: true,
+    metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
+    keyOverride: normalizedKeyOverride,
     stemStates
   };
 
@@ -2097,6 +2112,9 @@ async function handleUpdatePracticeState(req, id, res) {
   if (typeof payload.loopEnabled === "boolean") {
     practiceState.loopEnabled = payload.loopEnabled;
   }
+  if (typeof payload.countInBars === "number") {
+    practiceState.countInBars = [0, 1].includes(payload.countInBars) ? payload.countInBars : practiceState.countInBars;
+  }
   if (typeof payload.lastPosition === "number") {
     practiceState.lastPosition = clampNumber(payload.lastPosition, practiceState.lastPosition, 0, 60 * 60);
   }
@@ -2107,7 +2125,10 @@ async function handleUpdatePracticeState(req, id, res) {
     practiceState.metronomeVolume = clampNumber(payload.metronomeVolume, practiceState.metronomeVolume, 0, 1);
   }
   if (typeof payload.metronomeAccent === "boolean") {
-    practiceState.metronomeAccent = payload.metronomeAccent;
+    practiceState.metronomeAccent = true;
+  }
+  if (typeof payload.metronomeSolo === "boolean") {
+    practiceState.metronomeSolo = payload.metronomeSolo;
   }
   if (payload.gridOverrides && typeof payload.gridOverrides === "object") {
     const bpm = Number(payload.gridOverrides.bpm);
@@ -2116,8 +2137,11 @@ async function handleUpdatePracticeState(req, id, res) {
       practiceState.gridOverrides.bpm = Number(clampNumber(bpm, 60, 30, 260).toFixed(1));
     }
     const beatsPerBar = Number(payload.gridOverrides.beatsPerBar);
-    if (beatsPerBar === 3 || beatsPerBar === 4) {
+    const beatUnit = Number(payload.gridOverrides.beatUnit) || 4;
+    const supportedMeters = new Set(["3/4", "4/4", "5/4", "6/8", "7/8", "12/8"]);
+    if (supportedMeters.has(`${beatsPerBar}/${beatUnit}`)) {
       practiceState.gridOverrides.beatsPerBar = beatsPerBar;
+      practiceState.gridOverrides.beatUnit = beatUnit;
     }
     const downbeatOffsetSeconds = Number(payload.gridOverrides.downbeatOffsetSeconds);
     if (Number.isFinite(downbeatOffsetSeconds)) {
@@ -2125,9 +2149,14 @@ async function handleUpdatePracticeState(req, id, res) {
         clampNumber(downbeatOffsetSeconds, 0, 0, 60 * 60).toFixed(2)
       );
     }
-    const gridOffsetSeconds = Number(payload.gridOverrides.gridOffsetSeconds);
-    if (Number.isFinite(gridOffsetSeconds)) {
-      practiceState.gridOverrides.gridOffsetSeconds = Number(clampNumber(gridOffsetSeconds, 0, -2, 2).toFixed(2));
+  }
+  if (payload.keyOverride && typeof payload.keyOverride === "object") {
+    const noteNames = new Set(["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"]);
+    if (noteNames.has(payload.keyOverride.tonic) && ["major", "minor"].includes(payload.keyOverride.mode)) {
+      practiceState.keyOverride = {
+        tonic: payload.keyOverride.tonic,
+        mode: payload.keyOverride.mode
+      };
     }
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {

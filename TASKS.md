@@ -466,9 +466,9 @@ Demonstrable outcome:
 - The app can play an optional metronome/click aligned to the analyzed grid while the song plays.
 - The user can adjust at minimum:
   - BPM or half/double tempo
-  - time signature, initially 4/4 and 3/4
+  - time signature, currently 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8
   - bar 1 / downbeat start point
-  - small grid offset if the click drifts against the music
+  - selected key so roman numerals match the user's working chart
 - Chords are displayed as draft suggestions on bars/beats.
 - The user can add, edit, split, merge, move, and delete chord labels on the grid.
 - User-edited chord labels persist and override analyzer suggestions for the song.
@@ -478,7 +478,7 @@ Implementation notes:
 - Treat automatic chord analysis as a first draft, not a source of truth.
 - Store both analyzer suggestions and user chord edits so the app can distinguish "machine estimate" from "user-approved chart".
 - The chord parser should be best-effort. It may extract root, quality, extensions, and bass note when possible, but free-text chord labels must remain valid.
-- The metronome should be an audition/calibration tool first, not a performance feature. Keep controls direct: click on/off, downbeat emphasis, volume, and grid adjustment.
+- The metronome should be an audition/calibration tool first, not a performance feature. Keep controls direct: click mute/solo, volume, and grid adjustment; downbeat emphasis stays on by default.
 
 Verification:
 - Open a processed song and confirm bar/beat markers are visible.
@@ -521,9 +521,13 @@ Goal: Let a user correct the analyzed musical grid before editing chords.
 Deliverables:
 - User can adjust bar 1/downbeat start point. Done on 2026-07-07: the Harmony panel shows a `Bar 1 start` seconds field with 0.01-second nudge buttons.
 - User can adjust BPM through half/double tempo and/or a numeric BPM field. Done on 2026-07-07: the Harmony panel shows `/2`, editable BPM, and `x2`; the override persists as `practiceState.gridOverrides.bpm`; timeline markers, chord bar labels, selected-song tempo text, and grid click use the corrected tempo.
-- User can switch time signature between 4/4 and 3/4. Done on 2026-07-07: the Harmony panel shows a compact 4/4 vs 3/4 selector.
-- User can apply a small grid offset while listening to the metronome. Done on 2026-07-07: the Harmony panel shows a `Grid offset` seconds field with 0.01-second nudge buttons, clamped to +/- 2 seconds.
-- Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops. Done on 2026-07-07: corrections persist in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `downbeatOffsetSeconds`, and `gridOffsetSeconds`, while analyzer metadata remains unchanged.
+- User can switch time signature. Done on 2026-07-07: the Harmony panel now uses a dropdown for 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8; per-song overrides persist as `practiceState.gridOverrides.beatsPerBar` and `beatUnit`.
+- User can change key. Done on 2026-07-07: the Harmony panel has a key dropdown with natural, sharp, and flat spellings for major/minor keys; roman numerals are recalculated from the selected key and persisted as `practiceState.keyOverride`.
+- Grid offset is intentionally removed from the active UI after product review; Bar 1 start plus BPM should cover the current calibration need without an extra offset concept.
+- Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops. Done on 2026-07-07: corrections persist in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `beatUnit`, and `downbeatOffsetSeconds`, while analyzer metadata remains unchanged.
+- Transport, speed, current/total time, playhead, and loop markers are grouped with the timeline. Loop markers appear only when looping is enabled.
+- Loop count-in has a first-pass 1-bar option. The current implementation starts playback one bar before loop start when enough source audio exists.
+- Metronome/click is presented as a mixer row with mute, solo, and volume. Downbeat accent is always enabled without a user-facing preference.
 
 Verification:
 - Open a processed song, enable the metronome, and adjust each grid control.
@@ -531,7 +535,7 @@ Verification:
 - Reload the app and confirm the corrected grid persists.
 - Confirm analyzer metadata remains available as provenance.
 
-Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass; a local Playwright layout probe checked the new controls at 1100px and 390px without horizontal overflow. Manual listening on varied real recordings is still needed to judge whether nudge-only calibration is intuitive enough, or whether a waveform view should be added later.
+Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass after the correction pass. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
 Overall Phase 3 status: In progress. Grid audition and minimal grid correction are complete; editable chords remain planned.
 

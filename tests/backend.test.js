@@ -163,12 +163,17 @@ describe("mock backend", () => {
         lastPosition: 3.25,
         metronomeEnabled: true,
         metronomeVolume: 0.65,
-        metronomeAccent: false,
+        metronomeSolo: true,
+        countInBars: 1,
         gridOverrides: {
           bpm: 106.4,
-          beatsPerBar: 3,
-          downbeatOffsetSeconds: 0.37,
-          gridOffsetSeconds: -0.02
+          beatsPerBar: 7,
+          beatUnit: 8,
+          downbeatOffsetSeconds: 0.37
+        },
+        keyOverride: {
+          tonic: "Bb",
+          mode: "major"
         },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
@@ -185,11 +190,14 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.lastPosition, 3.25);
     assert.equal(updatedJob.practiceState.metronomeEnabled, true);
     assert.equal(updatedJob.practiceState.metronomeVolume, 0.65);
-    assert.equal(updatedJob.practiceState.metronomeAccent, false);
+    assert.equal(updatedJob.practiceState.metronomeAccent, true);
+    assert.equal(updatedJob.practiceState.metronomeSolo, true);
+    assert.equal(updatedJob.practiceState.countInBars, 1);
     assert.equal(updatedJob.practiceState.gridOverrides.bpm, 106.4);
-    assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 3);
+    assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 7);
+    assert.equal(updatedJob.practiceState.gridOverrides.beatUnit, 8);
     assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, 0.37);
-    assert.equal(updatedJob.practiceState.gridOverrides.gridOffsetSeconds, -0.02);
+    assert.deepEqual(updatedJob.practiceState.keyOverride, { tonic: "Bb", mode: "major" });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 

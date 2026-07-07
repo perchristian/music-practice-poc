@@ -109,48 +109,34 @@
                         <option value="learned">Learned</option>
                       </select>
                     </label>
-                    <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
                   </div>
                 </div>
 
                 <div id="stemDeck" class="stem-deck" aria-label="Processed stems"></div>
 
-                <div class="transport">
-                  <button type="button" id="playButton" class="play-button">Play</button>
+                <div class="timeline-panel">
+                  <div class="transport">
+                    <div class="transport-buttons">
+                      <button type="button" id="backToStartButton" class="icon-button" data-testid="back-to-start" aria-label="Back to start">|&lt;</button>
+                      <button type="button" id="playButton" class="play-button">Play</button>
+                    </div>
+                    <span class="time-readout" id="timeReadout">0:00 / 0:00</span>
+                    <div class="segmented speed-controls" id="speedControls" role="group" aria-label="Playback speed">
+                      <button type="button" data-speed="0.5" data-testid="speed-05">0.5x</button>
+                      <button type="button" data-speed="0.75" data-testid="speed-075">0.75x</button>
+                      <button type="button" data-speed="1" data-testid="speed-1" class="active">1x</button>
+                      <button type="button" data-speed="1.25" data-testid="speed-125">1.25x</button>
+                    </div>
+                  </div>
                   <input id="scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Playback position">
+                  <div class="grid-timeline" id="gridTimeline" data-testid="grid-timeline" aria-label="Beat and bar grid"></div>
                 </div>
-                <div class="grid-timeline" id="gridTimeline" data-testid="grid-timeline" aria-label="Beat and bar grid"></div>
 
                 <div>
                   <div class="control-row stem-heading">
                     <span class="control-label">Stems</span>
                   </div>
                   <div id="stemMixer" class="stem-mixer" aria-label="Stem controls"></div>
-                </div>
-
-                <div class="control-row">
-                  <span class="control-label">Speed</span>
-                  <div class="segmented" id="speedControls" role="group" aria-label="Playback speed">
-                    <button type="button" data-speed="0.5" data-testid="speed-05">0.5x</button>
-                    <button type="button" data-speed="0.75" data-testid="speed-075">0.75x</button>
-                    <button type="button" data-speed="1" data-testid="speed-1" class="active">1x</button>
-                    <button type="button" data-speed="1.25" data-testid="speed-125">1.25x</button>
-                  </div>
-                </div>
-
-                <div class="metronome-grid">
-                  <label class="toggle">
-                    <input id="metronomeEnabled" data-testid="metronome-enabled" type="checkbox">
-                    <span>Grid click</span>
-                  </label>
-                  <label class="toggle">
-                    <input id="metronomeAccent" data-testid="metronome-accent" type="checkbox" checked>
-                    <span>Downbeat accent</span>
-                  </label>
-                  <label>
-                    <span>Click volume</span>
-                    <input id="metronomeVolume" data-testid="metronome-volume" type="range" min="0" max="1" step="0.05" value="0.45">
-                  </label>
                 </div>
 
                 <div class="loop-grid">
@@ -166,6 +152,13 @@
                     <input id="loopEnabled" data-testid="loop-enabled" type="checkbox">
                     <span>Loop</span>
                   </label>
+                  <label>
+                    <span>Count in</span>
+                    <select id="countInBars" data-testid="count-in-bars">
+                      <option value="0">Off</option>
+                      <option value="1" selected>1 bar</option>
+                    </select>
+                  </label>
                 </div>
               </section>
 
@@ -176,7 +169,10 @@
                     <h2 id="harmonyTitle">Harmony</h2>
                   </div>
                   <div class="harmony-summary">
-                    <div class="key-badge" id="keyBadge" data-testid="key-badge">Key</div>
+                    <label class="key-control">
+                      <span>Key</span>
+                      <select id="keySelect" data-testid="key-select" aria-label="Key"></select>
+                    </label>
                     <div class="tempo-control" id="tempoControl" hidden>
                       <button type="button" class="tempo-nudge" id="tempoHalf" data-testid="tempo-half" aria-label="Halve tempo">/2</button>
                       <button type="button" class="tempo-display" id="tempoDisplay" data-testid="tempo-display" aria-label="Edit tempo">Tempo</button>
@@ -196,18 +192,18 @@
                   </label>
                   <div>
                     <span>Time signature</span>
-                    <div class="meter-control" id="meterControl" role="group" aria-label="Time signature">
-                      <button type="button" data-meter="4" data-testid="meter-4">4/4</button>
-                      <button type="button" data-meter="3" data-testid="meter-3">3/4</button>
-                    </div>
+                    <select id="meterSelect" data-testid="meter-select" aria-label="Time signature">
+                      <option value="4/4">4/4</option>
+                      <option value="3/4">3/4</option>
+                      <option value="5/4">5/4</option>
+                      <option value="6/8">6/8</option>
+                      <option value="7/8">7/8</option>
+                      <option value="12/8">12/8</option>
+                    </select>
                   </div>
-                  <label>
-                    <span>Grid offset</span>
-                    <div class="nudge-field">
-                      <button type="button" data-grid-nudge="offset:-0.01" data-testid="grid-offset-minus" aria-label="Move grid earlier">-</button>
-                      <input id="gridOffsetInput" data-testid="grid-offset-input" type="number" min="-2" max="2" step="0.01" inputmode="decimal" aria-label="Grid offset seconds">
-                      <button type="button" data-grid-nudge="offset:0.01" data-testid="grid-offset-plus" aria-label="Move grid later">+</button>
-                    </div>
+                  <label class="grid-note">
+                    <span>Offset</span>
+                    <strong>Use Bar 1 start</strong>
                   </label>
                 </div>
                 <div class="chord-list" id="chordList"></div>

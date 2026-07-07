@@ -14,7 +14,7 @@ PIPELINE_MODE=mock
 
 Mock mode does not perform real stem separation or transcription. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, it returns piano and accompaniment stems from those files so piano mute/unmute can be evaluated by ear. If those files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems plus plausible harmonic metadata.
 
-In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, beat/bar timeline markers, grid-aligned metronome click, and harmonic display.
+In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, beat/bar timeline markers, grid-aligned metronome click, editable key/meter corrections, and harmonic display.
 
 In real mode, the browser uploads the actual selected file as multipart form data. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav` as uncompressed PCM WAV, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. It also runs a first-pass dependency-free harmonic analysis on `source-audio.wav`: broad onset energy estimates tempo, first downbeat, and a beat/bar grid; beat-length chroma scoring estimates chord cues that can include multiple changes inside a bar when evidence is strong; and roman numerals are generated from the estimated key. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
 
@@ -109,7 +109,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop control state, beat/bar marker rendering, metronome click scheduling, detected key, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -130,15 +130,15 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 13. Solo the piano stem and confirm other stems drop out.
 14. Confirm mute and solo cannot remain active at the same time on the piano stem.
 15. Confirm the timeline shows beat/bar markers.
-16. Enable Grid click, play the song, and listen for whether the click feels aligned with the music.
+16. Unmute the `Grid click` mixer row, play the song, and listen for whether the click feels aligned with the music.
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
-19. Adjust click volume and downbeat accent.
-20. Change playback speed, stem volume, loop start/end, loop enabled state, grid click settings, tempo correction, and learning status.
+19. Adjust click volume from the mixer row; downbeat accent is always on for now.
+20. Change playback speed, stem volume, loop start/end, loop enabled state, count-in, grid click settings, tempo correction, time signature, key, and learning status.
 21. Reload the page, reopen the song from the unified song list, and confirm those practice settings return.
 22. Rename the selected song from the selected-song header.
 23. Delete the selected song and confirm it disappears from the song list and no longer opens.
-24. Inspect detected key, chord names, and roman numerals.
+24. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update.
 
 ## Real-Mode Separation Smoke
 
@@ -154,11 +154,11 @@ npm run generate:test-media
 5. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
 6. Play the result and confirm the browser can load all stems.
 7. Confirm the chord list shows bar-aligned cue times such as `Bar 1 · 0:00-0:04` when the analysis can estimate a grid.
-8. Enable Grid click and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
+8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
-10. Adjust `Bar 1 start` or the `Grid offset` nudge buttons in 0.01-second steps while listening to the click. Switch 4/4 vs 3/4 if the downbeat accents are wrong.
+10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Switch the time-signature dropdown if the downbeat accents are wrong.
 11. Confirm the beat markers and chord `Bar` labels update immediately after the grid correction.
-12. Reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, and offset persist.
+12. Reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, and key persist.
 13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
 14. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
 15. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
@@ -237,7 +237,7 @@ These files are generated in-repo, are not commercial recordings, and do not inc
 
 - Real mode uses Demucs by default for drums, bass, guitar, piano, vocals, and other stems, but quality is still only validated on a small number of local examples.
 - Real transcription is not implemented yet.
-- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo can be corrected manually, but downbeat and meter correction controls are not implemented yet.
+- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 start, time signature, and key can be corrected manually; editable chord labels are still planned.
 - Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.

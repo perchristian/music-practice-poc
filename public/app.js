@@ -28,17 +28,16 @@ const failedMessage = document.querySelector("#failedMessage");
 const stemDeck = document.querySelector("#stemDeck");
 const stemMixer = document.querySelector("#stemMixer");
 const playButton = document.querySelector("#playButton");
+const backToStartButton = document.querySelector("#backToStartButton");
 const scrubber = document.querySelector("#scrubber");
 const gridTimeline = document.querySelector("#gridTimeline");
 const speedControls = document.querySelector("#speedControls");
-const metronomeEnabled = document.querySelector("#metronomeEnabled");
-const metronomeAccent = document.querySelector("#metronomeAccent");
-const metronomeVolume = document.querySelector("#metronomeVolume");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
 const loopEnabled = document.querySelector("#loopEnabled");
+const countInBars = document.querySelector("#countInBars");
 const timeReadout = document.querySelector("#timeReadout");
-const keyBadge = document.querySelector("#keyBadge");
+const keySelect = document.querySelector("#keySelect");
 const tempoControl = document.querySelector("#tempoControl");
 const tempoHalf = document.querySelector("#tempoHalf");
 const tempoDisplay = document.querySelector("#tempoDisplay");
@@ -46,8 +45,7 @@ const tempoInput = document.querySelector("#tempoInput");
 const tempoDouble = document.querySelector("#tempoDouble");
 const gridCorrection = document.querySelector("#gridCorrection");
 const barStartInput = document.querySelector("#barStartInput");
-const meterControl = document.querySelector("#meterControl");
-const gridOffsetInput = document.querySelector("#gridOffsetInput");
+const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
@@ -75,6 +73,10 @@ let currentJob = null;
 let currentJobId = null;
 let currentAnalyzedMetadata = null;
 let gridOverrides = {};
+let keyOverride = null;
+let metronomeEnabled = false;
+let metronomeSolo = false;
+let metronomeVolume = 0.45;
 let persistTimer = null;
 let selectedQueueLocalId = null;
 let selectedReadyJobId = null;
@@ -95,6 +97,47 @@ const pipelineStageLabels = {
   "audio-analysis": "Analyzing harmony",
   "piano-focused-separated": "Preparing result"
 };
+
+const notePitchClasses = {
+  C: 0,
+  "C#": 1,
+  Db: 1,
+  D: 2,
+  "D#": 3,
+  Eb: 3,
+  E: 4,
+  F: 5,
+  "F#": 6,
+  Gb: 6,
+  G: 7,
+  "G#": 8,
+  Ab: 8,
+  A: 9,
+  "A#": 10,
+  Bb: 10,
+  B: 11
+};
+const pitchClassNames = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const keyTonics = ["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"];
+const keyModes = ["major", "minor"];
+const majorScale = [0, 2, 4, 5, 7, 9, 11];
+const minorScale = [0, 2, 3, 5, 7, 8, 10];
+const romanDegrees = ["I", "II", "III", "IV", "V", "VI", "VII"];
+const defaultTimeSignature = { beatsPerBar: 4, beatUnit: 4 };
+
+function populateKeySelect() {
+  if (!keySelect) return;
+  const options = [];
+  for (const tonic of keyTonics) {
+    for (const mode of keyModes) {
+      const option = document.createElement("option");
+      option.value = `${tonic}:${mode}`;
+      option.textContent = `${tonic} ${mode}`;
+      options.push(option);
+    }
+  }
+  keySelect.replaceChildren(...options);
+}
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -131,6 +174,27 @@ function keyLabel(metadata) {
   return `${metadata.key.tonic} ${metadata.key.mode}`;
 }
 
+function normalizedKeyOverride(state = null) {
+  const source = state?.keyOverride || {};
+  const tonic = typeof source.tonic === "string" ? source.tonic : "";
+  const mode = typeof source.mode === "string" ? source.mode : "";
+  if (!Object.prototype.hasOwnProperty.call(notePitchClasses, tonic)) return null;
+  if (!keyModes.includes(mode)) return null;
+  return { tonic, mode };
+}
+
+function keyValue(key) {
+  return key ? `${key.tonic}:${key.mode}` : "";
+}
+
+function parseKeyValue(value) {
+  const [tonic, mode] = String(value || "").split(":");
+  if (!Object.prototype.hasOwnProperty.call(notePitchClasses, tonic) || !keyModes.includes(mode)) {
+    return null;
+  }
+  return { tonic, mode };
+}
+
 function keyTempoLabel(metadata) {
   const key = keyLabel(metadata);
   const tempo = tempoLabel(metadata);
@@ -153,6 +217,27 @@ function hasGridOverride(source, key) {
   return Object.prototype.hasOwnProperty.call(source || {}, key);
 }
 
+function parseTimeSignature(value) {
+  const match = String(value || "").match(/^(\d+)\/(\d+)$/);
+  if (!match) return null;
+  const beatsPerBar = Number(match[1]);
+  const beatUnit = Number(match[2]);
+  const supported = [
+    [4, 4],
+    [3, 4],
+    [5, 4],
+    [6, 8],
+    [7, 8],
+    [12, 8]
+  ];
+  if (!supported.some(([beats, unit]) => beats === beatsPerBar && unit === beatUnit)) return null;
+  return { beatsPerBar, beatUnit };
+}
+
+function timeSignatureValue(signature) {
+  return `${signature?.beatsPerBar || defaultTimeSignature.beatsPerBar}/${signature?.beatUnit || defaultTimeSignature.beatUnit}`;
+}
+
 function normalizedGridOverrides(state = null) {
   const source = state?.gridOverrides || {};
   const overrides = {};
@@ -162,18 +247,15 @@ function normalizedGridOverrides(state = null) {
   }
 
   const beatsPerBar = Number(source.beatsPerBar);
-  if (beatsPerBar === 3 || beatsPerBar === 4) {
+  const beatUnit = Number(source.beatUnit) || 4;
+  if (parseTimeSignature(`${beatsPerBar}/${beatUnit}`)) {
     overrides.beatsPerBar = beatsPerBar;
+    overrides.beatUnit = beatUnit;
   }
 
   const downbeatOffsetSeconds = roundedSeconds(source.downbeatOffsetSeconds, 0, 60 * 60);
   if (hasGridOverride(source, "downbeatOffsetSeconds") && downbeatOffsetSeconds !== null) {
     overrides.downbeatOffsetSeconds = downbeatOffsetSeconds;
-  }
-
-  const gridOffsetSeconds = roundedSeconds(source.gridOffsetSeconds, -2, 2);
-  if (hasGridOverride(source, "gridOffsetSeconds") && gridOffsetSeconds !== null) {
-    overrides.gridOffsetSeconds = gridOffsetSeconds;
   }
 
   return overrides;
@@ -183,11 +265,14 @@ function metadataGridDefaults(metadata) {
   const grid = metadata?.beatGrid || {};
   const bpm = roundedBpm(grid.bpm);
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
+  const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
   const downbeatOffsetSeconds = roundedSeconds(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0, 0, 60 * 60) ?? 0;
+  const timeSignature = parseTimeSignature(`${beatsPerBar}/${beatUnit}`) || defaultTimeSignature;
   return {
     bpm,
     beatDurationSeconds: Number(grid.beatDurationSeconds) || (bpm ? 60 / bpm : null),
-    beatsPerBar: beatsPerBar === 3 ? 3 : 4,
+    beatsPerBar: timeSignature.beatsPerBar,
+    beatUnit: timeSignature.beatUnit,
     downbeatOffsetSeconds
   };
 }
@@ -199,27 +284,40 @@ function effectiveMetadata(metadata) {
   const bpm = roundedBpm(gridOverrides.bpm) || defaults.bpm;
   const beatDurationSeconds = bpm ? 60 / bpm : defaults.beatDurationSeconds;
   const beatsPerBar = gridOverrides.beatsPerBar || defaults.beatsPerBar;
+  const beatUnit = gridOverrides.beatUnit || defaults.beatUnit;
   const baseDownbeat = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
     ? gridOverrides.downbeatOffsetSeconds
     : defaults.downbeatOffsetSeconds;
-  const gridOffsetSeconds = hasGridOverride(gridOverrides, "gridOffsetSeconds")
-    ? gridOverrides.gridOffsetSeconds
-    : 0;
-  const downbeatOffsetSeconds = roundedSeconds(baseDownbeat + gridOffsetSeconds, -2, 60 * 60) ?? 0;
+  const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0;
 
-  if (!bpm && !beatDurationSeconds) return metadata;
+  const key = keyOverride || metadata.key;
+  const chords = (metadata.chords || []).map((chord) => ({
+    ...chord,
+    roman: romanNumeralForChord(chord.name, key) || chord.roman
+  }));
+
+  if (!bpm && !beatDurationSeconds) {
+    return {
+      ...metadata,
+      key,
+      chords
+    };
+  }
 
   return {
     ...metadata,
+    key,
+    chords,
     beatGrid: {
       ...(metadata.beatGrid || {}),
       bpm,
       beatsPerBar,
+      beatUnit,
       beatDurationSeconds,
       beatOffsetSeconds: downbeatOffsetSeconds,
       downbeatOffsetSeconds,
-      meter: { beatsPerBar, beatUnit: 4 },
-      timeSignature: { beatsPerBar, beatUnit: 4 },
+      meter: { beatsPerBar, beatUnit },
+      timeSignature: { beatsPerBar, beatUnit },
       tempoOverride: Boolean(roundedBpm(gridOverrides.bpm)),
       gridOverride: Object.keys(gridOverrides).length > 0
     }
@@ -233,6 +331,7 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
   if (!Number.isFinite(beatDurationSeconds) || beatDurationSeconds <= 0) return null;
 
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
+  const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
   const downbeatOffsetSeconds = Number(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0) || 0;
   const metadataDuration = Number(metadata?.durationSeconds ?? metadata?.duration);
   const chordDuration = Math.max(0, ...(metadata?.chords || []).map((chord) => Number(chord.end) || 0));
@@ -245,10 +344,41 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
   return {
     bpm,
     beatsPerBar,
+    beatUnit,
     beatDurationSeconds,
     downbeatOffsetSeconds,
     durationSeconds
   };
+}
+
+function chordQualityFromName(chordName) {
+  const cleaned = String(chordName || "").replace(/\/.*$/, "");
+  const match = cleaned.match(/^[A-G](?:#|b)?(.*)$/);
+  const suffix = match?.[1] || "";
+  if (/dim/i.test(suffix)) return { label: "diminished", romanSuffix: "dim" };
+  if (/^m(?!aj)/.test(suffix)) return { label: suffix.includes("7") ? "minor7" : "minor", romanSuffix: suffix.includes("7") ? "7" : "" };
+  if (/maj7/i.test(suffix)) return { label: "major7", romanSuffix: "maj7" };
+  if (/7/.test(suffix)) return { label: "dominant7", romanSuffix: "7" };
+  if (/sus2/i.test(suffix)) return { label: "sus2", romanSuffix: "sus2" };
+  if (/sus4/i.test(suffix)) return { label: "sus4", romanSuffix: "sus4" };
+  return { label: "major", romanSuffix: "" };
+}
+
+function romanNumeralForChord(chordName, key) {
+  const root = String(chordName || "").match(/^([A-G](?:#|b)?)/)?.[1];
+  if (!root || !key) return "";
+  const rootPitch = notePitchClasses[root];
+  const tonicPitch = notePitchClasses[key.tonic];
+  if (!Number.isFinite(rootPitch) || !Number.isFinite(tonicPitch)) return "";
+
+  const scale = key.mode === "minor" ? minorScale : majorScale;
+  const relative = (rootPitch - tonicPitch + 12) % 12;
+  const degree = scale.indexOf(relative);
+  const quality = chordQualityFromName(chordName);
+  const base = degree === -1 ? pitchClassNames[rootPitch] : romanDegrees[degree];
+  const minorish = quality.label === "minor" || quality.label === "minor7" || quality.label === "diminished";
+  const numeral = degree === -1 ? base : minorish ? base.toLowerCase() : base;
+  return `${numeral}${quality.romanSuffix}`;
 }
 
 function chordBarLabel(chord, grid) {
@@ -415,11 +545,14 @@ async function persistPracticeState(refreshLibrary = false) {
     loopStart: Number(loopStart.value),
     loopEnd: Number(loopEnd.value),
     loopEnabled: loopEnabled.checked,
+    countInBars: Number(countInBars?.value) || 0,
     lastPosition: transportTime(),
-    metronomeEnabled: Boolean(metronomeEnabled?.checked),
-    metronomeVolume: Number(metronomeVolume?.value) || 0,
-    metronomeAccent: metronomeAccent?.checked !== false,
+    metronomeEnabled,
+    metronomeVolume,
+    metronomeAccent: true,
+    metronomeSolo,
     gridOverrides,
+    keyOverride,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -452,19 +585,17 @@ async function persistPracticeState(refreshLibrary = false) {
 function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
   gridOverrides = normalizedGridOverrides(state);
+  keyOverride = normalizedKeyOverride(state);
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
   loopEnabled.checked = Boolean(state.loopEnabled);
-  if (metronomeEnabled) {
-    metronomeEnabled.checked = Boolean(state.metronomeEnabled);
+  if (countInBars) {
+    countInBars.value = String(Number(state.countInBars ?? 1));
   }
-  if (metronomeVolume) {
-    metronomeVolume.value = String(Number(state.metronomeVolume ?? 0.45));
-  }
-  if (metronomeAccent) {
-    metronomeAccent.checked = state.metronomeAccent !== false;
-  }
+  metronomeEnabled = Boolean(state.metronomeEnabled);
+  metronomeVolume = Number(state.metronomeVolume ?? 0.45);
+  metronomeSolo = Boolean(state.metronomeSolo);
   if (learningStatusSelect) {
     learningStatusSelect.value = state.learningStatus || "not_started";
   }
@@ -642,6 +773,7 @@ function renderCompletedJob(job) {
   renderStemPlayers(stems);
   applySavedPracticeState(job);
   renderMetadata(job.result.metadata);
+  updateSelectedSongMeta();
   showDetailPane("practice");
   openMobileDetail();
   if (learningStatusSelect) {
@@ -653,7 +785,7 @@ function renderCompletedJob(job) {
 function renderMetadata(metadata) {
   currentAnalyzedMetadata = metadata;
   currentMetadata = effectiveMetadata(metadata);
-  keyBadge.textContent = keyLabel(currentMetadata);
+  updateKeyControl();
   updateTempoControl();
   updateGridCorrectionControls();
   renderGridTimeline(currentMetadata);
@@ -673,6 +805,14 @@ function renderMetadata(metadata) {
       return card;
     })
   );
+}
+
+function updateKeyControl() {
+  if (!keySelect || !currentMetadata) return;
+  const value = keyValue(currentMetadata.key);
+  if (keySelect.value !== value) {
+    keySelect.value = value;
+  }
 }
 
 function updateTempoControl() {
@@ -713,6 +853,19 @@ function applyGridOverrides(nextOverrides = {}) {
   queuePracticeStatePersist();
 }
 
+function applyKeyOverride(nextKey) {
+  if (!currentAnalyzedMetadata) return;
+
+  keyOverride = normalizedKeyOverride({ keyOverride: nextKey }) || null;
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.keyOverride = keyOverride;
+  }
+
+  renderMetadata(currentAnalyzedMetadata);
+  updateSelectedSongMeta();
+  queuePracticeStatePersist();
+}
+
 function updateGridCorrectionControls() {
   if (!gridCorrection || !currentAnalyzedMetadata || !currentMetadata) return;
 
@@ -728,14 +881,8 @@ function updateGridCorrectionControls() {
     barStartInput.value = String(roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0);
   }
 
-  if (gridOffsetInput && document.activeElement !== gridOffsetInput) {
-    gridOffsetInput.value = String(roundedSeconds(gridOverrides.gridOffsetSeconds ?? 0, -2, 2) ?? 0);
-  }
-
-  for (const button of meterControl?.querySelectorAll("button[data-meter]") || []) {
-    const active = Number(button.dataset.meter) === effectiveGrid.beatsPerBar;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
+  if (meterSelect && document.activeElement !== meterSelect) {
+    meterSelect.value = timeSignatureValue(effectiveGrid);
   }
 }
 
@@ -743,12 +890,6 @@ function applyBarStartFromInput() {
   const seconds = roundedSeconds(barStartInput?.value, 0, 60 * 60);
   if (seconds === null) return;
   applyGridOverrides({ downbeatOffsetSeconds: seconds });
-}
-
-function applyGridOffsetFromInput() {
-  const seconds = roundedSeconds(gridOffsetInput?.value, -2, 2);
-  if (seconds === null) return;
-  applyGridOverrides({ gridOffsetSeconds: seconds });
 }
 
 function nudgeGridValue(target, delta) {
@@ -763,14 +904,6 @@ function nudgeGridValue(target, delta) {
     const next = roundedSeconds(current + step, 0, 60 * 60);
     if (next !== null) {
       applyGridOverrides({ downbeatOffsetSeconds: next });
-    }
-  }
-
-  if (target === "offset") {
-    const current = hasGridOverride(gridOverrides, "gridOffsetSeconds") ? gridOverrides.gridOffsetSeconds : 0;
-    const next = roundedSeconds(current + step, -2, 2);
-    if (next !== null) {
-      applyGridOverrides({ gridOffsetSeconds: next });
     }
   }
 }
@@ -825,10 +958,46 @@ function renderGridTimeline(metadata) {
 
     gridTimeline.append(marker);
   }
+
+  renderTimelineIndicators();
 }
 
 function resetMetronomeSchedule() {
   scheduledMetronomeBeats = new Set();
+}
+
+function timelinePercent(seconds, duration = transportDuration()) {
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return Math.min(100, Math.max(0, (seconds / duration) * 100));
+}
+
+function markerElement(className, label, time) {
+  const marker = document.createElement("span");
+  marker.className = className;
+  marker.style.left = `${timelinePercent(time)}%`;
+  marker.dataset.time = String(Math.round(time * 1000) / 1000);
+  marker.textContent = label;
+  return marker;
+}
+
+function renderTimelineIndicators() {
+  if (!gridTimeline) return;
+  gridTimeline.querySelectorAll(".timeline-playhead, .loop-marker").forEach((marker) => marker.remove());
+
+  const duration = transportDuration();
+  if (!Number.isFinite(duration) || duration <= 0) return;
+
+  const playhead = document.createElement("span");
+  playhead.className = "timeline-playhead";
+  playhead.style.left = `${timelinePercent(transportTime(), duration)}%`;
+  gridTimeline.append(playhead);
+
+  const start = Number(loopStart.value);
+  const end = Number(loopEnd.value);
+  if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start) {
+    gridTimeline.append(markerElement("loop-marker loop-start-marker", "L", start));
+    gridTimeline.append(markerElement("loop-marker loop-end-marker", "R", end));
+  }
 }
 
 function ensureAudioContext() {
@@ -848,7 +1017,7 @@ function playMetronomeClick(delaySeconds, accented) {
   const context = ensureAudioContext();
   if (!context) return;
 
-  const volume = Number(metronomeVolume?.value) || 0;
+  const volume = Number(metronomeVolume) || 0;
   if (volume <= 0) return;
 
   const startAt = context.currentTime + Math.max(0, delaySeconds);
@@ -866,7 +1035,7 @@ function playMetronomeClick(delaySeconds, accented) {
 }
 
 function scheduleMetronomeClicks(currentTime = transportTime()) {
-  if (!metronomeEnabled?.checked || !isPlaying || !currentMetadata) return;
+  if (!metronomeEnabled || !isPlaying || !currentMetadata) return;
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   if (!grid) return;
@@ -883,7 +1052,7 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
 
     scheduledMetronomeBeats.add(key);
     const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
-    const accented = metronomeAccent?.checked && beatWithinBar === 0;
+    const accented = beatWithinBar === 0;
     const delaySeconds = (beatTime - currentTime) / Math.max(0.1, playbackRate);
     playMetronomeClick(delaySeconds, accented);
   }
@@ -932,6 +1101,8 @@ function updateTimeDisplay() {
   if (!isSeeking) {
     scrubber.value = String(current);
   }
+
+  renderTimelineIndicators();
 }
 
 function highlightCurrentChord() {
@@ -995,6 +1166,22 @@ function setTransportTime(seconds) {
   queuePracticeStatePersist();
 }
 
+function loopCountInStartTime(current) {
+  if (!loopEnabled.checked || !currentMetadata) return current;
+  const bars = Number(countInBars?.value) || 0;
+  if (bars <= 0) return current;
+
+  const start = Number(loopStart.value);
+  const end = Number(loopEnd.value);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return current;
+
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!grid) return current;
+
+  const countInSeconds = bars * grid.beatsPerBar * grid.beatDurationSeconds;
+  return Math.max(0, start - countInSeconds);
+}
+
 function stopTransportTick() {
   if (transportFrame !== null) {
     cancelAnimationFrame(transportFrame);
@@ -1054,7 +1241,7 @@ function pauseAll({ persist = true } = {}) {
 async function playAll() {
   if (!stemPlayers.length) return;
 
-  const current = transportTime();
+  const current = loopCountInStartTime(transportTime());
   anchorTransport(current);
   for (const player of stemPlayers) {
     player.audio.playbackRate = playbackRate;
@@ -1091,7 +1278,7 @@ function resumeAudibleStem(player) {
 }
 
 function updateStemAudibility() {
-  const hasSolo = stemPlayers.some((player) => player.solo);
+  const hasSolo = stemPlayers.some((player) => player.solo) || metronomeSolo;
   const playersToResume = [];
 
   for (const player of stemPlayers) {
@@ -1116,6 +1303,8 @@ function updateStemAudibility() {
   for (const player of playersToResume) {
     resumeAudibleStem(player);
   }
+
+  updateMetronomeRow();
 }
 
 function setStemMuted(stemId, muted) {
@@ -1142,6 +1331,77 @@ function setStemSolo(stemId, solo) {
   queuePracticeStatePersist();
 }
 
+function updateMetronomeRow() {
+  const row = stemMixer?.querySelector("[data-testid='metronome-row']");
+  if (!row) return;
+  const muteButton = row.querySelector("[data-metronome-action='mute']");
+  const soloButton = row.querySelector("[data-metronome-action='solo']");
+  const volumeSlider = row.querySelector("[data-testid='metronome-volume']");
+  row.classList.toggle("muted", !metronomeEnabled);
+  row.classList.toggle("solo", metronomeSolo);
+  if (muteButton) {
+    muteButton.textContent = "M";
+    muteButton.setAttribute("aria-label", metronomeEnabled ? "Mute grid click" : "Unmute grid click");
+    muteButton.setAttribute("aria-pressed", String(!metronomeEnabled));
+  }
+  if (soloButton) {
+    soloButton.textContent = "S";
+    soloButton.setAttribute("aria-label", metronomeSolo ? "Unsolo grid click" : "Solo grid click");
+    soloButton.setAttribute("aria-pressed", String(metronomeSolo));
+  }
+  if (volumeSlider && document.activeElement !== volumeSlider) {
+    volumeSlider.value = String(metronomeVolume);
+  }
+}
+
+function renderMetronomeRow() {
+  if (!stemMixer) return;
+
+  const row = document.createElement("div");
+  row.className = "stem-row metronome-row";
+  row.dataset.testid = "metronome-row";
+  row.innerHTML = `
+    <div>
+      <span class="stem-name">Grid click</span>
+    </div>
+  `;
+
+  const controls = document.createElement("div");
+  controls.className = "stem-controls";
+
+  const volumeSlider = document.createElement("input");
+  volumeSlider.type = "range";
+  volumeSlider.min = "0";
+  volumeSlider.max = "1";
+  volumeSlider.step = "0.05";
+  volumeSlider.value = String(metronomeVolume);
+  volumeSlider.setAttribute("aria-label", "Grid click volume");
+  volumeSlider.dataset.testid = "metronome-volume";
+  volumeSlider.addEventListener("input", () => {
+    metronomeVolume = Number(volumeSlider.value) || 0;
+    queuePracticeStatePersist();
+  });
+
+  const muteButton = document.createElement("button");
+  muteButton.type = "button";
+  muteButton.className = "stem-toggle";
+  muteButton.dataset.metronomeAction = "mute";
+  muteButton.dataset.testid = "metronome-mute";
+  muteButton.title = "Mute grid click";
+
+  const soloButton = document.createElement("button");
+  soloButton.type = "button";
+  soloButton.className = "stem-toggle stem-solo";
+  soloButton.dataset.metronomeAction = "solo";
+  soloButton.dataset.testid = "metronome-solo";
+  soloButton.title = "Solo grid click";
+
+  controls.append(volumeSlider, muteButton, soloButton);
+  row.append(controls);
+  stemMixer.append(row);
+  updateMetronomeRow();
+}
+
 function renderStemPlayers(stems) {
   pauseAll({ persist: false });
   stemPlayers = [];
@@ -1150,6 +1410,7 @@ function renderStemPlayers(stems) {
   anchorTransport(0);
   stemDeck.replaceChildren();
   stemMixer.replaceChildren();
+  renderMetronomeRow();
 
   for (const stem of stems) {
     const audio = document.createElement("audio");
@@ -1566,9 +1827,14 @@ playButton.addEventListener("click", () => {
   }
 });
 
+backToStartButton?.addEventListener("click", () => {
+  setTransportTime(0);
+});
+
 scrubber.addEventListener("input", () => {
   isSeeking = true;
   timeReadout.textContent = `${formatTime(Number(scrubber.value))} / ${formatDuration(transportDuration())}`;
+  renderTimelineIndicators();
 });
 
 scrubber.addEventListener("change", () => {
@@ -1577,6 +1843,25 @@ scrubber.addEventListener("change", () => {
 });
 
 stemMixer.addEventListener("click", (event) => {
+  const metronomeButton = event.target.closest("button[data-metronome-action]");
+  if (metronomeButton) {
+    if (metronomeButton.dataset.metronomeAction === "solo") {
+      metronomeSolo = !metronomeSolo;
+      if (metronomeSolo) {
+        metronomeEnabled = true;
+      }
+    } else {
+      metronomeEnabled = !metronomeEnabled;
+      if (!metronomeEnabled) {
+        metronomeSolo = false;
+      }
+    }
+    resetMetronomeSchedule();
+    updateStemAudibility();
+    queuePracticeStatePersist();
+    return;
+  }
+
   const button = event.target.closest("button[data-stem-id][data-stem-action]");
   if (!button) return;
 
@@ -1614,6 +1899,13 @@ tempoDouble?.addEventListener("click", () => {
   applyTempoOverride((currentMetadata?.beatGrid?.bpm || 0) * 2);
 });
 
+keySelect?.addEventListener("change", () => {
+  const key = parseKeyValue(keySelect.value);
+  if (key) {
+    applyKeyOverride(key);
+  }
+});
+
 tempoDisplay?.addEventListener("click", () => {
   openTempoInput();
 });
@@ -1642,15 +1934,6 @@ barStartInput?.addEventListener("keydown", (event) => {
   }
 });
 
-gridOffsetInput?.addEventListener("change", applyGridOffsetFromInput);
-gridOffsetInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    applyGridOffsetFromInput();
-    gridOffsetInput.blur();
-  }
-});
-
 gridCorrection?.addEventListener("click", (event) => {
   const nudgeButton = event.target.closest("button[data-grid-nudge]");
   if (nudgeButton) {
@@ -1658,20 +1941,25 @@ gridCorrection?.addEventListener("click", (event) => {
     nudgeGridValue(target, delta);
     return;
   }
+});
 
-  const meterButton = event.target.closest("button[data-meter]");
-  if (meterButton) {
-    const beatsPerBar = Number(meterButton.dataset.meter);
-    if (beatsPerBar === 3 || beatsPerBar === 4) {
-      applyGridOverrides({ beatsPerBar });
-    }
+meterSelect?.addEventListener("change", () => {
+  const signature = parseTimeSignature(meterSelect.value);
+  if (signature) {
+    applyGridOverrides(signature);
   }
 });
 
-[loopStart, loopEnd, loopEnabled, metronomeEnabled, metronomeAccent, metronomeVolume].forEach((element) => {
+[loopStart, loopEnd, loopEnabled, countInBars].forEach((element) => {
   if (!element) return;
-  element.addEventListener("change", () => queuePracticeStatePersist());
-  element.addEventListener("input", () => queuePracticeStatePersist());
+  element.addEventListener("change", () => {
+    renderTimelineIndicators();
+    queuePracticeStatePersist();
+  });
+  element.addEventListener("input", () => {
+    renderTimelineIndicators();
+    queuePracticeStatePersist();
+  });
 });
 
 if (learningStatusSelect) {
@@ -1737,6 +2025,7 @@ selectedDeleteButton.addEventListener("click", async () => {
 });
 
 async function boot() {
+  populateKeySelect();
   await checkHealth();
   await loadLibrary();
   if (!loadProcessedDemo) return;

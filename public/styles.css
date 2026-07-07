@@ -105,7 +105,7 @@ h3 {
 }
 
 .status-pill,
-.key-badge {
+.key-control select {
   flex: 0 0 auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -538,15 +538,31 @@ audio {
   display: none;
 }
 
+.timeline-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+  margin: 10px 0 16px;
+}
+
 .transport {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(220px, 1fr);
   gap: 12px;
   align-items: center;
-  margin: 10px 0 12px;
+}
+
+.transport-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .play-button,
+.icon-button,
 .stem-toggle {
   min-height: 42px;
   border-radius: 8px;
@@ -558,7 +574,14 @@ audio {
   color: #fff;
 }
 
-.transport input[type="range"] {
+.icon-button {
+  min-width: 42px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.timeline-panel > input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
 }
@@ -572,7 +595,6 @@ audio {
   background:
     linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(37, 99, 235, 0.04)),
     #fff;
-  margin-bottom: 16px;
 }
 
 .grid-timeline.empty::after {
@@ -609,6 +631,31 @@ audio {
   font-size: 0.72rem;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
+}
+
+.timeline-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 2px;
+  background: var(--warm);
+  transform: translateX(-1px);
+}
+
+.loop-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  place-items: start center;
+  width: 2px;
+  background: var(--blue);
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 850;
+  transform: translateX(-1px);
 }
 
 .stem-toggle {
@@ -651,6 +698,11 @@ audio {
   gap: 8px;
 }
 
+.speed-controls {
+  justify-self: end;
+  width: min(280px, 100%);
+}
+
 .segmented button {
   border: 1px solid var(--line);
   background: #fff;
@@ -672,9 +724,11 @@ audio {
 
 .stem-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 9px;
-  align-items: stretch;
+  grid-template-columns: minmax(82px, 128px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  height: 64px;
+  min-height: 62px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
@@ -729,7 +783,6 @@ audio {
   color: #1d4ed8;
 }
 
-.metronome-grid,
 .loop-grid {
   display: grid;
   gap: 12px;
@@ -737,27 +790,23 @@ audio {
   margin-top: 18px;
 }
 
-.metronome-grid {
-  grid-template-columns: auto auto minmax(140px, 1fr);
-}
-
 .loop-grid {
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr auto minmax(116px, auto);
 }
 
-.metronome-grid label,
 .loop-grid label {
   display: grid;
   gap: 7px;
 }
 
-.metronome-grid label > span,
 .loop-grid label > span {
   color: var(--muted);
   font-size: 0.9rem;
 }
 
-.loop-grid input[type="number"] {
+.loop-grid input[type="number"],
+.loop-grid select,
+.grid-correction select {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--line);
@@ -765,17 +814,21 @@ audio {
   padding: 8px 10px;
 }
 
-.metronome-grid input[type="range"] {
-  width: 100%;
-  min-height: 42px;
-  accent-color: var(--accent);
-}
-
 .harmony-summary {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.key-control {
+  display: grid;
+  gap: 5px;
+}
+
+.key-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .tempo-control {
@@ -833,7 +886,7 @@ audio {
 
 .grid-correction {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  grid-template-columns: minmax(150px, 1fr) minmax(128px, auto) minmax(128px, auto);
   gap: 12px;
   align-items: end;
   margin: 14px 0 12px;
@@ -855,8 +908,7 @@ audio {
   font-size: 0.86rem;
 }
 
-.nudge-field,
-.meter-control {
+.nudge-field {
   display: grid;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -865,17 +917,24 @@ audio {
   overflow: hidden;
 }
 
+.grid-note strong {
+  min-height: 42px;
+  display: grid;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .nudge-field {
   grid-template-columns: 34px minmax(70px, 1fr) 34px;
 }
 
-.meter-control {
-  grid-template-columns: repeat(2, 48px);
-}
-
 .nudge-field button,
-.nudge-field input,
-.meter-control button {
+.nudge-field input {
   min-width: 0;
   border: 0;
   border-right: 1px solid var(--line);
@@ -886,8 +945,7 @@ audio {
   text-align: center;
 }
 
-.nudge-field button:last-child,
-.meter-control button:last-child {
+.nudge-field button:last-child {
   border-right: 0;
 }
 
@@ -897,22 +955,14 @@ audio {
   font-variant-numeric: tabular-nums;
 }
 
-.nudge-field button,
-.meter-control button {
+.nudge-field button {
   cursor: pointer;
 }
 
 .nudge-field button:hover,
-.nudge-field button:focus-visible,
-.meter-control button:hover,
-.meter-control button:focus-visible {
+.nudge-field button:focus-visible {
   background: #f6f9ff;
   outline: none;
-}
-
-.meter-control button.active {
-  background: #dbeafe;
-  color: #1d4ed8;
 }
 
 .toggle {
@@ -988,7 +1038,6 @@ audio {
     max-height: none;
   }
 
-  .metronome-grid,
   .loop-grid,
   .grid-correction {
     grid-template-columns: 1fr;
@@ -1025,6 +1074,11 @@ audio {
     grid-template-columns: 1fr;
   }
 
+  .speed-controls {
+    justify-self: stretch;
+    width: 100%;
+  }
+
   .library-card-header,
   .practice-status-group,
   .compact-card {
@@ -1038,5 +1092,10 @@ audio {
 
   .stem-controls input[type="range"] {
     width: 100%;
+  }
+
+  .stem-row {
+    grid-template-columns: minmax(0, 1fr);
+    height: 94px;
   }
 }
