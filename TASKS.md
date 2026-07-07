@@ -646,7 +646,7 @@ Verification:
 - Manually smoke the relevant demo path if cleanup changes runtime behavior not covered by tests.
 - Confirm `git status` contains only intentional follow-up work after the cleanup commit.
 
-Status: Planned. Run before the next large feature task if the current dirty worktree contains completed but uncommitted implementation work.
+Status: Complete on 2026-07-07. The review found a clean worktree, intentional compatibility/fallback paths in runtime code, minor low-value frontend naming drift from the pre-unified workspace flow, and one stale local-state note in `STATUS.md`, which was updated. No runtime behavior was changed.
 
 ## Next Task
 

@@ -8,6 +8,14 @@ Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening p
 
 The next planned iteration is to finish Phase 3B by adding bar 1/downbeat start point, time signature, and small offset correction controls. BPM half/double and numeric tempo override are already implemented and persisted separately from analyzer metadata in `practiceState.gridOverrides.bpm`. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
+Fragmentation Cleanup Review was completed on 2026-07-07. Findings:
+
+- No uncommitted completed, incomplete, or ambiguous work was present at review start; `git status --short` was clean.
+- `server.js` retains compatibility/fallback paths that look old at first pass but are still intentional: `/api/jobs/:id/piano.wav` supports legacy/practice audio URLs, generated mock jobs still write a root `piano.wav`, and `REAL_SEPARATOR=ffmpeg-spectral` remains the documented lightweight fallback.
+- The frontend still uses some older internal names from the pre-unified workspace flow, such as `homeView`, `backToHomeButton`, and the `?skipUpload=1` processed-demo alias. These are minor naming fragmentation, but renaming them would touch HTML, CSS, JS, and Playwright tests without improving the demo path, so they were left unchanged.
+- Documentation had stale local-state context saying `AGENTS.md` had pre-existing uncommitted edits. The repository is currently clean, so the local-state note was updated instead of preserving obsolete context.
+- No runtime code cleanup was high-confidence enough to justify churn during this process task.
+
 Phase 2A spike frame:
 
 - FFmpeg availability: installed locally on 2026-07-06 through Homebrew. `which ffmpeg` returns `/opt/homebrew/bin/ffmpeg`; `ffmpeg -version` reports `ffmpeg version 8.1.2`.
@@ -237,10 +245,11 @@ Optional process task: enable the on-demand context overhead audit only when exp
 
 ## Known Local State
 
-- `AGENTS.md` had pre-existing uncommitted edits before implementation work began.
+- Working tree was clean at the start of the Fragmentation Cleanup Review on 2026-07-07.
 
 ## Verification Log
 
+- `npm test`: passed on 2026-07-07 with 11 backend tests after Fragmentation Cleanup Review documentation updates. No runtime behavior was changed, so `npm run test:gui` was not run.
 - `node --check server.js` and `node --check public/app.js`: passed on 2026-07-07 after adding Phase 3A beat-grid timeline and Web Audio metronome controls.
 - `npm test`: passed on 2026-07-07 with 11 backend tests after adding mock beat-grid metadata and persisted metronome practice-state fields.
 - `npx playwright test tests/gui.spec.js -g "beat grid timeline"`: passed on 2026-07-07 after adding browser coverage for grid markers and metronome click scheduling.
