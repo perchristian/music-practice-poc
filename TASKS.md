@@ -569,7 +569,79 @@ Result:
 
 Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass.
 
-Overall Phase 3 status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
+### Phase 3D: Grid-First Chord Chart Model
+
+Goal: Replace the current seconds-first user chord edit shape with a small, explicit chord chart model that stores positions in bars, beats, and subdivisions.
+
+Reason:
+- The chord editor research recommends separating internal model from rendering notation, with chord events positioned explicitly inside measures.
+- The current `practiceState.chordEdits` model stores `start` and `end` seconds first, with `bar` and `beat` as derived helper fields. That makes chord edits too dependent on tempo/grid changes.
+- For learning, the user needs a musical chart that stays meaningful when BPM, Bar 1, or time signature are corrected.
+- Backward compatibility is not required for the POC. Existing local songs/jobs may be deleted and regenerated when the model changes, except intentional fixture, demo, or calibration jobs that are explicitly documented.
+
+Target model:
+- Store the user's working chart under `practiceState.chordChart`.
+- Use a simple JSON structure:
+  - `version`
+  - `divisionsPerQuarter`
+  - `chords`
+- Each chord event stores:
+  - stable `id`
+  - `bar`
+  - `offsetDiv`
+  - `durationDiv`
+  - user-preserved `raw` chord text
+  - `source`, usually `user`
+- Derive playback/render values such as `start`, `end`, display `beat`, and roman numeral from the corrected grid and selected key.
+
+Deliverables:
+- Backend accepts and normalizes `practiceState.chordChart`.
+- Existing `practiceState.chordEdits` support may be removed instead of migrated.
+- Analyzer suggestions remain in `job.result.metadata.chords` as draft/provenance.
+- User chart is authoritative for Harmony display, current-chord highlighting, roman numerals, and future bar-based loops.
+- Local runtime songs/jobs created under the old chord edit model are deleted after verification unless explicitly documented as fixtures.
+
+Verification:
+- Create a mock processed song.
+- Edit/add/split/merge/move/delete chords and confirm persisted `practiceState.chordChart` uses grid positions rather than seconds-first timing.
+- Change BPM and Bar 1 start, then confirm the chord's musical bar/beat placement remains stable while derived seconds update.
+- Reload the app and confirm the chart is restored from `practiceState.chordChart`.
+- Confirm analyzer metadata remains unchanged.
+- Run `npm test`.
+- Run `npm run test:gui`.
+- Delete test-created songs/jobs before considering the task complete.
+
+Status: Planned as the next implementation task.
+
+### Phase 3E: Beat-Aligned Chord Chart UI
+
+Goal: Replace the plain Harmony cue list with a compact beat-aligned chord chart view/editor that makes bars, beats, and chord durations visually obvious.
+
+Reason:
+- A list of cue cards is useful for initial editing, but it does not clearly show where chords sit in the measure.
+- The research report recommends a grid/timeline editor plus beat-aligned reading view as the best MVP balance for chord placement.
+- A chord chart UI will make bar-based loops, count-in, and practice notes easier to understand.
+
+Deliverables:
+- Harmony renders bars as rows or compact grouped measures.
+- Beats/subdivisions are visible enough to understand placement without full notation.
+- Chords appear as blocks or cells spanning their musical duration.
+- Add, edit, split, merge, move, and delete operate on chart positions with snap to the current subdivision.
+- The UI remains usable at desktop and mobile widths without horizontal overflow.
+
+Verification:
+- Open a processed song and confirm the Harmony chart shows bars/beats/chords clearly.
+- Edit the chart using the same operations covered by Phase 3C.
+- Confirm keyboard and pointer interaction both remain usable.
+- Confirm current-chord highlighting follows playback.
+- Run `npm test`.
+- Run `npm run test:gui`.
+- Use a Playwright layout probe or screenshot check at desktop/tablet/mobile widths if the chart layout changes materially.
+- Delete test-created songs/jobs before considering the task complete.
+
+Status: Planned after Phase 3D.
+
+Overall Phase 3A-3C status: Complete for automated verification on 2026-07-07. Phase 3D and Phase 3E are planned after chord-editor research changed the recommended model direction. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 
@@ -587,7 +659,7 @@ Verification:
 - Create, edit, select, and delete multiple loops on one processed song.
 - Reload the app and confirm notes, loop boundaries, and loop status persist.
 
-Status: Planned after Phase 3 grid/chord editing.
+Status: Planned after Phase 3D grid-first chord storage and Phase 3E beat-aligned chord chart UI.
 
 ## Phase 5: Expand Practice Targets Without Losing Piano Focus
 
@@ -686,4 +758,4 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 
 ## Next Task
 
-Start Phase 3: Musical Grid Calibration and Editable Chords. Implement the metronome/click as the first grid-validation tool, then add minimal controls for downbeat, tempo, and time-signature correction before investing further in automatic chord-model accuracy.
+Start Phase 3D: replace seconds-first user chord edits with a clean-break grid-first chord chart model. Do not add migration compatibility for local POC songs; delete and regenerate runtime songs/jobs that were created under the old model unless they are intentional documented fixtures.

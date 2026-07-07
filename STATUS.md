@@ -6,7 +6,7 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 
 Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening pass, and Phase 3 are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings and manual listening for metronome alignment are still required.
 
-The next planned iteration is Phase 4 bar-based loops and practice notes. Manual listening on varied real recordings is still needed to judge whether the Phase 3 Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
+Chord editor research added on 2026-07-07 changed the next implementation priority: Phase 3D should replace the current seconds-first `practiceState.chordEdits` model with a clean-break grid-first `practiceState.chordChart` model before Phase 4 bar-based loops. Backward compatibility is not required for local POC songs; runtime jobs created under the old model can be deleted and regenerated unless they are intentional documented fixtures, demo jobs, or calibration jobs. Phase 3E should then render that model as a beat-aligned chord chart UI. Manual listening on varied real recordings is still needed to judge whether the Phase 3 Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
 Process note added on 2026-07-07: every implementation or verification task must delete songs/jobs created during testing before the task is considered complete. Keep only intentional demo, fixture, or calibration jobs that are explicitly documented, because accumulated test-created songs make the library noisy for later work.
 
@@ -257,7 +257,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Start Phase 4: add bar-based loops and lightweight practice notes on top of the corrected musical grid and editable chord chart.
+Start Phase 3D: replace seconds-first user chord edits with a clean-break grid-first `practiceState.chordChart` model. Do not add migration compatibility for local POC songs; delete and regenerate runtime songs/jobs created under the old model unless they are intentional documented fixtures.
 
 Optional process task: enable the on-demand context overhead audit only when explicitly requested.
 

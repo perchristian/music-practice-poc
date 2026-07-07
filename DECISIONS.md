@@ -511,3 +511,26 @@ High for POC usefulness; medium for the exact fixture organization until more sc
 
 Date:
 2026-07-07
+
+## Decision 23
+
+Decision:
+Make the next chord-chart iteration a clean break from the current seconds-first `practiceState.chordEdits` model, replacing it with a grid-first `practiceState.chordChart` model instead of adding migration or backward compatibility.
+
+Reason:
+The chord editor research recommends an explicit internal event model where chord positions are stored in bars and subdivisions, with rendering derived from that model. The current POC model stores user chord edits primarily as seconds-based `start` and `end` ranges, which makes musical placement less stable when the user corrects BPM, Bar 1, or time signature. The POC does not need to preserve existing local songs as product data; deleting and regenerating runtime jobs is cheaper and clearer than maintaining compatibility while the model is still being learned.
+
+Alternatives considered:
+- Keep `practiceState.chordEdits` and add grid fields beside seconds fields.
+- Add a migration layer from old chord edits to the new chart model.
+- Defer the model change until after bar-based loops.
+- Use MusicXML or ChordPro as the internal chord chart format.
+
+Tradeoffs:
+A clean break may invalidate existing local processed songs and require deleting/recreating them. That is acceptable for this POC because accumulated runtime songs already create library noise, and only explicit fixture, demo, or calibration jobs should be kept. The benefit is lower implementation complexity and a clearer musical model for chord editing, current-chord highlighting, roman numerals, and future bar-based loops. MusicXML and ChordPro remain useful future import/export formats, not the internal source of truth.
+
+Confidence:
+High for POC iteration speed and model clarity; medium for the exact JSON shape until it is implemented and tested in the UI.
+
+Date:
+2026-07-07
