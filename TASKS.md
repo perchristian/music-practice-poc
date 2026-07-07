@@ -446,7 +446,7 @@ Result:
 - Analysis now uses available bass/accompaniment stems for root evidence and other/accompaniment/guitar/piano stems for chord-quality evidence, ignoring very quiet stems and keeping `source-audio.wav` as the fallback.
 - Weakly supported 7/maj7 extensions are simplified back to triads, and real analysis emits beat-aware cues, including multiple chord changes inside a bar when evidence supports them, while preserving repeated chord labels across bar boundaries.
 - Chord cues preserve the existing UI metadata shape and add `bar`, `beat`, `confidence`, `source`, `beatGrid`, `beatGrid.meterCandidates`, `analysisSource`, and `analysis` metadata.
-- The UI displays bar-aware cue timing when available, for example `Bar 1 · 0:00-0:04`.
+- The UI displays beat-aware chord placement when available; after Phase 3E this appears as Harmony grid labels such as `Bar 1 · Beat 1`.
 - `npm run generate:test-media` now creates `test-media/phase-2h-bar-grid.wav`, a safe four-bar C, Am, F, G test fixture with a clear pulse and 0.65 seconds of pre-roll before the first downbeat, plus known-answer fixtures for multiple chords per 4/4 bar at 120 BPM, 3/4 at 90 BPM, and inversion bass at 100 BPM.
 
 Status: Initial implementation complete on 2026-07-06, downbeat-offset hardening added on 2026-07-07, local calibration added on 2026-07-07 for job `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76`, and beat-aware hardening added on 2026-07-07 after manual inspection found half-tempo and missed-chord behavior. `npm test` covers real-derived harmonic analysis on generated test media that does not start exactly on the first downbeat, multiple chord changes inside 4/4 bars, 3/4 meter, inversion bass, and, when the local calibration job is present, 106 BPM, 4/4, and C, Dm, Am, Am, C, Dm, Am, Am. Manual listening/inspection on more real screen recordings is still required before treating the analysis as user-test ready.
@@ -631,11 +631,11 @@ Reason:
 - A chord chart UI will make bar-based loops, count-in, and practice notes easier to understand.
 
 Deliverables:
-- Harmony renders bars as rows or compact grouped measures.
-- Beats/subdivisions are visible enough to understand placement without full notation.
-- Chords appear as blocks or cells spanning their musical duration.
-- Add, edit, split, merge, move, and delete operate on chart positions with snap to the current subdivision.
-- The UI remains usable at desktop and mobile widths without horizontal overflow.
+- Harmony renders bars as rows or compact grouped measures. Done on 2026-07-07: Harmony renders bar rows with responsive beat cells.
+- Beats/subdivisions are visible enough to understand placement without full notation. Done on 2026-07-07: each bar row shows numbered beat cells.
+- Chords appear as blocks or cells spanning their musical duration. Adjusted after product review on 2026-07-07: chord cards appear in the beat cell where they hit, and duration is implicit until the next chord instead of showing a visible from/to time range.
+- Add, edit, split, merge, move, and delete operate on chart positions with snap to the current subdivision. Done on 2026-07-07: the existing chart controls continue to operate on grid-first `bar`/`offsetDiv` positions.
+- The UI remains usable at desktop and mobile widths without horizontal overflow. Verified on 2026-07-07 at 1180px, 820px, and 390px with a Playwright layout probe.
 
 Verification:
 - Open a processed song and confirm the Harmony chart shows bars/beats/chords clearly.
@@ -647,9 +647,15 @@ Verification:
 - Use a Playwright layout probe or screenshot check at desktop/tablet/mobile widths if the chart layout changes materially.
 - Delete test-created songs/jobs before considering the task complete.
 
-Status: Planned after Phase 3D.
+Result:
+- The plain Harmony cue list has been replaced with a compact beat-aligned chart.
+- Chord labels now display hit positions such as `Bar 1 · Beat 2` rather than `Bar 1 · 0:01-0:05`.
+- BPM and Bar 1 corrections no longer change the visible chord label into a new time range; the chart stays musical while derived seconds remain internal for playback/highlighting.
+- Existing add/edit/split/merge/move/delete controls, roman numerals, persistence, analyzer provenance, and current-chord highlighting remain covered by Playwright.
 
-Overall Phase 3A-3C status: Complete for automated verification on 2026-07-07. Phase 3D and Phase 3E are planned after chord-editor research changed the recommended model direction. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
+Status: Complete for automated verification on 2026-07-07. `npm test`, `npm run test:gui`, focused Harmony/chord-editor Playwright tests, and a desktop/tablet/mobile layout probe passed.
+
+Overall Phase 3A-3E status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 

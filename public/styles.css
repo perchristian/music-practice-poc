@@ -1065,17 +1065,67 @@ audio {
 
 .chord-list {
   display: grid;
+  gap: 12px;
+}
+
+.chord-bar-row {
+  display: grid;
+  grid-template-columns: minmax(58px, 72px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.chord-bar-label {
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  padding-top: 26px;
+  text-transform: uppercase;
+}
+
+.chord-beat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
   gap: 8px;
+  min-width: 0;
+}
+
+.chord-beat-cell {
+  display: grid;
+  grid-template-rows: auto minmax(72px, 1fr);
+  gap: 6px;
+  min-width: 0;
+  min-height: 112px;
+  border-left: 1px solid var(--line);
+  padding-left: 8px;
+}
+
+.beat-label {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.chord-cell-stack {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
 }
 
 .chord-card {
   display: grid;
-  grid-template-columns: minmax(88px, 0.85fr) minmax(94px, 1fr) minmax(44px, auto) minmax(214px, auto);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
   align-items: center;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   background: #fff;
 }
 
@@ -1085,8 +1135,10 @@ audio {
 }
 
 .cue-time {
+  grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1096,6 +1148,7 @@ audio {
 
 .cue-name-input {
   width: 100%;
+  min-width: 0;
   min-height: 34px;
   border: 1px solid transparent;
   border-radius: 7px;
@@ -1113,18 +1166,24 @@ audio {
 }
 
 .cue-roman {
+  justify-self: end;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--warm);
   font-weight: 800;
 }
 
 .chord-actions {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 28px 28px repeat(3, minmax(48px, auto));
+  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
   gap: 4px;
-  justify-content: end;
+  min-width: 0;
 }
 
 .chord-actions button {
+  min-width: 0;
   min-height: 30px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1134,7 +1193,10 @@ audio {
   font: inherit;
   font-size: 0.78rem;
   font-weight: 800;
-  padding: 4px 7px;
+  padding: 4px 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chord-actions button:hover,
@@ -1183,19 +1245,17 @@ audio {
     justify-content: flex-start;
   }
 
-  .chord-card {
-    grid-template-columns: minmax(0, 1fr) auto;
+  .chord-bar-row {
+    grid-template-columns: 1fr;
+    gap: 7px;
   }
 
-  .cue-time,
-  .cue-name-input {
-    grid-column: span 2;
+  .chord-bar-label {
+    padding-top: 0;
   }
 
-  .chord-actions {
-    grid-column: span 2;
-    justify-content: stretch;
-    grid-template-columns: 34px 34px repeat(3, minmax(0, 1fr));
+  .chord-beat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   }
 
   .song-workspace:not(.detail-open) .song-detail {

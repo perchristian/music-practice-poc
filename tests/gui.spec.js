@@ -641,7 +641,7 @@ test("saved song thumbnails render in the list and selected song header", async 
   await expect(page.getByTestId("selected-song-art").locator("img")).toHaveAttribute("src", thumbnailDataUrl);
 });
 
-test("harmony panel shows analysis tempo and sub-second cue times", async ({ page }) => {
+test("harmony panel shows analysis tempo and chord beat placement", async ({ page }) => {
   const jobId = "22222222-2222-4222-8222-222222222222";
   const job = {
     id: jobId,
@@ -704,7 +704,9 @@ test("harmony panel shows analysis tempo and sub-second cue times", async ({ pag
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("72.5 BPM");
   await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 72.5 BPM");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:00.7-0:04.7");
+  await expect(page.locator(".chord-bar-row").first()).toContainText("Bar 1");
+  await expect(page.locator(".chord-beat-cell").first().locator(".beat-label")).toHaveText("1");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 1");
 
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("145");
@@ -717,7 +719,7 @@ test("harmony panel shows analysis tempo and sub-second cue times", async ({ pag
   await expect(page.locator(".cue-roman").first()).toHaveText("III");
 });
 
-test("harmony chord cue times follow manual grid tempo and bar start corrections", async ({ page }) => {
+test("harmony chord beat labels stay musical through manual grid tempo and bar start corrections", async ({ page }) => {
   const jobId = "44444444-4444-4444-8444-444444444444";
   const job = {
     id: jobId,
@@ -780,19 +782,19 @@ test("harmony chord cue times follow manual grid tempo and bar start corrections
 
   await page.goto("/");
   await page.getByTestId(`song-row-${jobId}`).click();
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:01-0:05");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:05-0:09");
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
 
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("120");
   await page.getByTestId("tempo-input").press("Enter");
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:01-0:03");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:03-0:05");
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
 
   await page.getByTestId("bar-start-input").fill("2");
   await page.getByTestId("bar-start-input").press("Enter");
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · 0:02-0:04");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · 0:04-0:06");
+  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
+  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
 });
 
 test("editable chord chart persists user overrides without replacing analyzer metadata", async ({ page }) => {
@@ -818,7 +820,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await expect(page.locator(".chord-card")).toHaveCount(4);
 
   await page.getByTestId("chord-move-right-0").click();
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:01-0:05");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
 
   await page.getByTestId("add-chord-button").click();
   await expect(page.locator(".chord-card")).toHaveCount(5);
@@ -853,11 +855,11 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("120");
   await page.getByTestId("tempo-input").press("Enter");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:00.5-0:02.5");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
 
   await page.getByTestId("bar-start-input").fill("2");
   await page.getByTestId("bar-start-input").press("Enter");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:02.5-0:04.5");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
 
   await expect
     .poll(async () => {
@@ -885,7 +887,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:02.5-0:04.5");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {

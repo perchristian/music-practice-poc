@@ -163,19 +163,6 @@ function formatTime(seconds) {
   return `${minutes}:${wholeSeconds}`;
 }
 
-function formatCueTime(seconds) {
-  if (!Number.isFinite(seconds)) return "0:00";
-  const bounded = Math.max(0, seconds);
-  const minutes = Math.floor(bounded / 60);
-  const remainingSeconds = bounded - minutes * 60;
-  const roundedSeconds = Math.round(remainingSeconds);
-  if (Math.abs(remainingSeconds - roundedSeconds) < 0.05) {
-    return `${minutes}:${String(roundedSeconds).padStart(2, "0")}`;
-  }
-
-  return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, "0")}`;
-}
-
 function formatDuration(seconds) {
   return Number.isFinite(seconds) && seconds > 0 ? formatTime(seconds) : "--";
 }
@@ -603,16 +590,47 @@ function romanNumeralForChord(chordName, key) {
   return `${numeral}${quality.romanSuffix}`;
 }
 
-function chordBarLabel(chord, grid) {
-  if (grid && Number.isFinite(Number(chord.start))) {
-    const rawBeatIndex = Math.floor((Number(chord.start) - grid.downbeatOffsetSeconds + 0.001) / grid.beatDurationSeconds);
-    if (Number.isFinite(rawBeatIndex)) {
-      const bar = Math.floor(rawBeatIndex / grid.beatsPerBar) + 1;
-      if (bar > 0) return `Bar ${bar} · `;
+function snapNearInteger(value, epsilon = 0.01) {
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) <= epsilon ? rounded : value;
+}
+
+function formatBeatNumber(value) {
+  const rounded = Math.round(Number(value) * 100) / 100;
+  if (!Number.isFinite(rounded)) return "1";
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function chordGridHit(chord, grid) {
+  const chartGrid = fallbackChartGrid(grid);
+  const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
+  const bar = Number(chord.bar);
+  const beat = Number(chord.beat);
+  let absoluteBeat = null;
+
+  if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
+    absoluteBeat = (bar - 1) * beatsPerBar + (beat - 1);
+  } else {
+    const start = Number(chord.start);
+    if (Number.isFinite(start) && Number.isFinite(chartGrid.beatDurationSeconds) && chartGrid.beatDurationSeconds > 0) {
+      absoluteBeat = (start - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds;
     }
   }
 
-  return Number.isFinite(Number(chord.bar)) ? `Bar ${chord.bar} · ` : "";
+  const rawBeat = Number(absoluteBeat);
+  const snappedBeat = Math.max(0, snapNearInteger(Number.isFinite(rawBeat) ? rawBeat : 0));
+  const barIndex = Math.floor(snappedBeat / beatsPerBar);
+  const beatWithinBar = snappedBeat - barIndex * beatsPerBar + 1;
+  return {
+    bar: barIndex + 1,
+    beat: beatWithinBar
+  };
+}
+
+function chordHitLabel(chord, grid, hit = null) {
+  const position = hit || chordGridHit(chord, grid);
+  return `Bar ${position.bar} · Beat ${formatBeatNumber(position.beat)}`;
 }
 
 function statusLabel(status) {
@@ -1050,18 +1068,79 @@ function renderMetadata(metadata) {
   renderGridTimeline(currentMetadata);
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  chordList.replaceChildren(...currentMetadata.chords.map((chord, index) => renderChordCard(chord, index, grid)));
+  chordList.replaceChildren(...renderChordGrid(currentMetadata.chords, grid));
 }
 
-function renderChordCard(chord, index, grid) {
+function renderChordGrid(chords, grid) {
+  const chartGrid = fallbackChartGrid(grid);
+  const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
+  const rows = new Map();
+
+  chords.forEach((chord, index) => {
+    const hit = chordGridHit(chord, chartGrid);
+    const beatCell = Math.min(beatsPerBar, Math.max(1, Math.floor(hit.beat - 1 + 0.001) + 1));
+    const row = rows.get(hit.bar) || [];
+    row.push({ chord, index, hit, beatCell });
+    rows.set(hit.bar, row);
+  });
+
+  return [...rows.entries()]
+    .sort(([leftBar], [rightBar]) => leftBar - rightBar)
+    .map(([bar, entries]) => renderChordBarRow(bar, entries, chartGrid, beatsPerBar));
+}
+
+function renderChordBarRow(bar, entries, grid, beatsPerBar) {
+  const row = document.createElement("div");
+  row.className = "chord-bar-row";
+  row.dataset.bar = String(bar);
+
+  const label = document.createElement("div");
+  label.className = "chord-bar-label";
+  label.textContent = `Bar ${bar}`;
+
+  const beatGrid = document.createElement("div");
+  beatGrid.className = "chord-beat-grid";
+  beatGrid.style.setProperty("--beats-per-bar", String(beatsPerBar));
+
+  const cells = Array.from({ length: beatsPerBar }, (_, index) => {
+    const cell = document.createElement("div");
+    cell.className = "chord-beat-cell";
+    cell.dataset.beat = String(index + 1);
+
+    const beatLabel = document.createElement("span");
+    beatLabel.className = "beat-label";
+    beatLabel.textContent = String(index + 1);
+
+    const stack = document.createElement("div");
+    stack.className = "chord-cell-stack";
+
+    cell.append(beatLabel, stack);
+    return { cell, stack };
+  });
+
+  entries
+    .sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index)
+    .forEach((entry) => {
+      cells[entry.beatCell - 1].stack.append(renderChordCard(entry.chord, entry.index, grid, entry.hit));
+    });
+
+  beatGrid.append(...cells.map(({ cell }) => cell));
+  row.append(label, beatGrid);
+  return row;
+}
+
+function renderChordCard(chord, index, grid, hit = null) {
   const card = document.createElement("div");
   card.className = "chord-card";
   card.dataset.index = String(index);
+  const position = hit || chordGridHit(chord, grid);
+  card.dataset.bar = String(position.bar);
+  card.dataset.beat = formatBeatNumber(position.beat);
   card.classList.toggle("user-edited", chord.source === "user");
 
   const cueTime = document.createElement("span");
   cueTime.className = "cue-time";
-  cueTime.textContent = `${chordBarLabel(chord, grid)}${formatCueTime(chord.start)}-${formatCueTime(chord.end)}`;
+  cueTime.textContent = chordHitLabel(chord, grid, position);
 
   const nameInput = document.createElement("input");
   nameInput.className = "cue-name-input";

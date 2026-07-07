@@ -110,7 +110,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, count-in clicks before loop playback starts, saved thumbnail rendering, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, editable chord add/edit/split/merge/move/delete operations, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, count-in clicks before loop playback starts, saved thumbnail rendering, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, beat-aligned Harmony chord grid rendering, editable chord add/edit/split/merge/move/delete operations, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -137,7 +137,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 19. Adjust click volume from the mixer row; downbeat accent is always on for now.
 20. Enable Loop, then change loop start/end and count-in. With count-in enabled, confirm clicks happen before the loop audio starts, including when loop start is `0`.
 21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
-22. In Harmony, edit a chord label, add a chord, split one cue, merge it back, move a cue by one beat, and delete an extra cue.
+22. In the Harmony grid, confirm chords show hit points such as `Bar 1 · Beat 1`; edit a chord label, add a chord, split one cue, merge it back, move a cue by one beat, and delete an extra cue.
 23. Reload the page, reopen the song from the unified song list, and confirm those practice settings and chord edits return.
 24. Rename the selected song from the selected-song header more menu.
 25. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
@@ -156,11 +156,11 @@ npm run generate:test-media
 4. Wait for the job to complete. During Demucs separation, the selected song should show `Separating stems` and progress should advance past 55% before the job reaches 100%.
 5. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
 6. Play the result and confirm the browser can load all stems.
-7. Confirm the chord list shows bar-aligned cue times such as `Bar 1 · 0:00-0:04` when the analysis can estimate a grid.
+7. Confirm Harmony shows bar rows, beat cells, and chord hit labels such as `Bar 1 · Beat 1` when the analysis can estimate a grid.
 8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
 10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
-11. Confirm the beat markers and chord `Bar` labels update immediately after the grid correction.
+11. Confirm the beat markers update immediately after grid correction and the Harmony chart remains expressed as bar/beat chord hit points rather than visible seconds ranges.
 12. Edit at least one chord label, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, and chord chart persist.
 13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
 14. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
