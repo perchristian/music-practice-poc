@@ -84,7 +84,7 @@ let currentJobId = null;
 let currentAnalyzedMetadata = null;
 let gridOverrides = {};
 let keyOverride = null;
-let chordEdits = null;
+let chordChart = null;
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
@@ -136,6 +136,11 @@ const romanDegrees = ["I", "II", "III", "IV", "V", "VI", "VII"];
 const defaultTimeSignature = { beatsPerBar: 4, beatUnit: 4 };
 const minBarStartSeconds = -60;
 const maxBarStartSeconds = 60 * 60;
+const chordChartVersion = 1;
+const defaultChordDivisionsPerQuarter = 4;
+const maxChordChartChords = 128;
+const maxChordChartBars = 10000;
+const maxChordChartDivisions = 4096;
 
 function populateKeySelect() {
   if (!keySelect) return;
@@ -273,34 +278,135 @@ function normalizedGridOverrides(state = null) {
   return overrides;
 }
 
-function normalizedChordEdits(state = null) {
-  const source = state?.chordEdits;
-  if (!Array.isArray(source)) return null;
+function clampedInteger(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.round(Math.max(min, Math.min(max, number)));
+}
 
-  const edits = source
+function normalizedChordChart(state = null) {
+  const source = state?.chordChart;
+  if (!source || typeof source !== "object" || !Array.isArray(source.chords)) return null;
+
+  const divisionsPerQuarter = clampedInteger(
+    source.divisionsPerQuarter,
+    defaultChordDivisionsPerQuarter,
+    1,
+    24
+  );
+
+  const chords = source.chords
     .map((chord) => {
-      const name = String(chord?.name || "").trim().slice(0, 48);
-      const start = roundedSeconds(chord?.start, 0, maxBarStartSeconds);
-      const end = roundedSeconds(chord?.end, 0, maxBarStartSeconds);
-      if (!name || start === null || end === null || end <= start) return null;
+      const raw = String(chord?.raw || "").trim().slice(0, 48);
+      const durationDiv = clampedInteger(chord?.durationDiv, null, 1, maxChordChartDivisions);
+      if (!raw || durationDiv === null) return null;
 
-      const normalized = {
-        start,
-        end,
-        name,
+      return {
+        id: String(chord?.id || createChordId()).trim().slice(0, 64) || createChordId(),
+        bar: clampedInteger(chord?.bar, 1, 1, maxChordChartBars),
+        offsetDiv: clampedInteger(chord?.offsetDiv, 0, 0, maxChordChartDivisions),
+        durationDiv,
+        raw,
         source: "user"
       };
-      const bar = Number(chord?.bar);
-      const beat = Number(chord?.beat);
-      if (Number.isFinite(bar) && bar > 0) normalized.bar = Math.round(bar);
-      if (Number.isFinite(beat) && beat > 0) normalized.beat = Math.round(beat * 100) / 100;
-      return normalized;
     })
     .filter(Boolean)
-    .sort((left, right) => left.start - right.start)
-    .slice(0, 128);
+    .sort((left, right) => left.bar - right.bar || left.offsetDiv - right.offsetDiv)
+    .slice(0, maxChordChartChords);
 
-  return edits.length ? edits : null;
+  return chords.length
+    ? {
+      version: chordChartVersion,
+      divisionsPerQuarter,
+      chords
+    }
+    : null;
+}
+
+function createChordId() {
+  return window.crypto?.randomUUID?.() || `chord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function chartDivisionsPerBeat(grid, divisionsPerQuarter = defaultChordDivisionsPerQuarter) {
+  const beatUnit = Number(grid?.beatUnit) || defaultTimeSignature.beatUnit;
+  return Math.max(1, Math.round(divisionsPerQuarter * (4 / beatUnit)));
+}
+
+function chartDivisionsPerBar(grid, divisionsPerQuarter = defaultChordDivisionsPerQuarter) {
+  const beatsPerBar = Number(grid?.beatsPerBar) || defaultTimeSignature.beatsPerBar;
+  return Math.max(1, Math.round(beatsPerBar * chartDivisionsPerBeat(grid, divisionsPerQuarter)));
+}
+
+function fallbackChartGrid(grid = null) {
+  const beatDurationSeconds = Number(grid?.beatDurationSeconds);
+  return {
+    beatDurationSeconds: Number.isFinite(beatDurationSeconds) && beatDurationSeconds > 0 ? beatDurationSeconds : 1,
+    beatsPerBar: Number(grid?.beatsPerBar) || defaultTimeSignature.beatsPerBar,
+    beatUnit: Number(grid?.beatUnit) || defaultTimeSignature.beatUnit,
+    downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0
+  };
+}
+
+function chartChordTotalDiv(chord, grid, divisionsPerQuarter) {
+  const barDivisions = chartDivisionsPerBar(grid, divisionsPerQuarter);
+  return Math.max(0, (Math.max(1, Number(chord.bar) || 1) - 1) * barDivisions + Math.max(0, Number(chord.offsetDiv) || 0));
+}
+
+function chartPositionFromTotalDiv(totalDiv, grid, divisionsPerQuarter) {
+  const barDivisions = chartDivisionsPerBar(grid, divisionsPerQuarter);
+  const bounded = Math.max(0, Math.round(totalDiv));
+  return {
+    bar: Math.floor(bounded / barDivisions) + 1,
+    offsetDiv: bounded % barDivisions
+  };
+}
+
+function chordCueToChartEvent(chord, grid, divisionsPerQuarter) {
+  const chartGrid = fallbackChartGrid(grid);
+  const divPerBeat = chartDivisionsPerBeat(chartGrid, divisionsPerQuarter);
+  const startSeconds = Number(chord.start);
+  const endSeconds = Number(chord.end);
+  const startBeat = Number.isFinite(startSeconds)
+    ? (startSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds
+    : ((Number(chord.bar) || 1) - 1) * chartGrid.beatsPerBar + ((Number(chord.beat) || 1) - 1);
+  const endBeat = Number.isFinite(endSeconds)
+    ? (endSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds
+    : startBeat + chartGrid.beatsPerBar;
+  const startDiv = Math.max(0, Math.round(startBeat * divPerBeat));
+  const durationDiv = Math.max(1, Math.round(Math.max(1 / divPerBeat, endBeat - startBeat) * divPerBeat));
+  const position = chartPositionFromTotalDiv(startDiv, chartGrid, divisionsPerQuarter);
+
+  return {
+    id: createChordId(),
+    ...position,
+    durationDiv,
+    raw: String(chord.name || chord.raw || "C").trim().slice(0, 48) || "C",
+    source: "user"
+  };
+}
+
+function chordChartToCues(chart, grid, key) {
+  const normalized = normalizedChordChart({ chordChart: chart });
+  if (!normalized) return null;
+
+  const chartGrid = fallbackChartGrid(grid);
+  const divPerBeat = chartDivisionsPerBeat(chartGrid, normalized.divisionsPerQuarter);
+  return normalized.chords.map((chord) => {
+    const startBeat = chartChordTotalDiv(chord, chartGrid, normalized.divisionsPerQuarter) / divPerBeat;
+    const endBeat = startBeat + chord.durationDiv / divPerBeat;
+    const start = chartGrid.downbeatOffsetSeconds + startBeat * chartGrid.beatDurationSeconds;
+    const end = chartGrid.downbeatOffsetSeconds + endBeat * chartGrid.beatDurationSeconds;
+    return {
+      chartId: chord.id,
+      start,
+      end,
+      bar: chord.bar,
+      beat: Number((chord.offsetDiv / divPerBeat + 1).toFixed(2)),
+      name: chord.raw,
+      roman: romanNumeralForChord(chord.raw, key),
+      source: "user"
+    };
+  });
 }
 
 function metadataGridDefaults(metadata) {
@@ -400,8 +506,12 @@ function effectiveMetadata(metadata) {
       downbeatOffsetSeconds
     }
     : null;
-  const hasTimingGridOverride = Boolean(roundedBpm(gridOverrides.bpm)) || hasGridOverride(gridOverrides, "downbeatOffsetSeconds");
-  const sourceChords = normalizedChordEdits({ chordEdits }) || metadata.chords || [];
+  const hasTimingGridOverride =
+    Boolean(roundedBpm(gridOverrides.bpm)) ||
+    Boolean(gridOverrides.beatsPerBar || gridOverrides.beatUnit) ||
+    hasGridOverride(gridOverrides, "downbeatOffsetSeconds");
+  const chartChords = chordChartToCues(chordChart, effectiveGrid, key);
+  const sourceChords = chartChords || metadata.chords || [];
   const chords = sourceChords.map((chord) => ({
     ...(chord.source === "user" ? chord : hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
     roman: romanNumeralForChord(chord.name, key) || chord.roman || "",
@@ -694,7 +804,7 @@ async function persistPracticeState(refreshLibrary = false) {
     metronomeSolo,
     gridOverrides,
     keyOverride,
-    chordEdits,
+    chordChart,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -728,7 +838,7 @@ function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
   gridOverrides = normalizedGridOverrides(state);
   keyOverride = normalizedKeyOverride(state);
-  chordEdits = normalizedChordEdits(state);
+  chordChart = normalizedChordChart(state);
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
@@ -911,7 +1021,7 @@ function renderCompletedJob(job) {
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
   gridOverrides = normalizedGridOverrides(job.practiceState);
   keyOverride = normalizedKeyOverride(job.practiceState);
-  chordEdits = normalizedChordEdits(job.practiceState);
+  chordChart = normalizedChordChart(job.practiceState);
   showSelectedHeader({
     eyebrow: "Song",
     title: job.originalFilename,
@@ -989,113 +1099,153 @@ function renderChordCard(chord, index, grid) {
   return card;
 }
 
-function chordGridFields(chord) {
-  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  if (!grid || !Number.isFinite(Number(chord.start))) return {};
-
-  const beatIndex = (Number(chord.start) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
-  const position = chordGridPosition(beatIndex, grid);
-  return { bar: position.bar, beat: position.beat };
+function currentChartGrid() {
+  return fallbackChartGrid(normalizedBeatGrid(currentMetadata, transportDuration()));
 }
 
-function seedChordEdits() {
-  const source = normalizedChordEdits({ chordEdits }) || currentMetadata?.chords || [];
-  chordEdits = source.map((chord) => {
-    const start = roundedSeconds(chord.start, 0, maxBarStartSeconds) ?? 0;
-    const end = roundedSeconds(chord.end, 0, maxBarStartSeconds) ?? start + 1;
-    const seeded = {
-      start,
-      end: end > start ? end : start + 1,
-      name: String(chord.name || "C").trim() || "C",
-      source: "user"
-    };
-    return { ...seeded, ...chordGridFields(seeded) };
+function seedChordChart() {
+  if (chordChart) {
+    chordChart = normalizedChordChart({ chordChart });
+    if (chordChart) return;
+  }
+
+  const grid = currentChartGrid();
+  const chords = (currentMetadata?.chords || []).map((chord) =>
+    chordCueToChartEvent(chord, grid, defaultChordDivisionsPerQuarter)
+  );
+
+  chordChart = normalizedChordChart({
+    chordChart: {
+      version: chordChartVersion,
+      divisionsPerQuarter: defaultChordDivisionsPerQuarter,
+      chords: chords.length
+        ? chords
+        : [
+          {
+            id: createChordId(),
+            bar: 1,
+            offsetDiv: 0,
+            durationDiv: chartDivisionsPerBar(grid, defaultChordDivisionsPerQuarter),
+            raw: "C",
+            source: "user"
+          }
+        ]
+    }
   });
 }
 
-function commitChordEdits(nextEdits) {
-  chordEdits = normalizedChordEdits({ chordEdits: nextEdits });
+function commitChordChart(nextChords) {
+  const baseChart = chordChart || {
+    version: chordChartVersion,
+    divisionsPerQuarter: defaultChordDivisionsPerQuarter,
+    chords: []
+  };
+  chordChart = normalizedChordChart({
+    chordChart: {
+      ...baseChart,
+      chords: nextChords
+    }
+  });
   if (currentJob?.practiceState) {
-    currentJob.practiceState.chordEdits = chordEdits;
+    currentJob.practiceState.chordChart = chordChart;
+    delete currentJob.practiceState.chordEdits;
   }
   renderMetadata(currentAnalyzedMetadata);
   queuePracticeStatePersist();
 }
 
-function beatStepSeconds() {
-  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  return grid?.beatDurationSeconds || 1;
-}
-
 function moveChord(index, direction) {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  const chord = edits[index];
+  seedChordChart();
+  const grid = currentChartGrid();
+  const divPerBeat = chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter);
+  const chords = [...chordChart.chords];
+  const chord = chords[index];
   if (!chord) return;
-  const step = beatStepSeconds() * direction;
-  const duration = Math.max(0.1, chord.end - chord.start);
-  const start = Math.max(0, chord.start + step);
-  edits[index] = { ...chord, start, end: start + duration };
-  edits[index] = { ...edits[index], ...chordGridFields(edits[index]) };
-  commitChordEdits(edits);
+
+  const nextTotalDiv = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter) + divPerBeat * direction;
+  chords[index] = {
+    ...chord,
+    ...chartPositionFromTotalDiv(nextTotalDiv, grid, chordChart.divisionsPerQuarter)
+  };
+  commitChordChart(chords);
 }
 
 function splitChord(index) {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  const chord = edits[index];
-  if (!chord) return;
-  const midpoint = roundedSeconds(chord.start + (chord.end - chord.start) / 2, 0, maxBarStartSeconds);
-  if (midpoint === null || midpoint <= chord.start || midpoint >= chord.end) return;
-  const left = { ...chord, end: midpoint };
-  const right = { ...chord, start: midpoint };
-  edits.splice(index, 1, left, { ...right, ...chordGridFields(right) });
-  commitChordEdits(edits);
+  seedChordChart();
+  const grid = currentChartGrid();
+  const chords = [...chordChart.chords];
+  const chord = chords[index];
+  if (!chord || chord.durationDiv <= 1) return;
+
+  const leftDuration = Math.max(1, Math.floor(chord.durationDiv / 2));
+  const rightDuration = Math.max(1, chord.durationDiv - leftDuration);
+  const rightStart = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter) + leftDuration;
+  const left = { ...chord, durationDiv: leftDuration };
+  const right = {
+    ...chord,
+    id: createChordId(),
+    ...chartPositionFromTotalDiv(rightStart, grid, chordChart.divisionsPerQuarter),
+    durationDiv: rightDuration
+  };
+  chords.splice(index, 1, left, right);
+  commitChordChart(chords);
 }
 
 function mergeChordWithNext(index) {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  const chord = edits[index];
-  const next = edits[index + 1];
+  seedChordChart();
+  const grid = currentChartGrid();
+  const chords = [...chordChart.chords];
+  const chord = chords[index];
+  const next = chords[index + 1];
   if (!chord || !next) return;
-  edits.splice(index, 2, { ...chord, end: Math.max(chord.end, next.end) });
-  commitChordEdits(edits);
+
+  const start = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter);
+  const nextEnd = chartChordTotalDiv(next, grid, chordChart.divisionsPerQuarter) + next.durationDiv;
+  chords.splice(index, 2, {
+    ...chord,
+    durationDiv: Math.max(1, nextEnd - start)
+  });
+  commitChordChart(chords);
 }
 
 function deleteChord(index) {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  if (edits.length <= 1 || !edits[index]) return;
-  edits.splice(index, 1);
-  commitChordEdits(edits);
+  seedChordChart();
+  const chords = [...chordChart.chords];
+  if (chords.length <= 1 || !chords[index]) return;
+  chords.splice(index, 1);
+  commitChordChart(chords);
 }
 
 function updateChordName(index, value) {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  if (!edits[index]) return;
-  const name = String(value || "").trim().slice(0, 48);
-  if (!name) return;
-  edits[index] = { ...edits[index], name };
-  commitChordEdits(edits);
+  seedChordChart();
+  const chords = [...chordChart.chords];
+  if (!chords[index]) return;
+  const raw = String(value || "").trim().slice(0, 48);
+  if (!raw) return;
+  chords[index] = { ...chords[index], raw };
+  commitChordChart(chords);
 }
 
 function addChord() {
-  seedChordEdits();
-  const edits = [...chordEdits];
-  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  const last = edits.at(-1);
-  const start = last ? last.end : transportTime();
-  const duration = grid ? grid.beatDurationSeconds * grid.beatsPerBar : 4;
-  const chord = {
-    start: roundedSeconds(start, 0, maxBarStartSeconds) ?? 0,
-    end: roundedSeconds(start + duration, 0, maxBarStartSeconds) ?? start + duration,
-    name: last?.name || "C",
+  seedChordChart();
+  const grid = currentChartGrid();
+  const chords = [...chordChart.chords];
+  const last = chords.at(-1);
+  const startDiv = last
+    ? chartChordTotalDiv(last, grid, chordChart.divisionsPerQuarter) + last.durationDiv
+    : Math.max(0, Math.round(
+      ((transportTime() - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) *
+      chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter)
+    ));
+
+  chords.push({
+    id: createChordId(),
+    ...chartPositionFromTotalDiv(startDiv, grid, chordChart.divisionsPerQuarter),
+    durationDiv: chartDivisionsPerBar(grid, chordChart.divisionsPerQuarter),
+    raw: last?.raw || "C",
     source: "user"
-  };
-  edits.push({ ...chord, ...chordGridFields(chord) });
-  commitChordEdits(edits);
+  });
+  commitChordChart(chords);
 }
 
 function updateKeyControl() {

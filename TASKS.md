@@ -471,7 +471,7 @@ Demonstrable outcome:
   - selected key so roman numerals match the user's working chart
 - Chords are displayed as draft suggestions on bars/beats.
 - The user can add, edit, split, merge, move, and delete chord labels on the grid. Done on 2026-07-07: the Harmony panel now renders chord labels as editable fields with per-cue move, split, merge, and delete controls plus an Add chord action.
-- User-edited chord labels persist and override analyzer suggestions for the song. Done on 2026-07-07: edits persist as `practiceState.chordEdits` and drive the displayed chord chart when present.
+- User-edited chord labels persist and override analyzer suggestions for the song. Done on 2026-07-07: edits now persist as grid-first `practiceState.chordChart` events and drive the displayed chord chart when present.
 - Chord labels preserve user-entered text, even when parsing is ambiguous. Done on 2026-07-07: chord names are stored as user text, while roman numerals are recalculated best-effort from the selected key.
 
 Implementation notes:
@@ -550,32 +550,32 @@ Deliverables:
 - Merge combines a cue with the next cue.
 - Move shifts a cue earlier or later by one beat on the corrected grid.
 - Delete removes a cue while keeping at least one chord.
-- User-edited chord labels persist in `practiceState.chordEdits` and override analyzer suggestions.
+- User-edited chord labels persist in a user chart and override analyzer suggestions. Phase 3C first stored this as `practiceState.chordEdits`; Phase 3D superseded it with grid-first `practiceState.chordChart`.
 - Analyzer chord metadata remains unchanged for provenance.
 - Free-text labels remain valid even when roman-numeral parsing is only approximate.
 
 Verification:
 - Edit, add, split, merge, move, and delete chords in the Harmony panel.
 - Reload the app and confirm the edited chart returns.
-- Confirm `job.result.metadata.chords` still contains analyzer suggestions while `practiceState.chordEdits` contains the user chart.
+- Confirm `job.result.metadata.chords` still contains analyzer suggestions while `practiceState.chordChart` contains the user chart.
 - Run `npm test`.
 - Run `npm run test:gui`.
 
 Result:
 - Phase 3C is implemented in mock-compatible UI and practice-state storage.
-- Backend validation normalizes chord edit timing, caps chart size, and stores user text without requiring a strict chord parser.
+- Backend validation originally normalized chord edit timing, capped chart size, and stored user text without requiring a strict chord parser.
 - Playwright coverage verifies edit/add/split/merge/move/delete behavior, persistence, and analyzer-provenance preservation.
 - Test-created songs are cleaned up by GUI test teardown for the known test filename prefixes.
 
-Status: Complete for automated verification on 2026-07-07. `npm test` and `npm run test:gui` pass.
+Status: Complete for automated verification on 2026-07-07. Phase 3D superseded the original `practiceState.chordEdits` persistence model with `practiceState.chordChart`.
 
 ### Phase 3D: Grid-First Chord Chart Model
 
-Goal: Replace the current seconds-first user chord edit shape with a small, explicit chord chart model that stores positions in bars, beats, and subdivisions.
+Goal: Replace the previous seconds-first user chord edit shape with a small, explicit chord chart model that stores positions in bars, beats, and subdivisions.
 
 Reason:
 - The chord editor research recommends separating internal model from rendering notation, with chord events positioned explicitly inside measures.
-- The current `practiceState.chordEdits` model stores `start` and `end` seconds first, with `bar` and `beat` as derived helper fields. That makes chord edits too dependent on tempo/grid changes.
+- The previous `practiceState.chordEdits` model stored `start` and `end` seconds first, with `bar` and `beat` as derived helper fields. That made chord edits too dependent on tempo/grid changes.
 - For learning, the user needs a musical chart that stays meaningful when BPM, Bar 1, or time signature are corrected.
 - Backward compatibility is not required for the POC. Existing local songs/jobs may be deleted and regenerated when the model changes, except intentional fixture, demo, or calibration jobs that are explicitly documented.
 
@@ -595,10 +595,10 @@ Target model:
 - Derive playback/render values such as `start`, `end`, display `beat`, and roman numeral from the corrected grid and selected key.
 
 Deliverables:
-- Backend accepts and normalizes `practiceState.chordChart`.
-- Existing `practiceState.chordEdits` support may be removed instead of migrated.
-- Analyzer suggestions remain in `job.result.metadata.chords` as draft/provenance.
-- User chart is authoritative for Harmony display, current-chord highlighting, roman numerals, and future bar-based loops.
+- Backend accepts and normalizes `practiceState.chordChart`. Done on 2026-07-07.
+- Existing `practiceState.chordEdits` support may be removed instead of migrated. Done on 2026-07-07: new/public practice state uses `chordChart`; old local POC jobs are not migrated.
+- Analyzer suggestions remain in `job.result.metadata.chords` as draft/provenance. Done on 2026-07-07.
+- User chart is authoritative for Harmony display, current-chord highlighting, roman numerals, and future bar-based loops. Done on 2026-07-07 for Harmony display, highlighting, and roman numerals; future bar-based loops remain Phase 4.
 - Local runtime songs/jobs created under the old chord edit model are deleted after verification unless explicitly documented as fixtures.
 
 Verification:
@@ -611,7 +611,15 @@ Verification:
 - Run `npm run test:gui`.
 - Delete test-created songs/jobs before considering the task complete.
 
-Status: Planned as the next implementation task.
+Result:
+- Phase 3D is implemented as a clean break from seconds-first `practiceState.chordEdits`.
+- Backend practice-state persistence stores `practiceState.chordChart` with `version`, `divisionsPerQuarter`, and chord events containing `id`, `bar`, `offsetDiv`, `durationDiv`, `raw`, and `source`.
+- The frontend seeds `chordChart` from analyzer suggestions on first edit, then derives `start`, `end`, display beat, and roman numerals from the corrected grid and selected key.
+- Changing BPM or Bar 1 start changes derived cue seconds while preserving the chord's stored musical `bar`, `offsetDiv`, and `durationDiv`.
+- Analyzer metadata remains unchanged in `job.result.metadata.chords`.
+- Five undocumented local runtime jobs created before `practiceState.chordChart` were deleted after verification; no test-created jobs remain under `data/jobs`.
+
+Status: Complete for automated verification on 2026-07-07. `npm test`, focused Playwright chord-editor coverage, and full `npm run test:gui` pass.
 
 ### Phase 3E: Beat-Aligned Chord Chart UI
 

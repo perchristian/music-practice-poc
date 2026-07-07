@@ -240,7 +240,7 @@ These files are generated in-repo, are not commercial recordings, and do not inc
 - Real mode uses Demucs by default for drums, bass, guitar, piano, vocals, and other stems, but quality is still only validated on a small number of local examples.
 - Real transcription is not implemented yet.
 - Chord editing is a lightweight chart editor. It preserves user text and recalculates roman numerals best-effort, but it is not a full music-notation parser.
-- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 start, time signature, and key can be corrected manually; editable chord labels are still planned.
+- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 start, time signature, key, and chord labels can be corrected manually; the chord editor is still a compact POC editor, not full music notation.
 - Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.

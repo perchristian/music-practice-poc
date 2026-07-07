@@ -32,6 +32,11 @@ const ANALYSIS_MAX_SECONDS = 120;
 const ANALYSIS_SAMPLE_RATE = 8000;
 const MIN_BAR_START_SECONDS = -60;
 const MAX_BAR_START_SECONDS = 60 * 60;
+const CHORD_CHART_VERSION = 1;
+const DEFAULT_CHORD_DIVISIONS_PER_QUARTER = 4;
+const MAX_CHORD_CHART_CHORDS = 128;
+const MAX_CHORD_CHART_BARS = 10000;
+const MAX_CHORD_CHART_DIVISIONS = 4096;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 const MIN_ANALYSIS_STEM_RMS = 0.001;
 const HARMONIC_STEM_WEIGHTS = {
@@ -1343,7 +1348,7 @@ async function createJobRecord({
       metronomeSolo: false,
       gridOverrides: {},
       keyOverride: null,
-      chordEdits: null,
+      chordChart: null,
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1364,33 +1369,43 @@ function clampNumber(value, fallback, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function normalizeChordEdits(value) {
-  if (!Array.isArray(value)) return null;
+function normalizeChordChart(value) {
+  if (!value || typeof value !== "object" || !Array.isArray(value.chords)) return null;
 
-  const edits = value
+  const divisionsPerQuarter = Math.round(
+    clampNumber(Number(value.divisionsPerQuarter), DEFAULT_CHORD_DIVISIONS_PER_QUARTER, 1, 24)
+  );
+
+  const chords = value.chords
     .map((chord) => {
-      const name = String(chord?.name || "").trim().slice(0, 48);
-      const start = clampNumber(Number(chord?.start), null, 0, MAX_BAR_START_SECONDS);
-      const end = clampNumber(Number(chord?.end), null, 0, MAX_BAR_START_SECONDS);
-      if (!name || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+      const raw = String(chord?.raw || "").trim().slice(0, 48);
+      const rawDurationDiv = Number(chord?.durationDiv);
+      const bar = Math.round(clampNumber(Number(chord?.bar), 1, 1, MAX_CHORD_CHART_BARS));
+      const offsetDiv = Math.round(clampNumber(Number(chord?.offsetDiv), 0, 0, MAX_CHORD_CHART_DIVISIONS));
+      const durationDiv = Math.round(clampNumber(rawDurationDiv, null, 1, MAX_CHORD_CHART_DIVISIONS));
+      if (!raw || !Number.isFinite(bar) || !Number.isFinite(offsetDiv) || !Number.isFinite(durationDiv)) return null;
 
-      const normalized = {
-        start: Number(start.toFixed(2)),
-        end: Number(end.toFixed(2)),
-        name,
+      const id = String(chord?.id || randomUUID()).trim().slice(0, 64) || randomUUID();
+      return {
+        id,
+        bar,
+        offsetDiv,
+        durationDiv,
+        raw,
         source: "user"
       };
-      const bar = Number(chord?.bar);
-      const beat = Number(chord?.beat);
-      if (Number.isFinite(bar) && bar > 0) normalized.bar = Math.round(bar);
-      if (Number.isFinite(beat) && beat > 0) normalized.beat = Number(beat.toFixed(2));
-      return normalized;
     })
     .filter(Boolean)
-    .sort((left, right) => left.start - right.start)
-    .slice(0, 128);
+    .sort((left, right) => left.bar - right.bar || left.offsetDiv - right.offsetDiv)
+    .slice(0, MAX_CHORD_CHART_CHORDS);
 
-  return edits.length ? edits : null;
+  return chords.length
+    ? {
+      version: CHORD_CHART_VERSION,
+      divisionsPerQuarter,
+      chords
+    }
+    : null;
 }
 
 function ensurePracticeState(job) {
@@ -1450,7 +1465,7 @@ function ensurePracticeState(job) {
     metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
     keyOverride: normalizedKeyOverride,
-    chordEdits: normalizeChordEdits(job.practiceState?.chordEdits),
+    chordChart: normalizeChordChart(job.practiceState?.chordChart),
     stemStates
   };
 
@@ -2207,8 +2222,8 @@ async function handleUpdatePracticeState(req, id, res) {
       };
     }
   }
-  if (Object.prototype.hasOwnProperty.call(payload, "chordEdits")) {
-    practiceState.chordEdits = normalizeChordEdits(payload.chordEdits);
+  if (Object.prototype.hasOwnProperty.call(payload, "chordChart")) {
+    practiceState.chordChart = normalizeChordChart(payload.chordChart);
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
     practiceState.stemStates = {

@@ -175,10 +175,14 @@ describe("mock backend", () => {
           tonic: "Bb",
           mode: "major"
         },
-        chordEdits: [
-          { start: 4, end: 8, bar: 2, beat: 1, name: "Csus2/G" },
-          { start: 8, end: 8, name: "" }
-        ],
+        chordChart: {
+          version: 1,
+          divisionsPerQuarter: 4,
+          chords: [
+            { id: "user-chord-1", bar: 2, offsetDiv: 0, durationDiv: 16, raw: "Csus2/G" },
+            { id: "empty-chord", bar: 3, offsetDiv: 0, durationDiv: 0, raw: "" }
+          ]
+        },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
         }
@@ -202,9 +206,20 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.gridOverrides.beatUnit, 8);
     assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, -0.37);
     assert.deepEqual(updatedJob.practiceState.keyOverride, { tonic: "Bb", mode: "major" });
-    assert.deepEqual(updatedJob.practiceState.chordEdits, [
-      { start: 4, end: 8, name: "Csus2/G", source: "user", bar: 2, beat: 1 }
-    ]);
+    assert.deepEqual(updatedJob.practiceState.chordChart, {
+      version: 1,
+      divisionsPerQuarter: 4,
+      chords: [
+        {
+          id: "user-chord-1",
+          bar: 2,
+          offsetDiv: 0,
+          durationDiv: 16,
+          raw: "Csus2/G",
+          source: "user"
+        }
+      ]
+    });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 
@@ -234,7 +249,7 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.lastPosition, 3.25);
     assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
     assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
-    assert.equal(reopenedJob.practiceState.chordEdits[0].name, "Csus2/G");
+    assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

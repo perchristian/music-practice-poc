@@ -830,23 +830,62 @@ test("editable chord chart persists user overrides without replacing analyzer me
       return page.evaluate(async (id) => {
         const response = await fetch(`/api/jobs/${id}`);
         const job = await response.json();
+        const firstChartChord = job.practiceState.chordChart?.chords?.[0];
         return {
           analyzerName: job.result.metadata.chords[0].name,
-          editName: job.practiceState.chordEdits?.[0]?.name,
-          editStart: job.practiceState.chordEdits?.[0]?.start
+          chartRaw: firstChartChord?.raw,
+          chartBar: firstChartChord?.bar,
+          chartOffsetDiv: firstChartChord?.offsetDiv,
+          chartDurationDiv: firstChartChord?.durationDiv,
+          legacyEditsPresent: Object.prototype.hasOwnProperty.call(job.practiceState, "chordEdits")
         };
       }, jobId);
     })
     .toEqual({
       analyzerName: "Cmaj7",
-      editName: "Csus2/G",
-      editStart: 1
+      chartRaw: "Csus2/G",
+      chartBar: 1,
+      chartOffsetDiv: 4,
+      chartDurationDiv: 16,
+      legacyEditsPresent: false
+    });
+
+  await page.getByTestId("tempo-display").click();
+  await page.getByTestId("tempo-input").fill("120");
+  await page.getByTestId("tempo-input").press("Enter");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:00.5-0:02.5");
+
+  await page.getByTestId("bar-start-input").fill("2");
+  await page.getByTestId("bar-start-input").press("Enter");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:02.5-0:04.5");
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        const firstChartChord = job.practiceState.chordChart?.chords?.[0];
+        return {
+          chartBar: firstChartChord?.bar,
+          chartOffsetDiv: firstChartChord?.offsetDiv,
+          chartDurationDiv: firstChartChord?.durationDiv,
+          bpm: job.practiceState.gridOverrides?.bpm,
+          downbeatOffsetSeconds: job.practiceState.gridOverrides?.downbeatOffsetSeconds
+        };
+      }, jobId);
+    })
+    .toEqual({
+      chartBar: 1,
+      chartOffsetDiv: 4,
+      chartDurationDiv: 16,
+      bpm: 120,
+      downbeatOffsetSeconds: 2
     });
 
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:01-0:05");
+  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · 0:02.5-0:04.5");
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {

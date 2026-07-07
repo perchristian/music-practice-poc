@@ -118,7 +118,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. The current implementation still stores user chord edits as `practiceState.chordEdits`; the next chord iteration should cleanly replace that with grid-first `practiceState.chordChart`. Notes and multiple named practice loops are deferred until after the grid-first chord chart work.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. User chord edits now persist as grid-first `practiceState.chordChart` events; seconds-based cue values are derived from the corrected grid at render/playback time. Notes and multiple named practice loops are deferred until after the beat-aligned chord chart UI work.
 
 ## Library UX
 
@@ -150,14 +150,14 @@ The next architecture priority is not a more complex chord labeler. It is a user
 2. let the user correct bar 1, tempo, time signature, and key while listening: implemented for Phase 3B with numeric fields, 0.01-second nudges, half/double tempo buttons, typed BPM, and 4/4, 3/4, 5/4, 6/8, 7/8, and 12/8 options
 3. store analyzer chord output as draft suggestions: implemented by keeping `job.result.metadata.chords` unchanged
 4. let the user add, edit, split, merge, move, and delete chord labels on bars/beats: implemented for Phase 3C
-5. persist user-edited chords as the song's working chart, overriding analyzer suggestions: implemented as `practiceState.chordEdits`
-6. replace the current seconds-first `practiceState.chordEdits` shape with a grid-first working chart model
-7. render that working chart as a beat-aligned chord chart instead of a plain cue list
+5. persist user-edited chords as the song's working chart, overriding analyzer suggestions: implemented as grid-first `practiceState.chordChart`
+6. replace the previous seconds-first `practiceState.chordEdits` shape with a grid-first working chart model: implemented for Phase 3D
+7. render that working chart as a beat-aligned chord chart instead of a plain cue list: planned for Phase 3E
 8. continue evaluating better analyzers such as librosa/Essentia/LLM-hybrid as ways to improve the first draft
 
 one subsystem at a time.
 
-The chord chart storage can make a clean break during the POC. Existing local songs are disposable unless they are explicitly documented as fixture, demo, or calibration jobs. If the grid-first chart model invalidates current runtime jobs, delete local songs/jobs and regenerate fresh examples instead of adding migration or compatibility layers.
+The chord chart storage made a clean break during the POC. Existing local songs are disposable unless they are explicitly documented as fixture, demo, or calibration jobs. If the grid-first chart model invalidates runtime jobs created with the old `chordEdits` shape, delete local songs/jobs and regenerate fresh examples instead of adding migration or compatibility layers.
 
 The target working-chart shape is a small explicit JSON model, not MusicXML or ChordPro as the internal source of truth:
 
@@ -204,7 +204,7 @@ The implemented Phase 2H spike currently records `harmonySource: "real-audio-ana
 
 Chord text should remain user-preserving. The app may parse root, quality, bass note, and extensions for display, roman numerals, and future transposition, but it must keep the original entered label because useful musician notation can be ambiguous. For example, `Csus2`, `C9`, `C7/F`, and `F11` can be different names for similar harmonic evidence depending on context.
 
-The metronome is part of grid calibration. It now plays against the song from the current effective `beatGrid`, with downbeat emphasis and mixer-style mute/solo/volume controls stored in `practiceState`. Phase 3B adds persistent user corrections for BPM, bar 1 start, and time signature in `practiceState.gridOverrides`, while preserving analyzer metadata as provenance. Phase 3C adds `practiceState.chordEdits` as the user's working chart. The current UI uses direct numeric fields and 0.01-second nudge buttons instead of a waveform editor; waveform should be considered later only if manual listening shows the nudge-only flow is too blind for users.
+The metronome is part of grid calibration. It now plays against the song from the current effective `beatGrid`, with downbeat emphasis and mixer-style mute/solo/volume controls stored in `practiceState`. Phase 3B adds persistent user corrections for BPM, bar 1 start, and time signature in `practiceState.gridOverrides`, while preserving analyzer metadata as provenance. Phase 3D stores the user's working chart in `practiceState.chordChart`; each event keeps musical placement as `bar`, `offsetDiv`, and `durationDiv`, and the UI derives seconds-based cue timing from the corrected grid. The current UI uses direct numeric fields and 0.01-second nudge buttons instead of a waveform editor; waveform should be considered later only if manual listening shows the nudge-only flow is too blind for users.
 
 ## Native iOS Transition Criteria
 
