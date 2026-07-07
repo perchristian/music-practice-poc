@@ -13,6 +13,17 @@ npm start
 
 Open `http://localhost:3000`.
 
+On macOS, after `npm install` has been run once, you can also start the local demo
+without opening an editor:
+
+```bash
+scripts/start-demo.command
+```
+
+The same file can be double-clicked from Finder. It starts the app in mock mode,
+opens `http://localhost:3000` in the browser, and keeps the service running until
+the Terminal window is closed.
+
 For faster frontend iteration without selecting or uploading a file, open:
 
 ```text
