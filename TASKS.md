@@ -526,7 +526,8 @@ Deliverables:
 - Grid offset is intentionally removed from the active UI after product review; Bar 1 start plus BPM should cover the current calibration need without an extra offset concept.
 - Corrections persist separately from analyzer output and drive the timeline, metronome, chord placement, and later bar-snapped loops. Done on 2026-07-07: corrections persist in `practiceState.gridOverrides` as `bpm`, `beatsPerBar`, `beatUnit`, and `downbeatOffsetSeconds`, while analyzer metadata remains unchanged.
 - Transport, speed, current/total time, playhead, and loop markers are grouped with the timeline. Loop markers appear only when looping is enabled.
-- Loop count-in has a first-pass 1-bar option. The current implementation starts playback one bar before loop start when enough source audio exists, and loop start/end/count-in controls are only shown while Loop is enabled.
+- Loop count-in has a first-pass 1-bar option. Updated on 2026-07-07: count-in now schedules metronome clicks before loop audio starts, so it also works when loop start is 0 or the source recording has no usable pre-roll. Loop start/end/count-in controls are only shown while Loop is enabled.
+- Bar 1 start accepts negative values down to -60 seconds so recordings that begin just after the first downbeat can still be aligned to the musical grid.
 - Metronome/click is presented as a mixer row with mute, solo, and volume. Downbeat accent is always enabled without a user-facing preference.
 - Product-review cleanup after Phase 3B moved learning status to the selected-song header, moved Rename/Delete under a more menu, removed user-facing `Processed result`, `Learning cues`, `Ready`, and `Offset` labels, split the practice UI into Time, Harmony, and Stems/Mixer sections, persisted browser-extracted video thumbnails, and fixed scheduled metronome clicks continuing after pause or across loop jumps.
 

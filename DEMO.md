@@ -109,7 +109,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, saved thumbnail rendering, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, count-in clicks before loop playback starts, saved thumbnail rendering, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -134,7 +134,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
 19. Adjust click volume from the mixer row; downbeat accent is always on for now.
-20. Enable Loop, then change loop start/end and count-in. Disable Loop and confirm those extra loop fields hide.
+20. Enable Loop, then change loop start/end and count-in. With count-in enabled, confirm clicks happen before the loop audio starts, including when loop start is `0`.
 21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
 22. Reload the page, reopen the song from the unified song list, and confirm those practice settings return.
 23. Rename the selected song from the selected-song header more menu.
@@ -157,7 +157,7 @@ npm run generate:test-media
 7. Confirm the chord list shows bar-aligned cue times such as `Bar 1 · 0:00-0:04` when the analysis can estimate a grid.
 8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
-10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Switch the time-signature dropdown if the downbeat accents are wrong.
+10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
 11. Confirm the beat markers and chord `Bar` labels update immediately after the grid correction.
 12. Reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, and key persist.
 13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.

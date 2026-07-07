@@ -408,6 +408,113 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   expect(clicks[0]).toMatchObject({ time: 10.5, frequency: 1320 });
 });
 
+test("loop count-in clicks before starting stem playback", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__playCalls = [];
+    window.__metronomeClicks = [];
+    const currentTimes = new WeakMap();
+    const pausedStates = new WeakMap();
+
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      get() {
+        return currentTimes.get(this) ?? 0;
+      },
+      set(value) {
+        currentTimes.set(this, Number(value) || 0);
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      get() {
+        return pausedStates.get(this) ?? true;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      pausedStates.set(this, false);
+      window.__playCalls.push({
+        stemId: this.dataset.stemId,
+        currentTime: this.currentTime
+      });
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      pausedStates.set(this, true);
+    };
+
+    class MockAudioContext {
+      constructor() {
+        this.currentTime = 20;
+        this.destination = {};
+        this.state = "running";
+      }
+
+      createOscillator() {
+        const oscillator = {
+          type: "sine",
+          frequency: { value: 0 },
+          connect() {},
+          start(time) {
+            window.__metronomeClicks.push({
+              time: Math.round(time * 100) / 100,
+              frequency: oscillator.frequency.value
+            });
+          },
+          stop() {}
+        };
+        return oscillator;
+      }
+
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime() {},
+            exponentialRampToValueAtTime() {}
+          },
+          connect() {}
+        };
+      }
+
+      resume() {
+        return Promise.resolve();
+      }
+    }
+
+    window.AudioContext = MockAudioContext;
+    window.webkitAudioContext = MockAudioContext;
+  });
+
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await page.getByTestId("tempo-display").click();
+  await page.getByTestId("tempo-input").fill("240");
+  await page.getByTestId("tempo-input").press("Enter");
+  await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("loop-start").fill("0");
+  await page.getByTestId("loop-end").fill("2");
+  await page.getByTestId("count-in-bars").selectOption("1");
+
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  expect(await page.evaluate(() => window.__playCalls)).toEqual([]);
+  expect(await page.evaluate(() => window.__metronomeClicks)).toEqual([
+    { time: 20, frequency: 1320 },
+    { time: 20.25, frequency: 880 },
+    { time: 20.5, frequency: 880 },
+    { time: 20.75, frequency: 880 }
+  ]);
+
+  await expect
+    .poll(async () => page.evaluate(() => window.__playCalls.length), { timeout: 2_000 })
+    .toBeGreaterThan(0);
+
+  const playCalls = await page.evaluate(() => window.__playCalls);
+  expect(playCalls.every((call) => call.currentTime === 0)).toBe(true);
+});
+
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
   await page.addInitScript(() => {
     window.__mediaDuration = Number.NaN;
@@ -818,7 +925,7 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("metronome-solo").click();
   await page.getByTestId("key-select").selectOption("D:major");
   await page.getByTestId("tempo-double").click();
-  await page.getByTestId("bar-start-input").fill("0.25");
+  await page.getByTestId("bar-start-input").fill("-0.25");
   await page.getByTestId("bar-start-input").press("Enter");
   await page.getByTestId("meter-select").selectOption("6/8");
   await setPlaybackPosition(page, 3.2);
@@ -869,7 +976,7 @@ test("processed song library reopens songs and persists practice state", async (
       tempoBpm: 120,
       beatsPerBar: 6,
       beatUnit: 8,
-      downbeatOffsetSeconds: 0.25,
+      downbeatOffsetSeconds: -0.25,
       keyOverride: { tonic: "D", mode: "major" },
       pianoMuted: true,
       pianoVolume: 0.35
@@ -890,7 +997,7 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("metronome-solo")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("key-select")).toHaveValue("D:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("120 BPM");
-  await expect(page.getByTestId("bar-start-input")).toHaveValue("0.25");
+  await expect(page.getByTestId("bar-start-input")).toHaveValue("-0.25");
   await expect(page.getByTestId("meter-select")).toHaveValue("6/8");
   await expect(page.locator("#scrubber")).toHaveValue("3.2");
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);

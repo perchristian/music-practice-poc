@@ -72,6 +72,9 @@ let transportPosition = 0;
 let transportStartedAt = 0;
 let knownTransportDuration = 0;
 let transportFrame = null;
+let countInTimer = null;
+let isCountingIn = false;
+let countInTargetTime = 0;
 let audioContext = null;
 let scheduledMetronomeBeats = new Set();
 let scheduledMetronomeNodes = [];
@@ -129,6 +132,8 @@ const majorScale = [0, 2, 4, 5, 7, 9, 11];
 const minorScale = [0, 2, 3, 5, 7, 8, 10];
 const romanDegrees = ["I", "II", "III", "IV", "V", "VI", "VII"];
 const defaultTimeSignature = { beatsPerBar: 4, beatUnit: 4 };
+const minBarStartSeconds = -60;
+const maxBarStartSeconds = 60 * 60;
 
 function populateKeySelect() {
   if (!keySelect) return;
@@ -258,7 +263,7 @@ function normalizedGridOverrides(state = null) {
     overrides.beatUnit = beatUnit;
   }
 
-  const downbeatOffsetSeconds = roundedSeconds(source.downbeatOffsetSeconds, 0, 60 * 60);
+  const downbeatOffsetSeconds = roundedSeconds(source.downbeatOffsetSeconds, minBarStartSeconds, maxBarStartSeconds);
   if (hasGridOverride(source, "downbeatOffsetSeconds") && downbeatOffsetSeconds !== null) {
     overrides.downbeatOffsetSeconds = downbeatOffsetSeconds;
   }
@@ -271,7 +276,7 @@ function metadataGridDefaults(metadata) {
   const bpm = roundedBpm(grid.bpm);
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
   const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
-  const downbeatOffsetSeconds = roundedSeconds(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0, 0, 60 * 60) ?? 0;
+  const downbeatOffsetSeconds = roundedSeconds(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0, minBarStartSeconds, maxBarStartSeconds) ?? 0;
   const timeSignature = parseTimeSignature(`${beatsPerBar}/${beatUnit}`) || defaultTimeSignature;
   return {
     bpm,
@@ -351,7 +356,7 @@ function effectiveMetadata(metadata) {
   const baseDownbeat = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
     ? gridOverrides.downbeatOffsetSeconds
     : defaults.downbeatOffsetSeconds;
-  const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0;
+  const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0;
 
   const key = keyOverride || metadata.key;
   const effectiveGrid = bpm || beatDurationSeconds
@@ -984,7 +989,7 @@ function updateGridCorrectionControls() {
     ? gridOverrides.downbeatOffsetSeconds
     : analyzedDefaults.downbeatOffsetSeconds;
   if (barStartInput && document.activeElement !== barStartInput) {
-    barStartInput.value = String(roundedSeconds(baseDownbeat, 0, 60 * 60) ?? 0);
+    barStartInput.value = String(roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0);
   }
 
   if (meterSelect && document.activeElement !== meterSelect) {
@@ -993,7 +998,7 @@ function updateGridCorrectionControls() {
 }
 
 function applyBarStartFromInput() {
-  const seconds = roundedSeconds(barStartInput?.value, 0, 60 * 60);
+  const seconds = roundedSeconds(barStartInput?.value, minBarStartSeconds, maxBarStartSeconds);
   if (seconds === null) return;
   applyGridOverrides({ downbeatOffsetSeconds: seconds });
 }
@@ -1007,7 +1012,7 @@ function nudgeGridValue(target, delta) {
     const current = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
       ? gridOverrides.downbeatOffsetSeconds
       : defaults.downbeatOffsetSeconds;
-    const next = roundedSeconds(current + step, 0, 60 * 60);
+    const next = roundedSeconds(current + step, minBarStartSeconds, maxBarStartSeconds);
     if (next !== null) {
       applyGridOverrides({ downbeatOffsetSeconds: next });
     }
@@ -1160,6 +1165,49 @@ function playMetronomeClick(delaySeconds, accented) {
   };
 }
 
+function cancelLoopCountIn() {
+  if (countInTimer !== null) {
+    window.clearTimeout(countInTimer);
+    countInTimer = null;
+  }
+  isCountingIn = false;
+}
+
+function loopCountInConfig() {
+  if (!loopEnabled.checked || !currentMetadata) return null;
+  const bars = Number(countInBars?.value) || 0;
+  if (bars <= 0) return null;
+
+  const start = Number(loopStart.value);
+  const end = Number(loopEnd.value);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!grid) return null;
+
+  const beats = Math.max(1, Math.round(bars * grid.beatsPerBar));
+  const durationSeconds = beats * grid.beatDurationSeconds;
+  return {
+    targetTime: boundTransportTime(start),
+    beats,
+    durationSeconds,
+    beatDurationSeconds: grid.beatDurationSeconds,
+    beatsPerBar: grid.beatsPerBar,
+    targetBeatIndex: Math.round((start - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds)
+  };
+}
+
+function scheduleLoopCountInClicks(config) {
+  resetMetronomeSchedule();
+  const firstBeatIndex = config.targetBeatIndex - config.beats;
+  for (let index = 0; index < config.beats; index += 1) {
+    const beatIndex = firstBeatIndex + index;
+    const beatWithinBar = ((beatIndex % config.beatsPerBar) + config.beatsPerBar) % config.beatsPerBar;
+    const delaySeconds = (index * config.beatDurationSeconds) / Math.max(0.1, playbackRate);
+    playMetronomeClick(delaySeconds, beatWithinBar === 0);
+  }
+}
+
 function scheduleMetronomeClicks(currentTime = transportTime()) {
   if (!metronomeEnabled || !isPlaying || !currentMetadata) return;
 
@@ -1293,6 +1341,7 @@ function seekAudioTo(audio, seconds) {
 }
 
 function setTransportTime(seconds) {
+  cancelLoopCountIn();
   const bounded = boundTransportTime(seconds);
   anchorTransport(bounded);
   syncStemTimes(bounded);
@@ -1300,22 +1349,6 @@ function setTransportTime(seconds) {
   updateTimeDisplay();
   highlightCurrentChord();
   queuePracticeStatePersist();
-}
-
-function loopCountInStartTime(current) {
-  if (!loopEnabled.checked || !currentMetadata) return current;
-  const bars = Number(countInBars?.value) || 0;
-  if (bars <= 0) return current;
-
-  const start = Number(loopStart.value);
-  const end = Number(loopEnd.value);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return current;
-
-  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  if (!grid) return current;
-
-  const countInSeconds = bars * grid.beatsPerBar * grid.beatDurationSeconds;
-  return Math.max(0, start - countInSeconds);
 }
 
 function stopTransportTick() {
@@ -1358,7 +1391,8 @@ function startTransportTick() {
 }
 
 function pauseAll({ persist = true } = {}) {
-  const current = transportTime();
+  const current = isCountingIn ? countInTargetTime : transportTime();
+  cancelLoopCountIn();
   for (const player of stemPlayers) {
     player.audio.pause();
   }
@@ -1375,10 +1409,10 @@ function pauseAll({ persist = true } = {}) {
   }
 }
 
-async function playAll() {
+async function startStemPlaybackAt(seconds) {
   if (!stemPlayers.length) return;
 
-  const current = loopCountInStartTime(transportTime());
+  const current = boundTransportTime(seconds);
   anchorTransport(current);
   for (const player of stemPlayers) {
     player.audio.playbackRate = playbackRate;
@@ -1395,7 +1429,38 @@ async function playAll() {
     startTransportTick();
     playButton.textContent = "||";
     playButton.setAttribute("aria-label", "Pause");
+  } else {
+    isPlaying = false;
+    playButton.textContent = "▶";
+    playButton.setAttribute("aria-label", "Play");
   }
+}
+
+async function playAll() {
+  if (!stemPlayers.length) return;
+
+  const countIn = loopCountInConfig();
+  if (!countIn) {
+    await startStemPlaybackAt(transportTime());
+    return;
+  }
+
+  countInTargetTime = countIn.targetTime;
+  isCountingIn = true;
+  anchorTransport(countIn.targetTime);
+  syncStemTimes(countIn.targetTime);
+  scheduleLoopCountInClicks(countIn);
+  updateTimeDisplay();
+  highlightCurrentChord();
+  playButton.textContent = "||";
+  playButton.setAttribute("aria-label", "Pause");
+
+  const delayMs = Math.max(0, (countIn.durationSeconds / Math.max(0.1, playbackRate)) * 1000);
+  countInTimer = window.setTimeout(() => {
+    countInTimer = null;
+    isCountingIn = false;
+    startStemPlaybackAt(countIn.targetTime).catch(console.error);
+  }, delayMs);
 }
 
 function resumeAudibleStem(player) {
@@ -2041,7 +2106,7 @@ pipelineModeControls?.addEventListener("click", (event) => {
 });
 
 playButton.addEventListener("click", () => {
-  if (isPlaying) {
+  if (isPlaying || isCountingIn) {
     pauseAll();
   } else {
     playAll().catch(console.error);

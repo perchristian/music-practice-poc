@@ -30,6 +30,8 @@ const DEFAULT_BEATS_PER_BAR = 4;
 const METER_CANDIDATES = [4, 3];
 const ANALYSIS_MAX_SECONDS = 120;
 const ANALYSIS_SAMPLE_RATE = 8000;
+const MIN_BAR_START_SECONDS = -60;
+const MAX_BAR_START_SECONDS = 60 * 60;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 const MIN_ANALYSIS_STEM_RMS = 0.001;
 const HARMONIC_STEM_WEIGHTS = {
@@ -1378,7 +1380,9 @@ function ensurePracticeState(job) {
   }
   const overrideDownbeat = Number(job.practiceState?.gridOverrides?.downbeatOffsetSeconds);
   if (Number.isFinite(overrideDownbeat)) {
-    gridOverrides.downbeatOffsetSeconds = Number(clampNumber(overrideDownbeat, 0, 0, 60 * 60).toFixed(2));
+    gridOverrides.downbeatOffsetSeconds = Number(
+      clampNumber(overrideDownbeat, 0, MIN_BAR_START_SECONDS, MAX_BAR_START_SECONDS).toFixed(2)
+    );
   }
 
   const keyOverride = job.practiceState?.keyOverride;
@@ -2159,7 +2163,7 @@ async function handleUpdatePracticeState(req, id, res) {
     const downbeatOffsetSeconds = Number(payload.gridOverrides.downbeatOffsetSeconds);
     if (Number.isFinite(downbeatOffsetSeconds)) {
       practiceState.gridOverrides.downbeatOffsetSeconds = Number(
-        clampNumber(downbeatOffsetSeconds, 0, 0, 60 * 60).toFixed(2)
+        clampNumber(downbeatOffsetSeconds, 0, MIN_BAR_START_SECONDS, MAX_BAR_START_SECONDS).toFixed(2)
       );
     }
   }

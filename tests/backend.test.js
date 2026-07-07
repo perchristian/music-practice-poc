@@ -169,7 +169,7 @@ describe("mock backend", () => {
           bpm: 106.4,
           beatsPerBar: 7,
           beatUnit: 8,
-          downbeatOffsetSeconds: 0.37
+          downbeatOffsetSeconds: -0.37
         },
         keyOverride: {
           tonic: "Bb",
@@ -196,7 +196,7 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.gridOverrides.bpm, 106.4);
     assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 7);
     assert.equal(updatedJob.practiceState.gridOverrides.beatUnit, 8);
-    assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, 0.37);
+    assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, -0.37);
     assert.deepEqual(updatedJob.practiceState.keyOverride, { tonic: "Bb", mode: "major" });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
