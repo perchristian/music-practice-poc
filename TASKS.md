@@ -690,6 +690,7 @@ Result:
 - Empty cells expose `+` add buttons, drag/drop moves chords to beat positions, and the right edge of each chord card resizes duration with beat snapping.
 - `practiceState.harmonyView` persists `barsPerRow` and `chordDisplay`.
 - Automated verification passed, including covered-cell insertion after resizing, and no test-created jobs with the known Playwright prefixes remained after test teardown.
+- Follow-up maintainability refactor completed on 2026-07-07: pure chord-chart grid math and add/edit/move/resize/delete transforms moved to `public/chord-chart.js`, with fast Node coverage in `tests/chord-chart.test.js`. Browser tests remain for integration and persistence.
 
 Status: Complete for automated verification on 2026-07-07. Manual visual review on long real songs is still useful to judge whether 4 or 8 bars per row is compact enough for full-song scanning.
 

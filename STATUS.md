@@ -10,6 +10,8 @@ Phase 3D replaced the seconds-first `practiceState.chordEdits` model with a clea
 
 Chord chart bugfix on 2026-07-07: chord cards now reserve every beat cell they visually span, so `+` buttons do not remain visible underneath dragged or resized chords and mixed `+`/chord rows no longer grow to a second grid row. Resizing a chord's right edge now previews the resulting span and covered `+` cells before release. Deleting the final chord is supported by preserving an explicit empty `practiceState.chordChart` instead of falling back to analyzer chords. Verification passed with `npm test`, targeted Playwright coverage for chord resize/delete, and the full `npm run test:gui` suite. Test/probe-created library jobs were checked and removed after verification.
 
+Chord chart maintainability refactor on 2026-07-07: the pure chord-chart model, grid math, roman-numeral derivation, and add/edit/move/resize/delete transforms now live in `public/chord-chart.js`. `public/app.js` keeps DOM rendering, event handling, practice-state persistence, and playback integration. `tests/chord-chart.test.js` covers the core chart transforms in fast Node tests, reducing the need to use Playwright for every chord editor logic change while preserving the browser integration coverage.
+
 Process note added on 2026-07-07: every implementation or verification task must delete songs/jobs created during testing before the task is considered complete. Keep only intentional demo, fixture, or calibration jobs that are explicitly documented, because accumulated test-created songs make the library noisy for later work.
 
 Fragmentation Cleanup Review was completed on 2026-07-07. Findings:
@@ -304,11 +306,14 @@ Optional process task: enable the on-demand context overhead audit only when exp
 ## Known Local State
 
 - Working tree was clean at the start of the Fragmentation Cleanup Review on 2026-07-07.
-- As of the compact Harmony chart editor iteration on 2026-07-07, `README.md` has a local note about `scripts/start-demo.command`, and `scripts/start-demo.command` is untracked. These appear unrelated to the Harmony editor work and were left unmodified/uncommitted in this iteration.
+- Working tree was clean at the start of the chord-chart maintainability refactor on 2026-07-07.
 - Local `data/jobs` contains manual/runtime jobs for `TeAmo.mov`, `Stem-generator_1.aif`, and `MakeYouFeelMyLovePart2.mov`, plus one local `job.json` that currently fails JSON parsing. These were not created by the compact Harmony verification run and were not deleted.
 
 ## Verification Log
 
+- `npm test`: passed on 2026-07-07 with 18 passing tests and 1 skipped local calibration test after extracting chord-chart logic into `public/chord-chart.js`; the new pure chord-chart transform tests run in milliseconds.
+- `npm run test:gui`: initially failed once in the pre-existing slow `unified song list shows completed songs and filters by learning status` test because a sequential mock job was still `processing` at timeout; the targeted rerun passed in 24.5s, and a second full `npm run test:gui` passed with 18 Playwright tests in about 1.1 minutes.
+- `rg -l "screen-recording-|editable-chords-|resize-chords-|delete-last-chord-|recent-|queue-first-|queue-second-|mobile-workspace-|phase-one-library-|Renamed Phase 1 song|demo-processed-screen-recording" data/jobs`: found no leftover test-created job files after verification.
 - `node --check public/app.js` and `node --check tests/gui.spec.js`: passed on 2026-07-07 after replacing Harmony time ranges with bar/beat chord grid labels.
 - `npx playwright test tests/gui.spec.js -g "harmony panel shows analysis tempo|harmony chord beat labels|editable chord chart"`: passed on 2026-07-07 with 3 focused GUI tests after adding the beat-aligned Harmony chart.
 - `npm test`: passed on 2026-07-07 with 11 backend tests and 1 skipped local calibration test after the Phase 3E Harmony chart UI change.
