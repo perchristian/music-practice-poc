@@ -62,6 +62,8 @@ const gridTimeline = document.querySelector("#gridTimeline");
 const speedControls = document.querySelector("#speedControls");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
+const loopStartLabel = document.querySelector("#loopStartLabel");
+const loopEndLabel = document.querySelector("#loopEndLabel");
 const loopEnabled = document.querySelector("#loopEnabled");
 const loopSettings = document.querySelector("#loopSettings");
 const countInBars = document.querySelector("#countInBars");
@@ -526,6 +528,96 @@ function updateLoopSettingsVisibility() {
   loopSettings.hidden = !loopEnabled.checked;
 }
 
+function currentLoopGrid() {
+  return normalizedBeatGrid(currentMetadata, transportDuration());
+}
+
+function loopMode() {
+  return currentLoopGrid() ? "beats" : "seconds";
+}
+
+function loopSecondsFromValue(value, mode = loopMode()) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 0;
+
+  if (mode !== "beats") {
+    return boundTransportTime(numericValue);
+  }
+
+  const grid = currentLoopGrid();
+  if (!grid) return boundTransportTime(numericValue);
+  const beatPosition = Math.max(1, Math.round(numericValue));
+  return boundTransportTime(grid.downbeatOffsetSeconds + (beatPosition - 1) * grid.beatDurationSeconds);
+}
+
+function loopBeatPositionFromSeconds(seconds) {
+  const grid = currentLoopGrid();
+  if (!grid) return null;
+  return Math.max(1, Math.round((Number(seconds) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) + 1);
+}
+
+function loopInputSeconds(input) {
+  return loopSecondsFromValue(input?.value, input?.dataset.loopMode || loopMode());
+}
+
+function setLoopInputFromSeconds(input, seconds, mode = loopMode()) {
+  if (!input) return;
+
+  if (mode === "beats") {
+    const beatPosition = loopBeatPositionFromSeconds(seconds);
+    input.value = String(beatPosition || 1);
+    return;
+  }
+
+  input.value = String(roundedSeconds(seconds, 0, 60 * 60) ?? 0);
+}
+
+function sanitizeLoopBeatInput(input) {
+  if (!input || input.dataset.loopMode !== "beats") return;
+  const nextValue = Math.max(1, Math.round(Number(input.value) || 1));
+  input.value = String(nextValue);
+}
+
+function updateLoopControlMode() {
+  if (!loopStart || !loopEnd) return;
+
+  const nextMode = loopMode();
+  const previousMode = loopStart.dataset.loopMode || "seconds";
+  const startSeconds = loopSecondsFromValue(loopStart.value, previousMode);
+  const endSeconds = loopSecondsFromValue(loopEnd.value, previousMode);
+
+  loopStart.dataset.loopMode = nextMode;
+  loopEnd.dataset.loopMode = nextMode;
+
+  if (nextMode === "beats") {
+    loopStart.min = "1";
+    loopEnd.min = "1";
+    loopStart.step = "1";
+    loopEnd.step = "1";
+    loopStart.inputMode = "numeric";
+    loopEnd.inputMode = "numeric";
+    if (loopStartLabel) loopStartLabel.textContent = "Start beat";
+    if (loopEndLabel) loopEndLabel.textContent = "End beat";
+  } else {
+    loopStart.min = "0";
+    loopEnd.min = "0";
+    loopStart.step = "0.1";
+    loopEnd.step = "0.1";
+    loopStart.inputMode = "decimal";
+    loopEnd.inputMode = "decimal";
+    if (loopStartLabel) loopStartLabel.textContent = "Start seconds";
+    if (loopEndLabel) loopEndLabel.textContent = "End seconds";
+  }
+
+  if (previousMode !== nextMode) {
+    setLoopInputFromSeconds(loopStart, startSeconds, nextMode);
+    setLoopInputFromSeconds(loopEnd, endSeconds, nextMode);
+  } else if (nextMode === "beats") {
+    sanitizeLoopBeatInput(loopStart);
+    sanitizeLoopBeatInput(loopEnd);
+  }
+}
+
 function queuePracticeStatePersist(refreshLibrary = false) {
   if (!currentJobId) return;
 
@@ -545,8 +637,8 @@ async function persistPracticeState(refreshLibrary = false) {
   const payload = {
     learningStatus: learningStatusSelect?.value || "not_started",
     playbackRate,
-    loopStart: Number(loopStart.value),
-    loopEnd: Number(loopEnd.value),
+    loopStart: loopInputSeconds(loopStart),
+    loopEnd: loopInputSeconds(loopEnd),
     loopEnabled: loopEnabled.checked,
     countInBars: Number(countInBars?.value) || 0,
     lastPosition: transportTime(),
@@ -600,6 +692,8 @@ function applySavedPracticeState(job) {
     barsPerRowSelect.value = String(harmonyView.barsPerRow);
   }
   playbackRate = Number(state.playbackRate) || 1;
+  loopStart.dataset.loopMode = "seconds";
+  loopEnd.dataset.loopMode = "seconds";
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
   loopEnabled.checked = Boolean(state.loopEnabled);
@@ -808,6 +902,7 @@ function renderMetadata(metadata) {
   updateHarmonyViewControls();
   updateTempoControl();
   updateGridCorrectionControls();
+  updateLoopControlMode();
   renderGridTimeline(currentMetadata);
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
@@ -1215,24 +1310,38 @@ function renderGridTimeline(metadata) {
 
   const startBeatIndex = Math.floor((0 - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) - 1;
   const endBeatIndex = Math.ceil((grid.durationSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) + 1;
+  const timelineWidth = gridTimeline.clientWidth || 720;
+  const visibleBeatCount = Math.max(1, endBeatIndex - startBeatIndex + 1);
+  const beatSpacing = timelineWidth / visibleBeatCount;
+  const showBeatMarkers = beatSpacing >= 4;
+  const downbeatCount = Math.max(1, Math.ceil(visibleBeatCount / grid.beatsPerBar));
+  const rawBarLabelInterval = Math.ceil((downbeatCount * 46) / timelineWidth);
+  const barLabelInterval = rawBarLabelInterval <= 1
+    ? 1
+    : 2 ** Math.ceil(Math.log2(rawBarLabelInterval));
 
   for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
     const time = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
     if (time < 0 || time > grid.durationSeconds) continue;
 
-    const marker = document.createElement("span");
-    marker.className = "grid-marker";
     const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
     const isDownbeat = beatWithinBar === 0;
+    if (!isDownbeat && !showBeatMarkers) continue;
+
+    const marker = document.createElement("span");
+    marker.className = "grid-marker";
     marker.classList.toggle("downbeat", isDownbeat);
     marker.style.left = `${Math.min(100, Math.max(0, (time / grid.durationSeconds) * 100))}%`;
     marker.dataset.time = String(Math.round(time * 1000) / 1000);
     marker.dataset.beat = String(beatWithinBar + 1);
 
     if (isDownbeat) {
+      const barNumber = Math.floor(beatIndex / grid.beatsPerBar) + 1;
       const label = document.createElement("span");
-      label.textContent = String(Math.floor(beatIndex / grid.beatsPerBar) + 1);
-      marker.append(label);
+      label.textContent = String(barNumber);
+      if (barNumber === 1 || (barNumber > 0 && (barNumber - 1) % barLabelInterval === 0)) {
+        marker.append(label);
+      }
     }
 
     gridTimeline.append(marker);
@@ -1287,8 +1396,8 @@ function renderTimelineIndicators() {
   playhead.style.left = `${timelinePercent(transportTime(), duration)}%`;
   gridTimeline.append(playhead);
 
-  const start = Number(loopStart.value);
-  const end = Number(loopEnd.value);
+  const start = loopInputSeconds(loopStart);
+  const end = loopInputSeconds(loopEnd);
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start) {
     gridTimeline.append(markerElement("loop-marker loop-start-marker", "L", start));
     gridTimeline.append(markerElement("loop-marker loop-end-marker", "R", end));
@@ -1346,8 +1455,8 @@ function loopCountInConfig() {
   const bars = Number(countInBars?.value) || 0;
   if (bars <= 0) return null;
 
-  const start = Number(loopStart.value);
-  const end = Number(loopEnd.value);
+  const start = loopInputSeconds(loopStart);
+  const end = loopInputSeconds(loopEnd);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
@@ -1384,8 +1493,8 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
 
   const lookaheadSeconds = 0.45;
   const startBeatIndex = Math.floor((currentTime - grid.downbeatOffsetSeconds - 0.04) / grid.beatDurationSeconds);
-  const loopStartSeconds = Number(loopStart.value);
-  const loopEndSeconds = Number(loopEnd.value);
+  const loopStartSeconds = loopInputSeconds(loopStart);
+  const loopEndSeconds = loopInputSeconds(loopEnd);
   const hasActiveLoop =
     loopEnabled.checked &&
     Number.isFinite(loopStartSeconds) &&
@@ -1529,8 +1638,8 @@ function stopTransportTick() {
 function tickTransport() {
   if (!isPlaying) return;
 
-  const start = Number(loopStart.value);
-  const end = Number(loopEnd.value);
+  const start = loopInputSeconds(loopStart);
+  const end = loopInputSeconds(loopEnd);
   let current = transportTime();
 
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
@@ -1864,6 +1973,7 @@ function renderStemPlayers(stems) {
 
   const updateLoadedDuration = () => {
     transportDuration();
+    updateLoopControlMode();
     updateTimeDisplay();
     renderGridTimeline(currentMetadata);
   };
@@ -2529,13 +2639,16 @@ chordList?.addEventListener("change", (event) => {
 
 [loopStart, loopEnd, loopEnabled, countInBars].forEach((element) => {
   if (!element) return;
-  element.addEventListener("change", () => {
+  element.addEventListener("change", (event) => {
+    sanitizeLoopBeatInput(event.target);
     updateLoopSettingsVisibility();
+    resetMetronomeSchedule();
     renderTimelineIndicators();
     queuePracticeStatePersist();
   });
   element.addEventListener("input", () => {
     updateLoopSettingsVisibility();
+    resetMetronomeSchedule();
     renderTimelineIndicators();
     queuePracticeStatePersist();
   });

@@ -552,9 +552,11 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("240");
   await page.getByTestId("tempo-input").press("Enter");
+  await page.getByTestId("bar-start-input").fill("0.5");
+  await page.getByTestId("bar-start-input").press("Enter");
   await page.getByTestId("loop-enabled").check();
-  await page.getByTestId("loop-start").fill("0");
-  await page.getByTestId("loop-end").fill("2");
+  await page.getByTestId("loop-start").fill("1");
+  await page.getByTestId("loop-end").fill("3");
   await page.getByTestId("count-in-bars").selectOption("1");
 
   await page.getByRole("button", { name: "Play" }).click();
@@ -572,7 +574,7 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
     .toBeGreaterThan(0);
 
   const playCalls = await page.evaluate(() => window.__playCalls);
-  expect(playCalls.every((call) => call.currentTime === 0)).toBe(true);
+  expect(playCalls.every((call) => call.currentTime === 0.5)).toBe(true);
 });
 
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
@@ -635,6 +637,68 @@ test("song duration labels prefer media metadata over harmonic cue length", asyn
 
   await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("1:14");
   await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("0:16");
+});
+
+test("long song timeline skips dense bar labels", async ({ page }) => {
+  const jobId = "44444444-4444-4444-8444-444444444444";
+  const job = {
+    id: jobId,
+    mode: "real",
+    status: "complete",
+    progress: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    originalFilename: "full-song.mov",
+    practiceState: { learningStatus: "not_started", stemStates: {} },
+    result: {
+      stems: [{ id: "piano", name: "Piano", audioUrl: `/api/jobs/${jobId}/stems/piano.wav` }],
+      metadata: {
+        durationSeconds: 240,
+        key: { tonic: "C", mode: "major" },
+        beatGrid: { bpm: 120, beatsPerBar: 4, beatUnit: 4, beatDurationSeconds: 0.5, downbeatOffsetSeconds: 0 },
+        chords: [
+          { bar: 1, beat: 1, start: 0, end: 120, name: "C", roman: "I" },
+          { bar: 61, beat: 1, start: 120, end: 240, name: "F", roman: "IV" }
+        ],
+        melody: []
+      }
+    }
+  };
+
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 240;
+      }
+    });
+  });
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([job])
+    });
+  });
+  await page.route(`**/api/jobs/${jobId}`, async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(job)
+    });
+  });
+
+  await page.goto("/");
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+
+  const markerCounts = await page.evaluate(() => ({
+    markers: document.querySelectorAll(".grid-marker").length,
+    downbeats: document.querySelectorAll(".grid-marker.downbeat").length,
+    labels: document.querySelectorAll(".grid-marker.downbeat span").length
+  }));
+
+  expect(markerCounts.downbeats).toBeGreaterThan(100);
+  expect(markerCounts.markers).toBe(markerCounts.downbeats);
+  expect(markerCounts.labels).toBeLessThan(40);
+  await expect(page.locator(".grid-marker.downbeat span").first()).toHaveText("1");
 });
 
 test("saved song thumbnails render in the list and selected song header", async ({ page }) => {
@@ -1186,8 +1250,8 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("speed-075").click();
   await page.getByTestId("loop-enabled").check();
   await expect(page.getByTestId("loop-settings")).toBeVisible();
-  await page.getByTestId("loop-start").fill("1.5");
-  await page.getByTestId("loop-end").fill("5.5");
+  await page.getByTestId("loop-start").fill("2");
+  await page.getByTestId("loop-end").fill("6");
   await page.getByTestId("count-in-bars").selectOption("1");
   await page.getByTestId("metronome-mute").click();
   await page.getByTestId("metronome-volume").evaluate((slider) => {
@@ -1237,8 +1301,8 @@ test("processed song library reopens songs and persists practice state", async (
     .toEqual({
       learningStatus: "practicing",
       playbackRate: 0.75,
-      loopStart: 1.5,
-      loopEnd: 5.5,
+      loopStart: 0.25,
+      loopEnd: 2.25,
       loopEnabled: true,
       countInBars: 1,
       lastPosition: 3.2,
@@ -1260,8 +1324,8 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("learning-status")).toHaveValue("practicing");
   await expect(page.getByTestId("speed-075")).toHaveClass(/active/);
-  await expect(page.getByTestId("loop-start")).toHaveValue("1.5");
-  await expect(page.getByTestId("loop-end")).toHaveValue("5.5");
+  await expect(page.getByTestId("loop-start")).toHaveValue("2");
+  await expect(page.getByTestId("loop-end")).toHaveValue("6");
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
   await expect(page.getByTestId("count-in-bars")).toHaveValue("1");
   await expect(page.getByTestId("metronome-mute")).toHaveAttribute("aria-pressed", "false");

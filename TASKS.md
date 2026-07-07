@@ -708,23 +708,44 @@ Status: Planned after the compact chart editor. This should be handled as a sepa
 
 Overall Phase 3A-3F status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
-## Phase 4: Bar-Based Loops and Practice Notes
+## Phase 4: Single Grid-Snapped Loop
 
-Goal: A user can use the corrected musical grid as an ongoing practice workspace, not just a one-off player.
+Goal: A user can set one musically correct loop that follows the corrected grid and supports reliable count-in practice.
+
+Reason:
+- One reliable loop has more immediate learning value than multiple saved loops.
+- The current loop UI should snap to beats/bars instead of exposing high-resolution decimal seconds.
+- Count-in and metronome behavior must respect `Bar 1 start` before loop workflows are expanded.
+- Timeline markers become unreadable on full songs if every bar label is rendered.
 
 Demonstrable outcome:
-- Loops can snap to bars or beats.
-- Count-in can be enabled before loop playback.
+- The existing single loop can snap to beats from the corrected grid.
+- Loop start/end controls show beat positions when a beat grid exists, while existing persisted loop start/end seconds remain supported.
+- Count-in can be enabled before loop playback and starts playback at the correct audio time when `Bar 1 start` is nonzero or negative.
+- Metronome clicks follow loop boundaries and reset cleanly after loop jumps.
+- Dense full-song timelines simplify marker rendering so bar numbers do not overlap.
+- The existing single loop persists per song and restores after reload.
+
+Verification:
+- Start a loop at beat 1 with a nonzero `Bar 1 start`, enable count-in, and confirm playback begins at the offset-correct audio time.
+- Set loop start/end with whole beat values and confirm the persisted seconds match the corrected grid.
+- Confirm decimal loop input is not treated as a high-resolution editing mode when a grid exists.
+- Confirm metronome clicks do not continue past the loop end after the loop jumps back to start.
+- Load or simulate a full-song timeline and confirm bar labels remain readable.
+- Reload the app and confirm the single-loop settings persist.
+
+Status: Phase 4A implemented on 2026-07-08 for beat-position loop controls, offset-aware count-in verification, and dense timeline simplification. Full manual listening on real long songs is still useful.
+
+### Deferred: Multiple Saved Loops and Practice Notes
+
+Goal: Add a richer practice workspace only after the single-loop workflow feels correct.
+
+Candidate scope:
 - Multiple saved loops can be attached to one song.
 - Each loop can have a name, note, and status such as `difficult`, `improving`, or `learned`.
 - Saved loops can be selected quickly from the practice view.
 
-Verification:
-- Start a loop with count-in and confirm playback begins at the expected bar.
-- Create, edit, select, and delete multiple loops on one processed song.
-- Reload the app and confirm notes, loop boundaries, and loop status persist.
-
-Status: Planned after Phase 3 grid calibration and compact editable chord chart work.
+Status: Deferred. Do not start this until one grid-snapped loop is validated in manual practice.
 
 ## Phase 5: Expand Practice Targets Without Losing Piano Focus
 
@@ -823,6 +844,6 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 
 ## Next Task
 
-Start Phase 4: add bar/beat-based loop controls and saved practice notes on top of the corrected grid.
+Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose beat-based loop start/end, enable count-in, listen to grid click through repeated loop jumps, and inspect whether the simplified timeline is readable enough.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.

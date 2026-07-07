@@ -112,7 +112,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, loop and count-in control state, count-in clicks before loop playback starts, saved thumbnail rendering, beat/bar marker rendering, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, compact beat-aligned Harmony chord grid rendering, editable chord add/edit/drag/drop/delete operations, persisted Harmony view settings, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, beat-position loop controls, count-in clicks before offset-correct loop playback starts, saved thumbnail rendering, beat/bar marker rendering, dense timeline marker simplification, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, compact beat-aligned Harmony chord grid rendering, editable chord add/edit/drag/drop/delete operations, persisted Harmony view settings, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -137,7 +137,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
 19. Adjust click volume from the mixer row; downbeat accent is always on for now.
-20. Enable Loop, then change loop start/end and count-in. With count-in enabled, confirm clicks happen before the loop audio starts, including when loop start is `0`.
+20. Enable Loop, then change loop start/end and count-in. When the song has a beat grid, loop start/end are whole beat positions, so `1` means Bar 1 beat 1. With count-in enabled, confirm clicks happen before the loop audio starts, including after changing `Bar 1 start`.
 21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
 22. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
 23. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
@@ -164,12 +164,13 @@ npm run generate:test-media
 8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
 10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
-11. Confirm the beat markers update immediately after grid correction and the Harmony chart remains expressed as musical grid placement rather than visible seconds ranges.
-12. Edit at least one chord label, resize one chord by dragging its right edge, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, and chord chart persist.
-13. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
-14. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
-15. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
-16. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
+11. Enable Loop, set start/end as whole beat positions, enable 1-bar count-in, and confirm loop playback starts at the correct audio point after `Bar 1 start` correction.
+12. Confirm the beat markers update immediately after grid correction and the Harmony chart remains expressed as musical grid placement rather than visible seconds ranges. On long songs, confirm the timeline remains readable by showing fewer bar numbers instead of overlapping every label.
+13. Edit at least one chord label, resize one chord by dragging its right edge, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, loop beat positions, and chord chart persist.
+14. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
+15. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+16. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
+17. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
 
 `source-audio.wav` is intentionally kept in each real-mode job directory so it can be compared against the original upload and the separated stems. The FFmpeg extraction step writes uncompressed `pcm_s16le` WAV rather than MP3/AAC, so compression artifacts heard after separation are more likely from the original screen recording or the separator than from FFmpeg's source-audio extraction.
 
