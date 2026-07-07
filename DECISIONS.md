@@ -488,3 +488,26 @@ High for product direction; medium for the exact first UI because it needs hands
 
 Date:
 2026-07-07
+
+## Decision 22
+
+Decision:
+Treat mock mode as an expandable scenario catalog, not as one fixed demo file or a real file-compatibility contract.
+
+Reason:
+Mock mode exists to keep the full learning workflow demonstrable while real ML, upload, and media-processing dependencies are unavailable or still changing. As the prototype grows, it should include multiple representative practice scenarios so the UI and product flow can be evaluated against different musical and processing conditions: generated fallback stems, local piano/accompaniment demo stems, full drums/bass/guitar/piano stem sets, imperfect separation, missing or quiet stems, short and longer recordings, different meters, multiple chord changes per bar, uncertain chords, and user-corrected charts. These examples should be easy to replace as better test assets become available.
+
+Alternatives considered:
+- Keep a single canonical mock song.
+- Require all mock examples to be backed by real uploaded video files.
+- Treat mock-mode accepted file types as proof of real-mode media compatibility.
+- Expand only real-mode fixtures and leave mock mode minimal.
+
+Tradeoffs:
+More mock scenarios improve demo coverage and make product regressions easier to spot, but they can create false confidence if they are presented as real processing quality. Mock fixtures should therefore be labeled as scenarios and should exercise the real product flow without claiming to validate codec support, upload throughput, stem quality, or harmonic-analysis accuracy. Real-mode compatibility remains a separate responsibility verified through actual multipart uploads, FFmpeg extraction, separator output, and manual listening.
+
+Confidence:
+High for POC usefulness; medium for the exact fixture organization until more scenarios are added.
+
+Date:
+2026-07-07
