@@ -52,7 +52,8 @@ const gridCorrection = document.querySelector("#gridCorrection");
 const barStartInput = document.querySelector("#barStartInput");
 const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
-const addChordButton = document.querySelector("#addChordButton");
+const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
+const barsPerRowSelect = document.querySelector("#barsPerRowSelect");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
 const backToHomeButton = document.querySelector("#backToHomeButton");
@@ -85,6 +86,7 @@ let currentAnalyzedMetadata = null;
 let gridOverrides = {};
 let keyOverride = null;
 let chordChart = null;
+let harmonyView = { barsPerRow: 2, chordDisplay: "both" };
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
@@ -141,6 +143,8 @@ const defaultChordDivisionsPerQuarter = 4;
 const maxChordChartChords = 128;
 const maxChordChartBars = 10000;
 const maxChordChartDivisions = 4096;
+const supportedBarsPerRow = [1, 2, 4, 8];
+const supportedChordDisplays = ["both", "name", "roman"];
 
 function populateKeySelect() {
   if (!keySelect) return;
@@ -310,6 +314,16 @@ function normalizedChordChart(state = null) {
     : null;
 }
 
+function normalizedHarmonyView(state = null) {
+  const source = state?.harmonyView || {};
+  const barsPerRow = clampedInteger(source.barsPerRow, 2, 1, 8);
+  const chordDisplay = supportedChordDisplays.includes(source.chordDisplay) ? source.chordDisplay : "both";
+  return {
+    barsPerRow: supportedBarsPerRow.includes(barsPerRow) ? barsPerRow : 2,
+    chordDisplay
+  };
+}
+
 function createChordId() {
   return window.crypto?.randomUUID?.() || `chord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -330,7 +344,8 @@ function fallbackChartGrid(grid = null) {
     beatDurationSeconds: Number.isFinite(beatDurationSeconds) && beatDurationSeconds > 0 ? beatDurationSeconds : 1,
     beatsPerBar: Number(grid?.beatsPerBar) || defaultTimeSignature.beatsPerBar,
     beatUnit: Number(grid?.beatUnit) || defaultTimeSignature.beatUnit,
-    downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0
+    downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0,
+    durationSeconds: Number(grid?.durationSeconds) || null
   };
 }
 
@@ -823,6 +838,7 @@ async function persistPracticeState(refreshLibrary = false) {
     gridOverrides,
     keyOverride,
     chordChart,
+    harmonyView,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -857,6 +873,13 @@ function applySavedPracticeState(job) {
   gridOverrides = normalizedGridOverrides(state);
   keyOverride = normalizedKeyOverride(state);
   chordChart = normalizedChordChart(state);
+  harmonyView = normalizedHarmonyView(state);
+  if (chordDisplaySelect) {
+    chordDisplaySelect.value = harmonyView.chordDisplay;
+  }
+  if (barsPerRowSelect) {
+    barsPerRowSelect.value = String(harmonyView.barsPerRow);
+  }
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.value = String(Number(state.loopStart) || 0);
   loopEnd.value = String(Number(state.loopEnd) || 4);
@@ -1063,6 +1086,7 @@ function renderMetadata(metadata) {
   currentAnalyzedMetadata = metadata;
   currentMetadata = effectiveMetadata(metadata);
   updateKeyControl();
+  updateHarmonyViewControls();
   updateTempoControl();
   updateGridCorrectionControls();
   renderGridTimeline(currentMetadata);
@@ -1071,76 +1095,120 @@ function renderMetadata(metadata) {
   chordList.replaceChildren(...renderChordGrid(currentMetadata.chords, grid));
 }
 
+function updateHarmonyViewControls() {
+  if (chordDisplaySelect && chordDisplaySelect.value !== harmonyView.chordDisplay) {
+    chordDisplaySelect.value = harmonyView.chordDisplay;
+  }
+  if (barsPerRowSelect && barsPerRowSelect.value !== String(harmonyView.barsPerRow)) {
+    barsPerRowSelect.value = String(harmonyView.barsPerRow);
+  }
+}
+
 function renderChordGrid(chords, grid) {
   const chartGrid = fallbackChartGrid(grid);
   const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
-  const rows = new Map();
+  const barsPerRow = harmonyView.barsPerRow;
+  const entriesByBar = new Map();
+  let highestChordBar = 1;
 
   chords.forEach((chord, index) => {
     const hit = chordGridHit(chord, chartGrid);
     const beatCell = Math.min(beatsPerBar, Math.max(1, Math.floor(hit.beat - 1 + 0.001) + 1));
-    const row = rows.get(hit.bar) || [];
+    highestChordBar = Math.max(highestChordBar, hit.bar);
+    const row = entriesByBar.get(hit.bar) || [];
     row.push({ chord, index, hit, beatCell });
-    rows.set(hit.bar, row);
+    entriesByBar.set(hit.bar, row);
   });
 
-  return [...rows.entries()]
-    .sort(([leftBar], [rightBar]) => leftBar - rightBar)
-    .map(([bar, entries]) => renderChordBarRow(bar, entries, chartGrid, beatsPerBar));
+  const gridBarCount = chartGrid.durationSeconds && chartGrid.beatDurationSeconds
+    ? Math.ceil(Math.max(1, (chartGrid.durationSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds) / beatsPerBar)
+    : 1;
+  const barCount = Math.max(highestChordBar, gridBarCount);
+  const rows = [];
+  for (let startBar = 1; startBar <= barCount; startBar += barsPerRow) {
+    const rowBars = [];
+    for (let bar = startBar; bar < startBar + barsPerRow && bar <= barCount; bar += 1) {
+      rowBars.push(bar);
+    }
+    rows.push(renderChordChartRow(rowBars, entriesByBar, chartGrid, beatsPerBar, barsPerRow));
+  }
+  return rows;
 }
 
-function renderChordBarRow(bar, entries, grid, beatsPerBar) {
+function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) {
   const row = document.createElement("div");
-  row.className = "chord-bar-row";
-  row.dataset.bar = String(bar);
+  row.className = "chord-chart-row";
+  row.style.setProperty("--bars-per-row", String(barsPerRow));
+  row.append(...bars.map((bar) => renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar)));
+  return row;
+}
 
-  const label = document.createElement("div");
-  label.className = "chord-bar-label";
-  label.textContent = `Bar ${bar}`;
+function chordEntrySpan(entry, entries, grid, beatsPerBar) {
+  const absoluteStartBeat = (entry.hit.bar - 1) * beatsPerBar + (entry.beatCell - 1);
+  const range = chordBeatRange(entry.chord, grid);
+  const rawSpan = range
+    ? Math.ceil(Math.max(1, range.endBeat - absoluteStartBeat - 0.001))
+    : 1;
+  const nextEntry = entries
+    .filter((candidate) => candidate.beatCell > entry.beatCell)
+    .sort((left, right) => left.beatCell - right.beatCell)[0];
+  const nextLimit = nextEntry ? nextEntry.beatCell - entry.beatCell : beatsPerBar - entry.beatCell + 1;
+  return Math.max(1, Math.min(rawSpan, nextLimit, beatsPerBar - entry.beatCell + 1));
+}
 
-  const beatGrid = document.createElement("div");
-  beatGrid.className = "chord-beat-grid";
-  beatGrid.style.setProperty("--beats-per-bar", String(beatsPerBar));
+function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
+  const segment = document.createElement("div");
+  segment.className = "chord-bar-segment";
+  segment.dataset.bar = String(bar);
+  segment.style.setProperty("--beats-per-bar", String(beatsPerBar));
+  segment.style.setProperty("--beat-width", `${100 / beatsPerBar}%`);
 
-  const cells = Array.from({ length: beatsPerBar }, (_, index) => {
-    const cell = document.createElement("div");
-    cell.className = "chord-beat-cell";
-    cell.dataset.beat = String(index + 1);
+  const barNumber = document.createElement("span");
+  barNumber.className = "chord-bar-number";
+  barNumber.textContent = String(bar);
 
-    const beatLabel = document.createElement("span");
-    beatLabel.className = "beat-label";
-    beatLabel.textContent = String(index + 1);
-
-    const stack = document.createElement("div");
-    stack.className = "chord-cell-stack";
-
-    cell.append(beatLabel, stack);
-    return { cell, stack };
+  const sortedEntries = entries.sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index);
+  const occupiedCells = new Set();
+  const cards = sortedEntries.map((entry) => {
+    const span = chordEntrySpan(entry, sortedEntries, grid, beatsPerBar);
+    for (let cell = entry.beatCell; cell < entry.beatCell + span; cell += 1) {
+      occupiedCells.add(cell);
+    }
+    const card = renderChordCard(entry.chord, entry.index, grid, entry.hit);
+    card.style.gridColumn = `${entry.beatCell} / span ${span}`;
+    return card;
   });
 
-  entries
-    .sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index)
-    .forEach((entry) => {
-      cells[entry.beatCell - 1].stack.append(renderChordCard(entry.chord, entry.index, grid, entry.hit));
-    });
+  const addButtons = Array.from({ length: beatsPerBar }, (_, index) => {
+    const beat = index + 1;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chord-add-cell";
+    button.dataset.chordAction = "add-at-cell";
+    button.dataset.bar = String(bar);
+    button.dataset.beat = String(beat);
+    button.dataset.testid = `chord-add-${bar}-${beat}`;
+    button.setAttribute("aria-label", `Add chord in bar ${bar}, beat ${beat}`);
+    button.textContent = "+";
+    button.style.gridColumn = String(beat);
+    button.hidden = occupiedCells.has(beat);
+    return button;
+  });
 
-  beatGrid.append(...cells.map(({ cell }) => cell));
-  row.append(label, beatGrid);
-  return row;
+  segment.append(barNumber, ...addButtons, ...cards);
+  return segment;
 }
 
 function renderChordCard(chord, index, grid, hit = null) {
   const card = document.createElement("div");
   card.className = "chord-card";
   card.dataset.index = String(index);
+  card.dataset.testid = `chord-card-${index}`;
+  card.draggable = true;
   const position = hit || chordGridHit(chord, grid);
   card.dataset.bar = String(position.bar);
   card.dataset.beat = formatBeatNumber(position.beat);
   card.classList.toggle("user-edited", chord.source === "user");
-
-  const cueTime = document.createElement("span");
-  cueTime.className = "cue-time";
-  cueTime.textContent = chordHitLabel(chord, grid, position);
 
   const nameInput = document.createElement("input");
   nameInput.className = "cue-name-input";
@@ -1154,27 +1222,22 @@ function renderChordCard(chord, index, grid, hit = null) {
   roman.className = "cue-roman";
   roman.textContent = chord.roman;
 
-  const actions = document.createElement("div");
-  actions.className = "chord-actions";
-  const actionButtons = [
-    ["move-left", "<", `Move chord ${index + 1} earlier`],
-    ["move-right", ">", `Move chord ${index + 1} later`],
-    ["split", "Split", `Split chord ${index + 1}`],
-    ["merge-next", "Merge", `Merge chord ${index + 1} with next chord`],
-    ["delete", "Delete", `Delete chord ${index + 1}`]
-  ];
-  for (const [action, label, ariaLabel] of actionButtons) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.chordAction = action;
-    button.dataset.index = String(index);
-    button.dataset.testid = `chord-${action}-${index}`;
-    button.setAttribute("aria-label", ariaLabel);
-    button.textContent = label;
-    actions.append(button);
-  }
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "chord-delete-button";
+  deleteButton.dataset.chordAction = "delete";
+  deleteButton.dataset.index = String(index);
+  deleteButton.dataset.testid = `chord-delete-${index}`;
+  deleteButton.setAttribute("aria-label", `Delete chord ${index + 1}`);
+  deleteButton.textContent = "x";
 
-  card.append(cueTime, nameInput, roman, actions);
+  if (harmonyView.chordDisplay !== "roman") {
+    card.append(nameInput);
+  }
+  if (harmonyView.chordDisplay !== "name") {
+    card.append(roman);
+  }
+  card.append(deleteButton);
   return card;
 }
 
@@ -1233,60 +1296,6 @@ function commitChordChart(nextChords) {
   queuePracticeStatePersist();
 }
 
-function moveChord(index, direction) {
-  seedChordChart();
-  const grid = currentChartGrid();
-  const divPerBeat = chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter);
-  const chords = [...chordChart.chords];
-  const chord = chords[index];
-  if (!chord) return;
-
-  const nextTotalDiv = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter) + divPerBeat * direction;
-  chords[index] = {
-    ...chord,
-    ...chartPositionFromTotalDiv(nextTotalDiv, grid, chordChart.divisionsPerQuarter)
-  };
-  commitChordChart(chords);
-}
-
-function splitChord(index) {
-  seedChordChart();
-  const grid = currentChartGrid();
-  const chords = [...chordChart.chords];
-  const chord = chords[index];
-  if (!chord || chord.durationDiv <= 1) return;
-
-  const leftDuration = Math.max(1, Math.floor(chord.durationDiv / 2));
-  const rightDuration = Math.max(1, chord.durationDiv - leftDuration);
-  const rightStart = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter) + leftDuration;
-  const left = { ...chord, durationDiv: leftDuration };
-  const right = {
-    ...chord,
-    id: createChordId(),
-    ...chartPositionFromTotalDiv(rightStart, grid, chordChart.divisionsPerQuarter),
-    durationDiv: rightDuration
-  };
-  chords.splice(index, 1, left, right);
-  commitChordChart(chords);
-}
-
-function mergeChordWithNext(index) {
-  seedChordChart();
-  const grid = currentChartGrid();
-  const chords = [...chordChart.chords];
-  const chord = chords[index];
-  const next = chords[index + 1];
-  if (!chord || !next) return;
-
-  const start = chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter);
-  const nextEnd = chartChordTotalDiv(next, grid, chordChart.divisionsPerQuarter) + next.durationDiv;
-  chords.splice(index, 2, {
-    ...chord,
-    durationDiv: Math.max(1, nextEnd - start)
-  });
-  commitChordChart(chords);
-}
-
 function deleteChord(index) {
   seedChordChart();
   const chords = [...chordChart.chords];
@@ -1305,26 +1314,76 @@ function updateChordName(index, value) {
   commitChordChart(chords);
 }
 
-function addChord() {
+function chartCellTotalDiv(bar, beat, grid, divisionsPerQuarter) {
+  const safeBar = clampedInteger(bar, 1, 1, maxChordChartBars);
+  const safeBeat = clampedInteger(beat, 1, 1, Number(grid.beatsPerBar) || defaultTimeSignature.beatsPerBar);
+  return (
+    (safeBar - 1) * chartDivisionsPerBar(grid, divisionsPerQuarter) +
+    (safeBeat - 1) * chartDivisionsPerBeat(grid, divisionsPerQuarter)
+  );
+}
+
+function addChordAtCell(bar, beat) {
   seedChordChart();
   const grid = currentChartGrid();
   const chords = [...chordChart.chords];
-  const last = chords.at(-1);
-  const startDiv = last
-    ? chartChordTotalDiv(last, grid, chordChart.divisionsPerQuarter) + last.durationDiv
-    : Math.max(0, Math.round(
-      ((transportTime() - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) *
-      chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter)
-    ));
+  const startDiv = chartCellTotalDiv(bar, beat, grid, chordChart.divisionsPerQuarter);
+  const beatDiv = chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter);
+  const barDiv = chartDivisionsPerBar(grid, chordChart.divisionsPerQuarter);
+  const barEnd = (Math.max(1, Number(bar) || 1) - 1) * barDiv + barDiv;
+  const sorted = chords
+    .map((chord) => ({ chord, start: chartChordTotalDiv(chord, grid, chordChart.divisionsPerQuarter) }))
+    .sort((left, right) => left.start - right.start);
+  const previous = [...sorted].reverse().find((entry) => entry.start < startDiv);
+  const next = sorted.find((entry) => entry.start > startDiv);
+  if (previous && previous.start + previous.chord.durationDiv > startDiv) {
+    previous.chord.durationDiv = Math.max(1, startDiv - previous.start);
+  }
+  const nextStart = next ? Math.min(next.start, barEnd) : barEnd;
+  const durationDiv = Math.max(beatDiv, nextStart - startDiv);
+  const reference = previous?.chord || next?.chord || chords.at(-1);
 
   chords.push({
     id: createChordId(),
     ...chartPositionFromTotalDiv(startDiv, grid, chordChart.divisionsPerQuarter),
-    durationDiv: chartDivisionsPerBar(grid, chordChart.divisionsPerQuarter),
-    raw: last?.raw || "C",
+    durationDiv,
+    raw: reference?.raw || "C",
     source: "user"
   });
   commitChordChart(chords);
+}
+
+function moveChordToCell(index, bar, beat) {
+  seedChordChart();
+  const grid = currentChartGrid();
+  const chords = [...chordChart.chords];
+  const chord = chords[index];
+  if (!chord) return;
+
+  const startDiv = chartCellTotalDiv(bar, beat, grid, chordChart.divisionsPerQuarter);
+  const nextStart = chords
+    .filter((candidate, candidateIndex) => candidateIndex !== index)
+    .map((candidate) => chartChordTotalDiv(candidate, grid, chordChart.divisionsPerQuarter))
+    .filter((candidateStart) => candidateStart > startDiv)
+    .sort((left, right) => left - right)[0];
+  const beatDiv = chartDivisionsPerBeat(grid, chordChart.divisionsPerQuarter);
+  chords[index] = {
+    ...chord,
+    ...chartPositionFromTotalDiv(startDiv, grid, chordChart.divisionsPerQuarter),
+    durationDiv: Math.max(beatDiv, Math.min(chord.durationDiv, (nextStart || startDiv + chord.durationDiv) - startDiv))
+  };
+  commitChordChart(chords);
+}
+
+function applyHarmonyView(nextView = {}) {
+  harmonyView = normalizedHarmonyView({ harmonyView: { ...harmonyView, ...nextView } });
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.harmonyView = harmonyView;
+  }
+  if (currentAnalyzedMetadata) {
+    renderMetadata(currentAnalyzedMetadata);
+  }
+  queuePracticeStatePersist();
 }
 
 function updateKeyControl() {
@@ -2645,19 +2704,70 @@ meterSelect?.addEventListener("change", () => {
   }
 });
 
-addChordButton?.addEventListener("click", addChord);
+chordDisplaySelect?.addEventListener("change", () => {
+  applyHarmonyView({ chordDisplay: chordDisplaySelect.value });
+});
+
+barsPerRowSelect?.addEventListener("change", () => {
+  applyHarmonyView({ barsPerRow: Number(barsPerRowSelect.value) });
+});
 
 chordList?.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-chord-action]");
   if (!button) return;
-  const index = Number(button.dataset.index);
-  if (!Number.isInteger(index)) return;
 
-  if (button.dataset.chordAction === "move-left") moveChord(index, -1);
-  if (button.dataset.chordAction === "move-right") moveChord(index, 1);
-  if (button.dataset.chordAction === "split") splitChord(index);
-  if (button.dataset.chordAction === "merge-next") mergeChordWithNext(index);
-  if (button.dataset.chordAction === "delete") deleteChord(index);
+  if (button.dataset.chordAction === "add-at-cell") {
+    addChordAtCell(Number(button.dataset.bar), Number(button.dataset.beat));
+    return;
+  }
+
+  const index = Number(button.dataset.index);
+  if (Number.isInteger(index) && button.dataset.chordAction === "delete") {
+    deleteChord(index);
+  }
+});
+
+chordList?.addEventListener("dragstart", (event) => {
+  const card = event.target.closest(".chord-card");
+  if (!card) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", card.dataset.index);
+  card.classList.add("dragging");
+});
+
+chordList?.addEventListener("dragend", (event) => {
+  event.target.closest(".chord-card")?.classList.remove("dragging");
+  chordList.querySelectorAll(".drag-over").forEach((element) => element.classList.remove("drag-over"));
+});
+
+chordList?.addEventListener("dragover", (event) => {
+  const target = event.target.closest(".chord-add-cell, .chord-bar-segment");
+  if (!target) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  target.classList.add("drag-over");
+});
+
+chordList?.addEventListener("dragleave", (event) => {
+  event.target.closest(".chord-add-cell, .chord-bar-segment")?.classList.remove("drag-over");
+});
+
+chordList?.addEventListener("drop", (event) => {
+  const target = event.target.closest(".chord-add-cell, .chord-bar-segment");
+  if (!target) return;
+  event.preventDefault();
+  const index = Number(event.dataTransfer.getData("text/plain"));
+  if (Number.isInteger(index)) {
+    const segment = target.classList.contains("chord-bar-segment") ? target : target.closest(".chord-bar-segment");
+    if (!segment) return;
+    const bar = Number(target.dataset.bar || segment?.dataset.bar);
+    const beatsPerBar = Number(getComputedStyle(segment).getPropertyValue("--beats-per-bar")) || defaultTimeSignature.beatsPerBar;
+    const rect = segment.getBoundingClientRect();
+    const beat = target.dataset.beat
+      ? Number(target.dataset.beat)
+      : Math.min(beatsPerBar, Math.max(1, Math.floor(((event.clientX - rect.left) / Math.max(1, rect.width)) * beatsPerBar) + 1));
+    moveChordToCell(index, bar, beat);
+  }
 });
 
 chordList?.addEventListener("change", (event) => {

@@ -189,10 +189,26 @@
                     <h2 id="harmonyTitle">Harmony</h2>
                   </div>
                   <div class="harmony-summary">
-                    <button type="button" class="secondary-button compact-button" id="addChordButton" data-testid="add-chord-button">Add chord</button>
                     <label class="key-control">
                       <span>Key</span>
                       <select id="keySelect" data-testid="key-select" aria-label="Key"></select>
+                    </label>
+                    <label class="key-control">
+                      <span>View</span>
+                      <select id="chordDisplaySelect" data-testid="chord-display-select" aria-label="Chord display">
+                        <option value="both">Name + roman</option>
+                        <option value="name">Name</option>
+                        <option value="roman">Roman</option>
+                      </select>
+                    </label>
+                    <label class="key-control">
+                      <span>Bars / row</span>
+                      <select id="barsPerRowSelect" data-testid="bars-per-row-select" aria-label="Bars per row">
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="4">4</option>
+                        <option value="8">8</option>
+                      </select>
                     </label>
                   </div>
                 </div>

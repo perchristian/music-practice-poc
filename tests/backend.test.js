@@ -183,6 +183,10 @@ describe("mock backend", () => {
             { id: "empty-chord", bar: 3, offsetDiv: 0, durationDiv: 0, raw: "" }
           ]
         },
+        harmonyView: {
+          barsPerRow: 4,
+          chordDisplay: "roman"
+        },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
         }
@@ -220,6 +224,10 @@ describe("mock backend", () => {
         }
       ]
     });
+    assert.deepEqual(updatedJob.practiceState.harmonyView, {
+      barsPerRow: 4,
+      chordDisplay: "roman"
+    });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 
@@ -250,6 +258,7 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
     assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
+    assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

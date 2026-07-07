@@ -655,7 +655,56 @@ Result:
 
 Status: Complete for automated verification on 2026-07-07. `npm test`, `npm run test:gui`, focused Harmony/chord-editor Playwright tests, and a desktop/tablet/mobile layout probe passed.
 
-Overall Phase 3A-3E status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
+### Phase 3F: Compact Chord Chart Editor
+
+Goal: Make the Harmony chart cleaner and more song-level readable by removing redundant editing chrome and using the grid itself for add/move operations.
+
+Reason:
+- Once chords sit in a beat-aligned grid, visible `Bar N / Beat N` text on every card is redundant.
+- Split/merge and arrow buttons added too much visual weight for a POC learning chart.
+- Users need to see more of the song at once, so bars-per-row and name/roman display controls matter more than per-card action buttons.
+
+Deliverables:
+- Remove visible per-card bar/beat hit labels. Done on 2026-07-07.
+- Remove split/merge controls. Done on 2026-07-07.
+- Replace left/right arrow movement with drag/drop onto the chart. Done on 2026-07-07.
+- Move delete to a small `x` in the chord-card corner. Done on 2026-07-07.
+- Add `+` controls in empty grid cells. Done on 2026-07-07.
+- Remove the global Add chord button. Done on 2026-07-07.
+- Let chord cards stretch across following empty cells when their duration implies the chord still applies. Done on 2026-07-07.
+- Add a persisted bars-per-row control. Done on 2026-07-07: supported values are 1, 2, 4, and 8 bars per row.
+- Remove beat-number labels from the chart. Done on 2026-07-07.
+- Replace `Bar N` row labels with compact bar numbers inside each bar segment. Done on 2026-07-07.
+- Add a persisted display control for name + roman, name only, or roman only. Done on 2026-07-07.
+
+Verification:
+- Run `npm test`.
+- Run focused Playwright coverage for Harmony and editable chords.
+- Run `npm run test:gui`.
+- Confirm test-created songs/jobs are removed after verification.
+
+Result:
+- Harmony now renders compact bar segments with small numeric bar markers and beat separators, not a separate `Bar N` label column or beat-number headers.
+- Chord cards show only the selected chord text mode, can visually span empty beats, and keep the small corner delete action.
+- Empty cells expose `+` add buttons, while drag/drop moves chords to beat positions.
+- `practiceState.harmonyView` persists `barsPerRow` and `chordDisplay`.
+- Automated verification passed, and no test-created jobs with the known Playwright prefixes remained after test teardown.
+
+Status: Complete for automated verification on 2026-07-07. Manual visual review on long real songs is still useful to judge whether 4 or 8 bars per row is compact enough for full-song scanning.
+
+### Later: Chord Preview And Instrument Stem
+
+Goal: Let users audibly check whether the chord chart is correct.
+
+Candidate scope:
+- Add a preview button on each chord card to play that chord on demand.
+- Add an optional generated chord instrument stem that follows the chart during playback.
+- Provide at least piano, electric piano, guitar, and strings timbres.
+- On macOS/iOS, evaluate whether General MIDI via Apple DLSMusicDevice is the best cost/quality path; in the browser, evaluate a lightweight Web Audio/SoundFont fallback.
+
+Status: Planned after the compact chart editor. This should be handled as a separate audio/playback iteration because it touches timing, synthesis/timbre choice, and mixer integration.
+
+Overall Phase 3A-3F status: Complete for automated verification on 2026-07-07. Manual listening on varied real recordings is still needed to judge whether Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later.
 
 ## Phase 4: Bar-Based Loops and Practice Notes
 

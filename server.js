@@ -1367,6 +1367,10 @@ async function createJobRecord({
       gridOverrides: {},
       keyOverride: null,
       chordChart: null,
+      harmonyView: {
+        barsPerRow: 2,
+        chordDisplay: "both"
+      },
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1424,6 +1428,17 @@ function normalizeChordChart(value) {
       chords
     }
     : null;
+}
+
+function normalizeHarmonyView(value) {
+  const supportedBarsPerRow = new Set([1, 2, 4, 8]);
+  const supportedChordDisplays = new Set(["both", "name", "roman"]);
+  const barsPerRow = Math.round(clampNumber(Number(value?.barsPerRow), 2, 1, 8));
+  const chordDisplay = supportedChordDisplays.has(value?.chordDisplay) ? value.chordDisplay : "both";
+  return {
+    barsPerRow: supportedBarsPerRow.has(barsPerRow) ? barsPerRow : 2,
+    chordDisplay
+  };
 }
 
 function ensurePracticeState(job) {
@@ -1484,6 +1499,7 @@ function ensurePracticeState(job) {
     gridOverrides,
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
+    harmonyView: normalizeHarmonyView(job.practiceState?.harmonyView),
     stemStates
   };
 
@@ -2245,6 +2261,9 @@ async function handleUpdatePracticeState(req, id, res) {
   }
   if (Object.prototype.hasOwnProperty.call(payload, "chordChart")) {
     practiceState.chordChart = normalizeChordChart(payload.chordChart);
+  }
+  if (payload.harmonyView && typeof payload.harmonyView === "object") {
+    practiceState.harmonyView = normalizeHarmonyView(payload.harmonyView);
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
     practiceState.stemStates = {

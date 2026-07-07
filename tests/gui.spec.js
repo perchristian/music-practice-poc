@@ -75,6 +75,28 @@ async function createProcessedJob(page, filename) {
   return jobId;
 }
 
+async function dragChordToBarBeat(page, chordIndex, bar, beat) {
+  const source = page.getByTestId(`chord-card-${chordIndex}`);
+  const target = page.locator(`.chord-bar-segment[data-bar="${bar}"]`);
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  const beatsPerBar = await target.evaluate((element) => Number(getComputedStyle(element).getPropertyValue("--beats-per-bar")) || 4);
+  if (!sourceBox || !targetBox) {
+    throw new Error("Could not resolve drag target boxes.");
+  }
+
+  await source.dragTo(target, {
+    sourcePosition: {
+      x: sourceBox.width / 2,
+      y: sourceBox.height / 2
+    },
+    targetPosition: {
+      x: targetBox.width * ((beat - 0.5) / beatsPerBar),
+      y: targetBox.height / 2
+    }
+  });
+}
+
 test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];
@@ -704,9 +726,13 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("72.5 BPM");
   await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 72.5 BPM");
-  await expect(page.locator(".chord-bar-row").first()).toContainText("Bar 1");
-  await expect(page.locator(".chord-beat-cell").first().locator(".beat-label")).toHaveText("1");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 1");
+  await expect(page.getByTestId("bars-per-row-select")).toHaveValue("2");
+  await expect(page.getByTestId("chord-display-select")).toHaveValue("both");
+  await expect(page.locator(".chord-bar-number").first()).toHaveText("1");
+  await expect(page.locator(".beat-label")).toHaveCount(0);
+  await expect(page.locator(".cue-time")).toHaveCount(0);
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
 
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("145");
@@ -782,19 +808,25 @@ test("harmony chord beat labels stay musical through manual grid tempo and bar s
 
   await page.goto("/");
   await page.getByTestId(`song-row-${jobId}`).click();
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
 
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("120");
   await page.getByTestId("tempo-input").press("Enter");
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
 
   await page.getByTestId("bar-start-input").fill("2");
   await page.getByTestId("bar-start-input").press("Enter");
-  await expect(page.locator(".cue-time").nth(0)).toHaveText("Bar 1 · Beat 1");
-  await expect(page.locator(".cue-time").nth(1)).toHaveText("Bar 2 · Beat 1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
+  await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
 });
 
 test("editable chord chart persists user overrides without replacing analyzer metadata", async ({ page }) => {
@@ -812,20 +844,24 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
   await expect(page.locator(".cue-roman").first()).toHaveText("Isus2");
 
-  await page.getByTestId("chord-split-0").click();
+  await page.getByTestId("chord-display-select").selectOption("roman");
+  await expect(page.getByTestId("chord-name-0")).toHaveCount(0);
+  await expect(page.locator(".cue-roman").first()).toHaveText("Isus2");
+  await page.getByTestId("chord-display-select").selectOption("both");
+  await page.getByTestId("bars-per-row-select").selectOption("4");
+  await expect(page.locator(".chord-chart-row").first().locator(".chord-bar-segment")).toHaveCount(4);
+
+  await dragChordToBarBeat(page, 0, 1, 2);
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
+
+  await page.getByTestId("chord-add-1-1").click();
   await expect(page.locator(".chord-card")).toHaveCount(5);
-  await expect(page.getByTestId("chord-name-1")).toHaveValue("Csus2/G");
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
 
-  await page.getByTestId("chord-merge-next-0").click();
+  await page.getByTestId("chord-delete-0").click();
   await expect(page.locator(".chord-card")).toHaveCount(4);
-
-  await page.getByTestId("chord-move-right-0").click();
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
-
-  await page.getByTestId("add-chord-button").click();
-  await expect(page.locator(".chord-card")).toHaveCount(5);
-  await page.getByTestId("chord-delete-4").click();
-  await expect(page.locator(".chord-card")).toHaveCount(4);
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 
   await expect
     .poll(async () => {
@@ -839,6 +875,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
           chartBar: firstChartChord?.bar,
           chartOffsetDiv: firstChartChord?.offsetDiv,
           chartDurationDiv: firstChartChord?.durationDiv,
+          harmonyView: job.practiceState.harmonyView,
           legacyEditsPresent: Object.prototype.hasOwnProperty.call(job.practiceState, "chordEdits")
         };
       }, jobId);
@@ -848,18 +885,24 @@ test("editable chord chart persists user overrides without replacing analyzer me
       chartRaw: "Csus2/G",
       chartBar: 1,
       chartOffsetDiv: 4,
-      chartDurationDiv: 16,
+      chartDurationDiv: 12,
+      harmonyView: {
+        barsPerRow: 4,
+        chordDisplay: "both"
+      },
       legacyEditsPresent: false
     });
 
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("120");
   await page.getByTestId("tempo-input").press("Enter");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 
   await page.getByTestId("bar-start-input").fill("2");
   await page.getByTestId("bar-start-input").press("Enter");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 
   await expect
     .poll(async () => {
@@ -872,22 +915,30 @@ test("editable chord chart persists user overrides without replacing analyzer me
           chartOffsetDiv: firstChartChord?.offsetDiv,
           chartDurationDiv: firstChartChord?.durationDiv,
           bpm: job.practiceState.gridOverrides?.bpm,
-          downbeatOffsetSeconds: job.practiceState.gridOverrides?.downbeatOffsetSeconds
+          downbeatOffsetSeconds: job.practiceState.gridOverrides?.downbeatOffsetSeconds,
+          harmonyView: job.practiceState.harmonyView
         };
       }, jobId);
     })
     .toEqual({
       chartBar: 1,
       chartOffsetDiv: 4,
-      chartDurationDiv: 16,
+      chartDurationDiv: 12,
       bpm: 120,
-      downbeatOffsetSeconds: 2
+      downbeatOffsetSeconds: 2,
+      harmonyView: {
+        barsPerRow: 4,
+        chordDisplay: "both"
+      }
     });
 
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("bars-per-row-select")).toHaveValue("4");
+  await expect(page.getByTestId("chord-display-select")).toHaveValue("both");
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
-  await expect(page.locator(".cue-time").first()).toHaveText("Bar 1 · Beat 2");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
+  await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 });
 
 test("play after pause resumes stem audio from the paused timeline position", async ({ page }) => {
