@@ -698,7 +698,6 @@ function addSectionFromControls() {
   const { startBar, endBar } = clampSectionInputs();
   const label = String(sectionLabelInput?.value || "").trim().slice(0, 40);
   const symbol = String(sectionSymbolInput?.value || "").trim().slice(0, 12);
-  if (!label && !symbol) return;
 
   const result = addSectionToList(sections, {
     id: createSectionId(),
@@ -729,6 +728,10 @@ function setSectionEditError(message = "") {
     sectionEditError.hidden = !message;
   }
   sectionEditStartInput?.setCustomValidity(message);
+}
+
+function sectionAccessibleText(section) {
+  return sectionDisplayText(section) || `Section bars ${section.startBar}-${section.endBar}`;
 }
 
 function openSectionEditDialog(sectionId) {
@@ -777,7 +780,7 @@ function saveSectionEdit() {
   if (!result.ok) {
     const message = result.error === "overlap"
       ? "Section overlaps an existing section."
-      : "Add a symbol or label.";
+      : "Section could not be saved.";
     setSectionEditError(message);
     sectionEditStartInput?.reportValidity();
     return;
@@ -1240,21 +1243,26 @@ function renderSectionBand(section, chunk) {
 
   const isFirstChunk = chunk.startBar === section.startBar;
   if (isFirstChunk) {
-    const label = document.createElement("span");
-    label.className = "section-band-label";
-    label.textContent = sectionDisplayText(section);
-    band.append(label);
+    const text = sectionDisplayText(section);
+    if (text) {
+      const label = document.createElement("span");
+      label.className = "section-band-label";
+      label.textContent = text;
+      band.append(label);
+    }
   } else {
-    band.setAttribute("aria-label", sectionDisplayText(section));
+    band.setAttribute("aria-label", sectionAccessibleText(section));
   }
 
   if (isFirstChunk) {
+    band.setAttribute("aria-label", sectionAccessibleText(section));
+
     const editButton = document.createElement("button");
     editButton.type = "button";
     editButton.dataset.sectionAction = "edit";
     editButton.dataset.sectionId = section.id;
     editButton.dataset.testid = `section-edit-${section.startBar}`;
-    editButton.setAttribute("aria-label", `Edit ${sectionDisplayText(section)}`);
+    editButton.setAttribute("aria-label", `Edit ${sectionAccessibleText(section)}`);
     editButton.setAttribute("title", "Edit section");
     editButton.textContent = "Edit";
 
@@ -1263,7 +1271,7 @@ function renderSectionBand(section, chunk) {
     removeButton.dataset.sectionAction = "remove";
     removeButton.dataset.sectionId = section.id;
     removeButton.dataset.testid = `section-remove-${section.startBar}`;
-    removeButton.setAttribute("aria-label", `Remove ${sectionDisplayText(section)}`);
+    removeButton.setAttribute("aria-label", `Remove ${sectionAccessibleText(section)}`);
     removeButton.textContent = "x";
 
     band.append(editButton, removeButton);

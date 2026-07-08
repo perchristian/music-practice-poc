@@ -17,11 +17,12 @@ test("section ranges normalize text and reject overlaps while allowing adjacency
 
   assert.deepEqual(sections, [
     { id: "a", startBar: 1, endBar: 4, symbol: "A", label: "Verse", source: "user" },
-    { id: "c", startBar: 5, endBar: 8, symbol: "C", label: "Chorus", source: "user" }
+    { id: "c", startBar: 5, endBar: 8, symbol: "C", label: "Chorus", source: "user" },
+    { id: "blank", startBar: 9, endBar: 10, symbol: "", label: "", source: "user" }
   ]);
 });
 
-test("section range helpers update symbols and reject edited overlaps", () => {
+test("section range helpers allow blank labels and reject edited overlaps", () => {
   const sections = [
     { id: "a", startBar: 1, endBar: 4, symbol: "A", label: "Verse", source: "user" },
     { id: "b", startBar: 5, endBar: 8, symbol: "B", label: "Chorus", source: "user" }
@@ -40,4 +41,8 @@ test("section range helpers update symbols and reject edited overlaps", () => {
   const rejectedAdd = addSectionToList(sections, { id: "c", startBar: 8, endBar: 10, symbol: "C", label: "Outro" });
   assert.equal(rejectedAdd.ok, false);
   assert.equal(rejectedAdd.error, "overlap");
+
+  const blankAdd = addSectionToList(sections, { id: "d", startBar: 9, endBar: 10, symbol: "", label: "" });
+  assert.equal(blankAdd.ok, true);
+  assert.deepEqual(blankAdd.section, { id: "d", startBar: 9, endBar: 10, symbol: "", label: "", source: "user" });
 });

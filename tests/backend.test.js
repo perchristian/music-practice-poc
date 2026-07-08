@@ -187,7 +187,7 @@ describe("mock backend", () => {
           { id: "section-a", startBar: 1, endBar: 8, symbol: "A", label: "Verse" },
           { id: "section-overlap", startBar: 4, endBar: 10, symbol: "B", label: "Overlap" },
           { id: "section-c", startBar: 9, endBar: 12, symbol: "C", label: "Bridge" },
-          { id: "blank-section", startBar: 9, endBar: 8, symbol: "", label: "" }
+          { id: "blank-section", startBar: 13, endBar: 12, symbol: "", label: "" }
         ],
         harmonyView: {
           barsPerRow: 4,
@@ -245,6 +245,14 @@ describe("mock backend", () => {
         symbol: "C",
         startBar: 9,
         endBar: 12,
+        source: "user"
+      },
+      {
+        id: "blank-section",
+        label: "",
+        symbol: "",
+        startBar: 13,
+        endBar: 13,
         source: "user"
       }
     ]);

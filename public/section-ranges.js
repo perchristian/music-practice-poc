@@ -22,7 +22,6 @@ function normalizedSection(section, idFactory, maxBar) {
   const endBar = clampedInteger(section?.endBar, startBar, startBar, maxBar);
   const label = String(section?.label || "").trim().slice(0, 40);
   const symbol = String(section?.symbol || "").trim().slice(0, 12);
-  if (!label && !symbol) return null;
 
   const next = {
     id: String(section?.id || idFactory()).trim().slice(0, 64) || idFactory(),

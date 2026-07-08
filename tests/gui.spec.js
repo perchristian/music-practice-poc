@@ -1156,6 +1156,44 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
       }, jobId);
     })
     .toEqual([]);
+
+  await page.getByTestId("section-start").fill("2");
+  await page.getByTestId("section-end").fill("3");
+  await page.getByTestId("section-symbol").fill("");
+  await page.getByTestId("section-label").fill("");
+  await page.getByTestId("add-section-button").click();
+  await expect(page.getByTestId("section-band-2")).toHaveCount(1);
+  await expect(page.getByTestId("section-band-2")).toHaveAttribute("aria-label", "Section bars 2-3");
+  await expect(page.locator(".section-band-label")).toHaveCount(0);
+
+  await page.getByTestId("section-edit-2").click();
+  await expect(page.getByTestId("section-edit-dialog")).toBeVisible();
+  await page.getByTestId("section-edit-save").click();
+  await expect(page.getByTestId("section-edit-dialog")).not.toBeVisible();
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.sections;
+      }, jobId);
+    })
+    .toEqual([
+      {
+        id: expect.any(String),
+        label: "",
+        symbol: "",
+        startBar: 2,
+        endBar: 3,
+        source: "user"
+      }
+    ]);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("section-band-2")).toHaveCount(1);
+  await expect(page.locator(".section-band-label")).toHaveCount(0);
 });
 
 test("section ranges reject overlap and render one label across bars-per-row layouts", async ({ page }) => {
