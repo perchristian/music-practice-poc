@@ -80,6 +80,11 @@ const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
 const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
 const barsPerRowSelect = document.querySelector("#barsPerRowSelect");
+const sectionStartInput = document.querySelector("#sectionStartInput");
+const sectionEndInput = document.querySelector("#sectionEndInput");
+const sectionSymbolInput = document.querySelector("#sectionSymbolInput");
+const sectionLabelInput = document.querySelector("#sectionLabelInput");
+const addSectionButton = document.querySelector("#addSectionButton");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
 const backToHomeButton = document.querySelector("#backToHomeButton");
@@ -112,6 +117,7 @@ let currentAnalyzedMetadata = null;
 let gridOverrides = {};
 let keyOverride = null;
 let chordChart = null;
+let sections = [];
 let harmonyView = { barsPerRow: 2, chordDisplay: "both" };
 let chordResizeState = null;
 let loopDragState = null;
@@ -639,6 +645,88 @@ function updateLoopControlMode() {
   }
 }
 
+function createSectionId() {
+  return globalThis.crypto?.randomUUID?.() || `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizedSections(state = null) {
+  const source = Array.isArray(state?.sections) ? state.sections : [];
+  return source
+    .map((section) => {
+      const startBar = clampedInteger(section?.startBar, 1, 1, 10000);
+      const endBar = clampedInteger(section?.endBar, startBar, startBar, 10000);
+      const label = String(section?.label || "").trim().slice(0, 40);
+      const symbol = String(section?.symbol || "").trim().slice(0, 12);
+      if (!label && !symbol) return null;
+
+      return {
+        id: String(section?.id || createSectionId()).trim().slice(0, 64) || createSectionId(),
+        label,
+        symbol,
+        startBar,
+        endBar,
+        source: section?.source === "suggested" ? "suggested" : "user"
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.startBar - right.startBar || left.endBar - right.endBar)
+    .slice(0, 64);
+}
+
+function sectionDisplayText(section) {
+  return [section.symbol, section.label].filter(Boolean).join(" ");
+}
+
+function clampSectionInputs() {
+  const startBar = Math.max(1, Math.round(Number(sectionStartInput?.value) || 1));
+  const endBar = Math.max(startBar, Math.round(Number(sectionEndInput?.value) || startBar));
+  if (sectionStartInput) sectionStartInput.value = String(startBar);
+  if (sectionEndInput) sectionEndInput.value = String(endBar);
+  return { startBar, endBar };
+}
+
+function commitSections(nextSections) {
+  sections = normalizedSections({ sections: nextSections });
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.sections = sections;
+  }
+  renderMetadata(currentAnalyzedMetadata);
+  queuePracticeStatePersist();
+}
+
+function addSectionFromControls() {
+  const { startBar, endBar } = clampSectionInputs();
+  const label = String(sectionLabelInput?.value || "").trim().slice(0, 40);
+  const symbol = String(sectionSymbolInput?.value || "").trim().slice(0, 12);
+  if (!label && !symbol) return;
+
+  commitSections([
+    ...sections,
+    {
+      id: createSectionId(),
+      label,
+      symbol,
+      startBar,
+      endBar,
+      source: "user"
+    }
+  ]);
+}
+
+function renameSection(sectionId) {
+  const section = sections.find((candidate) => candidate.id === sectionId);
+  if (!section) return;
+  const nextLabel = window.prompt("Section label", section.label || section.symbol);
+  if (nextLabel === null) return;
+  const label = String(nextLabel || "").trim().slice(0, 40);
+  if (!label && !section.symbol) return;
+  commitSections(sections.map((candidate) => (candidate.id === sectionId ? { ...candidate, label } : candidate)));
+}
+
+function removeSection(sectionId) {
+  commitSections(sections.filter((section) => section.id !== sectionId));
+}
+
 function queuePracticeStatePersist(refreshLibrary = false) {
   if (!currentJobId) return;
 
@@ -670,6 +758,7 @@ async function persistPracticeState(refreshLibrary = false) {
     gridOverrides,
     keyOverride,
     chordChart,
+    sections,
     harmonyView,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
@@ -705,6 +794,7 @@ function applySavedPracticeState(job) {
   gridOverrides = normalizedGridOverrides(state);
   keyOverride = normalizedKeyOverride(state);
   chordChart = normalizedChordChart(state);
+  sections = normalizedSections(state);
   harmonyView = normalizedHarmonyView(state);
   if (chordDisplaySelect) {
     chordDisplaySelect.value = harmonyView.chordDisplay;
@@ -982,6 +1072,7 @@ function renderChordGrid(chords, grid) {
   const barsPerRow = harmonyView.barsPerRow;
   const entriesByBar = new Map();
   let highestChordBar = 1;
+  let highestSectionBar = 1;
 
   chords.forEach((chord, index) => {
     const hit = chordGridHit(chord, chartGrid);
@@ -995,7 +1086,11 @@ function renderChordGrid(chords, grid) {
   const gridBarCount = chartGrid.durationSeconds && chartGrid.beatDurationSeconds
     ? Math.ceil(Math.max(1, (chartGrid.durationSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds) / beatsPerBar)
     : 1;
-  const barCount = Math.max(highestChordBar, gridBarCount);
+  for (const section of sections) {
+    highestSectionBar = Math.max(highestSectionBar, section.endBar);
+  }
+
+  const barCount = Math.max(highestChordBar, highestSectionBar, gridBarCount);
   const rows = [];
   for (let startBar = 1; startBar <= barCount; startBar += barsPerRow) {
     const rowBars = [];
@@ -1011,7 +1106,8 @@ function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) 
   const row = document.createElement("div");
   row.className = "chord-chart-row";
   row.style.setProperty("--bars-per-row", String(barsPerRow));
-  row.append(...bars.map((bar) => renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar)));
+  const rowStartBar = bars[0] || 1;
+  row.append(...bars.map((bar) => renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar, rowStartBar)));
   return row;
 }
 
@@ -1028,12 +1124,52 @@ function chordEntrySpan(entry, entries, grid, beatsPerBar) {
   return Math.max(1, Math.min(rawSpan, nextLimit, beatsPerBar - entry.beatCell + 1));
 }
 
-function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
+function sectionForBar(bar) {
+  return sections.find((section) => bar >= section.startBar && bar <= section.endBar) || null;
+}
+
+function renderSectionBand(section, bar, rowStartBar) {
+  const band = document.createElement("div");
+  band.className = "section-band";
+  band.dataset.sectionId = section.id;
+  band.dataset.testid = `section-band-${bar}`;
+  band.textContent = sectionDisplayText(section);
+
+  const showControls = bar === section.startBar || bar === rowStartBar;
+  if (showControls) {
+    const renameButton = document.createElement("button");
+    renameButton.type = "button";
+    renameButton.dataset.sectionAction = "rename";
+    renameButton.dataset.sectionId = section.id;
+    renameButton.dataset.testid = `section-rename-${bar}`;
+    renameButton.setAttribute("aria-label", `Rename ${sectionDisplayText(section)}`);
+    renameButton.textContent = "Edit";
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.dataset.sectionAction = "remove";
+    removeButton.dataset.sectionId = section.id;
+    removeButton.dataset.testid = `section-remove-${bar}`;
+    removeButton.setAttribute("aria-label", `Remove ${sectionDisplayText(section)}`);
+    removeButton.textContent = "x";
+
+    band.append(renameButton, removeButton);
+  }
+
+  return band;
+}
+
+function renderChordBarSegment(bar, entries, grid, beatsPerBar, rowStartBar = 1) {
   const segment = document.createElement("div");
   segment.className = "chord-bar-segment";
   segment.dataset.bar = String(bar);
   segment.style.setProperty("--beats-per-bar", String(beatsPerBar));
   segment.style.setProperty("--beat-width", `${100 / beatsPerBar}%`);
+  const activeSection = sectionForBar(bar);
+  segment.classList.toggle("has-section", Boolean(activeSection));
+  if (activeSection) {
+    segment.dataset.sectionId = activeSection.id;
+  }
 
   const barNumber = document.createElement("span");
   barNumber.className = "chord-bar-number";
@@ -1074,7 +1210,8 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   });
 
   segment.classList.toggle("loop-active", Boolean(loopRange));
-  segment.append(barNumber, ...(loopRegion ? [loopRegion] : []), ...addButtons, ...cards);
+  const sectionBand = activeSection ? renderSectionBand(activeSection, bar, rowStartBar) : null;
+  segment.append(barNumber, ...(sectionBand ? [sectionBand] : []), ...(loopRegion ? [loopRegion] : []), ...addButtons, ...cards);
   return segment;
 }
 
@@ -2724,7 +2861,24 @@ barsPerRowSelect?.addEventListener("change", () => {
   applyHarmonyView({ barsPerRow: Number(barsPerRowSelect.value) });
 });
 
+addSectionButton?.addEventListener("click", addSectionFromControls);
+
+[sectionStartInput, sectionEndInput].forEach((input) => {
+  input?.addEventListener("change", clampSectionInputs);
+});
+
 chordList?.addEventListener("click", (event) => {
+  const sectionButton = event.target.closest("button[data-section-action]");
+  if (sectionButton) {
+    event.stopPropagation();
+    if (sectionButton.dataset.sectionAction === "rename") {
+      renameSection(sectionButton.dataset.sectionId);
+    } else if (sectionButton.dataset.sectionAction === "remove") {
+      removeSection(sectionButton.dataset.sectionId);
+    }
+    return;
+  }
+
   const button = event.target.closest("button[data-chord-action]");
   if (!button) return;
 

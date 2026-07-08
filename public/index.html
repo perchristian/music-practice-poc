@@ -212,6 +212,25 @@
                     </label>
                   </div>
                 </div>
+                <div class="section-controls" id="sectionControls" data-testid="section-controls">
+                  <label>
+                    <span>Start</span>
+                    <input id="sectionStartInput" data-testid="section-start" type="number" min="1" step="1" value="1">
+                  </label>
+                  <label>
+                    <span>End</span>
+                    <input id="sectionEndInput" data-testid="section-end" type="number" min="1" step="1" value="4">
+                  </label>
+                  <label>
+                    <span>Symbol</span>
+                    <input id="sectionSymbolInput" data-testid="section-symbol" type="text" value="A" maxlength="12">
+                  </label>
+                  <label>
+                    <span>Label</span>
+                    <input id="sectionLabelInput" data-testid="section-label" type="text" value="Verse" maxlength="40">
+                  </label>
+                  <button id="addSectionButton" data-testid="add-section-button" type="button">Add section</button>
+                </div>
                 <div class="chord-list" id="chordList"></div>
               </section>
 

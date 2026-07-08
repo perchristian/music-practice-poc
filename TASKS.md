@@ -933,11 +933,37 @@ Verification:
 
 Status: Complete on 2026-07-07. The review found a clean worktree, intentional compatibility/fallback paths in runtime code, minor low-value frontend naming drift from the pre-unified workspace flow, and one stale local-state note in `STATUS.md`, which was updated. No runtime behavior was changed.
 
+## Phase 5A: Runnable Flat Sections Prototype
+
+Goal: Let a user label repeated song parts such as intro, verse, chorus, bridge, and outro without changing chord edit scope.
+
+Demonstrable outcome:
+- `practiceState.sections` stores flat bar-range labels with `id`, `label`, `symbol`, `startBar`, `endBar`, and `source`.
+- Harmony shows section bands across the existing bar grid.
+- A user can add a section label by start/end bar, symbol, and label.
+- A user can rename or remove a section label.
+- Chord editing remains local to the visible chord event; sections do not create linked templates or global edits.
+- Sections persist when the song is reopened.
+
+Verification:
+- Run `npm test`.
+- Run focused Playwright coverage for Flat Sections.
+- Run `npm run test:gui`.
+- Confirm test-created songs/jobs are removed by the GUI cleanup hook.
+
+Result:
+- Implemented on 2026-07-08 as a small addition beside the grid-first `practiceState.chordChart`.
+- Backend sanitizes and persists `practiceState.sections`.
+- The Harmony panel renders compact section bands while keeping existing chord cards, loop overlays, and drag/resize behavior intact.
+- Automated coverage verifies add, rename, remove, persistence, backend normalization, library exposure, and reopen behavior.
+
+Status: Complete in mock-compatible UI on 2026-07-08. `npm test`, focused Playwright Flat Sections coverage, and full `npm run test:gui` pass.
+
 ## Next Task
 
 Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
 
-Alternative next research task: follow `research/section-structure-prototype-plan.md` to sketch or build the Flat Sections and Assisted Sections prototypes before considering linked section templates with local overrides.
+Alternative next section-structure task: build Assisted Sections detection on top of the completed Flat Sections model. Start with a pure `detectSectionSuggestions(chordChart, grid)` function for exact/near repeated ranges, then add accept/ignore UI that writes ordinary flat `practiceState.sections`.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
 

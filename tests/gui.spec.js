@@ -14,6 +14,7 @@ test.afterEach(async ({ request }) => {
     "recent-",
     "mobile-workspace-",
     "editable-chords-",
+    "flat-sections-",
     "resize-chords-",
     "delete-last-chord-",
     "loop-bars-"
@@ -1082,6 +1083,75 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await expect(page.getByTestId("chord-name-0")).toHaveValue("Csus2/G");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
+});
+
+test("flat section labels can be added renamed removed and persisted", async ({ page }) => {
+  await page.goto("/");
+  const filename = `flat-sections-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("bars-per-row-select").selectOption("4");
+  await page.getByTestId("section-start").fill("1");
+  await page.getByTestId("section-end").fill("4");
+  await page.getByTestId("section-symbol").fill("A");
+  await page.getByTestId("section-label").fill("Verse");
+  await page.getByTestId("add-section-button").click();
+
+  await expect(page.getByTestId("section-band-1")).toContainText("A Verse");
+  await expect(page.locator(".chord-bar-segment.has-section")).toHaveCount(4);
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.sections;
+      }, jobId);
+    })
+    .toEqual([
+      {
+        id: expect.any(String),
+        label: "Verse",
+        symbol: "A",
+        startBar: 1,
+        endBar: 4,
+        source: "user"
+      }
+    ]);
+
+  await page.evaluate(() => {
+    window.prompt = () => "Intro";
+  });
+  await page.getByTestId("section-rename-1").click();
+  await expect(page.getByTestId("section-band-1")).toContainText("A Intro");
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.sections[0]?.label;
+      }, jobId);
+    })
+    .toBe("Intro");
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("section-band-1")).toContainText("A Intro");
+
+  await page.getByTestId("section-remove-1").click();
+  await expect(page.locator(".section-band")).toHaveCount(0);
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.sections;
+      }, jobId);
+    })
+    .toEqual([]);
 });
 
 test("chord cards can be resized to expose beat cells for inserting chords", async ({ page }) => {

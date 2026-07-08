@@ -40,6 +40,7 @@ const DEFAULT_CHORD_DIVISIONS_PER_QUARTER = 4;
 const MAX_CHORD_CHART_CHORDS = 128;
 const MAX_CHORD_CHART_BARS = 10000;
 const MAX_CHORD_CHART_DIVISIONS = 4096;
+const MAX_SECTION_COUNT = 64;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 const MIN_ANALYSIS_STEM_RMS = 0.001;
 const HARMONIC_STEM_WEIGHTS = {
@@ -1367,6 +1368,7 @@ async function createJobRecord({
       gridOverrides: {},
       keyOverride: null,
       chordChart: null,
+      sections: [],
       harmonyView: {
         barsPerRow: 2,
         chordDisplay: "both"
@@ -1439,6 +1441,32 @@ function normalizeHarmonyView(value) {
   };
 }
 
+function normalizeSections(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((section) => {
+      const startBar = Math.round(clampNumber(Number(section?.startBar), 1, 1, MAX_CHORD_CHART_BARS));
+      const endBar = Math.round(clampNumber(Number(section?.endBar), startBar, startBar, MAX_CHORD_CHART_BARS));
+      const label = String(section?.label || "").trim().slice(0, 40);
+      const symbol = String(section?.symbol || "").trim().slice(0, 12);
+      if (!label && !symbol) return null;
+
+      const id = String(section?.id || randomUUID()).trim().slice(0, 64) || randomUUID();
+      return {
+        id,
+        label,
+        symbol,
+        startBar,
+        endBar,
+        source: section?.source === "suggested" ? "suggested" : "user"
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.startBar - right.startBar || left.endBar - right.endBar)
+    .slice(0, MAX_SECTION_COUNT);
+}
+
 function ensurePracticeState(job) {
   const existingStemStates = job.practiceState?.stemStates || {};
   const stemStates = {};
@@ -1497,6 +1525,7 @@ function ensurePracticeState(job) {
     gridOverrides,
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
+    sections: normalizeSections(job.practiceState?.sections),
     harmonyView: normalizeHarmonyView(job.practiceState?.harmonyView),
     stemStates
   };
@@ -2259,6 +2288,9 @@ async function handleUpdatePracticeState(req, id, res) {
   }
   if (Object.prototype.hasOwnProperty.call(payload, "chordChart")) {
     practiceState.chordChart = normalizeChordChart(payload.chordChart);
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "sections")) {
+    practiceState.sections = normalizeSections(payload.sections);
   }
   if (payload.harmonyView && typeof payload.harmonyView === "object") {
     practiceState.harmonyView = normalizeHarmonyView(payload.harmonyView);

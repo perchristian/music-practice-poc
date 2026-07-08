@@ -183,6 +183,10 @@ describe("mock backend", () => {
             { id: "empty-chord", bar: 3, offsetDiv: 0, durationDiv: 0, raw: "" }
           ]
         },
+        sections: [
+          { id: "section-a", startBar: 1, endBar: 8, symbol: "A", label: "Verse" },
+          { id: "blank-section", startBar: 9, endBar: 8, symbol: "", label: "" }
+        ],
         harmonyView: {
           barsPerRow: 4,
           chordDisplay: "roman"
@@ -224,6 +228,16 @@ describe("mock backend", () => {
         }
       ]
     });
+    assert.deepEqual(updatedJob.practiceState.sections, [
+      {
+        id: "section-a",
+        label: "Verse",
+        symbol: "A",
+        startBar: 1,
+        endBar: 8,
+        source: "user"
+      }
+    ]);
     assert.deepEqual(updatedJob.practiceState.harmonyView, {
       barsPerRow: 4,
       chordDisplay: "roman"
@@ -247,6 +261,7 @@ describe("mock backend", () => {
     assert.ok(libraryEntry);
     assert.equal(libraryEntry.originalFilename, "Renamed practice song");
     assert.equal(libraryEntry.practiceState.learningStatus, "practicing");
+    assert.equal(libraryEntry.practiceState.sections[0].symbol, "A");
     assert.equal(libraryEntry.practiceState.stemStates.piano.muted, true);
 
     const reopenedResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`);
@@ -258,6 +273,7 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
     assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
+    assert.equal(reopenedJob.practiceState.sections[0].label, "Verse");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
 
     const emptyChartResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {

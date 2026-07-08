@@ -1068,6 +1068,53 @@ audio {
   gap: 6px;
 }
 
+.section-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+  margin: 10px 0 12px;
+}
+
+.section-controls label {
+  display: grid;
+  gap: 4px;
+}
+
+.section-controls label > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.section-controls input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 9px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.section-controls button {
+  min-height: 38px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  border-radius: 7px;
+  background: #ecfdf5;
+  color: var(--accent-strong);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.section-controls button:hover,
+.section-controls button:focus-visible {
+  background: #d1fae5;
+  outline: none;
+}
+
 .chord-chart-row {
   display: grid;
   grid-template-columns: repeat(var(--bars-per-row), minmax(0, 1fr));
@@ -1093,6 +1140,51 @@ audio {
     ),
     #fff;
   padding: 18px 4px 4px;
+}
+
+.chord-bar-segment.has-section {
+  padding-top: 40px;
+}
+
+.section-band {
+  position: absolute;
+  top: 18px;
+  left: 4px;
+  right: 4px;
+  z-index: 4;
+  display: flex;
+  min-width: 0;
+  min-height: 18px;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.7rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 3px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-band button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #075985;
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.section-band button:hover,
+.section-band button:focus-visible {
+  background: #fff;
+  outline: none;
 }
 
 .chord-bar-segment.drag-over {
@@ -1381,6 +1473,14 @@ audio {
 
   .harmony-summary {
     justify-content: flex-start;
+  }
+
+  .section-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section-controls button {
+    grid-column: 1 / -1;
   }
 
   .chord-chart-row {
