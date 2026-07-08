@@ -21,6 +21,13 @@ import {
   seedChordChart as seedChordChartState,
   updateChordNameInChart
 } from "./chord-chart.js";
+import {
+  addSectionToList,
+  createSectionId,
+  normalizeSections,
+  sectionDisplayText,
+  updateSectionInList
+} from "./section-ranges.js";
 
 const serviceStatus = document.querySelector("#serviceStatus");
 const pipelineEyebrow = document.querySelector("#pipelineEyebrow");
@@ -85,6 +92,15 @@ const sectionEndInput = document.querySelector("#sectionEndInput");
 const sectionSymbolInput = document.querySelector("#sectionSymbolInput");
 const sectionLabelInput = document.querySelector("#sectionLabelInput");
 const addSectionButton = document.querySelector("#addSectionButton");
+const sectionEditDialog = document.querySelector("#sectionEditDialog");
+const sectionEditForm = document.querySelector("#sectionEditForm");
+const sectionEditSymbolInput = document.querySelector("#sectionEditSymbolInput");
+const sectionEditLabelInput = document.querySelector("#sectionEditLabelInput");
+const sectionEditStartInput = document.querySelector("#sectionEditStartInput");
+const sectionEditEndInput = document.querySelector("#sectionEditEndInput");
+const sectionEditError = document.querySelector("#sectionEditError");
+const sectionEditCancel = document.querySelector("#sectionEditCancel");
+const sectionEditSave = document.querySelector("#sectionEditSave");
 const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
 const backToHomeButton = document.querySelector("#backToHomeButton");
@@ -645,36 +661,8 @@ function updateLoopControlMode() {
   }
 }
 
-function createSectionId() {
-  return globalThis.crypto?.randomUUID?.() || `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function normalizedSections(state = null) {
-  const source = Array.isArray(state?.sections) ? state.sections : [];
-  return source
-    .map((section) => {
-      const startBar = clampedInteger(section?.startBar, 1, 1, 10000);
-      const endBar = clampedInteger(section?.endBar, startBar, startBar, 10000);
-      const label = String(section?.label || "").trim().slice(0, 40);
-      const symbol = String(section?.symbol || "").trim().slice(0, 12);
-      if (!label && !symbol) return null;
-
-      return {
-        id: String(section?.id || createSectionId()).trim().slice(0, 64) || createSectionId(),
-        label,
-        symbol,
-        startBar,
-        endBar,
-        source: section?.source === "suggested" ? "suggested" : "user"
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => left.startBar - right.startBar || left.endBar - right.endBar)
-    .slice(0, 64);
-}
-
-function sectionDisplayText(section) {
-  return [section.symbol, section.label].filter(Boolean).join(" ");
+  return normalizeSections(state);
 }
 
 function clampSectionInputs() {
@@ -683,6 +671,17 @@ function clampSectionInputs() {
   if (sectionStartInput) sectionStartInput.value = String(startBar);
   if (sectionEndInput) sectionEndInput.value = String(endBar);
   return { startBar, endBar };
+}
+
+function clearSectionControlError() {
+  sectionStartInput?.setCustomValidity("");
+  sectionEndInput?.setCustomValidity("");
+}
+
+function showSectionControlError(message) {
+  if (!sectionStartInput) return;
+  sectionStartInput.setCustomValidity(message);
+  sectionStartInput.reportValidity();
 }
 
 function commitSections(nextSections) {
@@ -695,32 +694,97 @@ function commitSections(nextSections) {
 }
 
 function addSectionFromControls() {
+  clearSectionControlError();
   const { startBar, endBar } = clampSectionInputs();
   const label = String(sectionLabelInput?.value || "").trim().slice(0, 40);
   const symbol = String(sectionSymbolInput?.value || "").trim().slice(0, 12);
   if (!label && !symbol) return;
 
-  commitSections([
-    ...sections,
-    {
-      id: createSectionId(),
-      label,
-      symbol,
-      startBar,
-      endBar,
-      source: "user"
+  const result = addSectionToList(sections, {
+    id: createSectionId(),
+    label,
+    symbol,
+    startBar,
+    endBar,
+    source: "user"
+  });
+  if (!result.ok) {
+    if (result.error === "overlap") {
+      showSectionControlError("Section overlaps an existing section.");
     }
-  ]);
+    return;
+  }
+  commitSections(result.sections);
 }
 
-function renameSection(sectionId) {
+let editingSectionId = null;
+
+function sectionDialogSupported() {
+  return typeof sectionEditDialog?.showModal === "function";
+}
+
+function setSectionEditError(message = "") {
+  if (sectionEditError) {
+    sectionEditError.textContent = message;
+    sectionEditError.hidden = !message;
+  }
+  sectionEditStartInput?.setCustomValidity(message);
+}
+
+function openSectionEditDialog(sectionId) {
   const section = sections.find((candidate) => candidate.id === sectionId);
   if (!section) return;
-  const nextLabel = window.prompt("Section label", section.label || section.symbol);
-  if (nextLabel === null) return;
-  const label = String(nextLabel || "").trim().slice(0, 40);
-  if (!label && !section.symbol) return;
-  commitSections(sections.map((candidate) => (candidate.id === sectionId ? { ...candidate, label } : candidate)));
+  editingSectionId = section.id;
+  setSectionEditError("");
+
+  if (sectionEditSymbolInput) sectionEditSymbolInput.value = section.symbol;
+  if (sectionEditLabelInput) sectionEditLabelInput.value = section.label;
+  if (sectionEditStartInput) sectionEditStartInput.value = String(section.startBar);
+  if (sectionEditEndInput) sectionEditEndInput.value = String(section.endBar);
+
+  if (sectionDialogSupported()) {
+    sectionEditDialog.showModal();
+  } else {
+    sectionEditDialog?.removeAttribute("hidden");
+    sectionEditSymbolInput?.focus();
+  }
+}
+
+function closeSectionEditDialog() {
+  editingSectionId = null;
+  setSectionEditError("");
+  if (sectionEditDialog?.open) {
+    sectionEditDialog.close();
+  } else {
+    sectionEditDialog?.setAttribute("hidden", "");
+  }
+}
+
+function saveSectionEdit() {
+  if (!editingSectionId) return;
+  setSectionEditError("");
+  const startBar = Math.max(1, Math.round(Number(sectionEditStartInput?.value) || 1));
+  const endBar = Math.max(startBar, Math.round(Number(sectionEditEndInput?.value) || startBar));
+  if (sectionEditStartInput) sectionEditStartInput.value = String(startBar);
+  if (sectionEditEndInput) sectionEditEndInput.value = String(endBar);
+
+  const result = updateSectionInList(sections, editingSectionId, {
+    symbol: String(sectionEditSymbolInput?.value || "").trim().slice(0, 12),
+    label: String(sectionEditLabelInput?.value || "").trim().slice(0, 40),
+    startBar,
+    endBar
+  });
+  if (!result.ok) {
+    const message = result.error === "overlap"
+      ? "Section overlaps an existing section."
+      : "Add a symbol or label.";
+    setSectionEditError(message);
+    sectionEditStartInput?.reportValidity();
+    return;
+  }
+
+  commitSections(result.sections);
+  closeSectionEditDialog();
 }
 
 function removeSection(sectionId) {
@@ -1107,7 +1171,21 @@ function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) 
   row.className = "chord-chart-row";
   row.style.setProperty("--bars-per-row", String(barsPerRow));
   const rowStartBar = bars[0] || 1;
-  row.append(...bars.map((bar) => renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar, rowStartBar)));
+  const rowEndBar = bars[bars.length - 1] || rowStartBar;
+  row.dataset.rowStartBar = String(rowStartBar);
+  row.dataset.rowEndBar = String(rowEndBar);
+
+  const sectionBands = renderSectionBandsForRow(rowStartBar, rowEndBar);
+  row.classList.toggle("has-section-row", sectionBands.length > 0);
+
+  const segments = bars.map((bar, index) => {
+    const segment = renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar);
+    segment.style.gridColumn = String(index + 1);
+    segment.style.gridRow = "1";
+    return segment;
+  });
+
+  row.append(...segments, ...sectionBands, ...renderLoopRegionsForRow(rowStartBar, rowEndBar));
   return row;
 }
 
@@ -1128,38 +1206,81 @@ function sectionForBar(bar) {
   return sections.find((section) => bar >= section.startBar && bar <= section.endBar) || null;
 }
 
-function renderSectionBand(section, bar, rowStartBar) {
+function rangeChunkForRow(startBar, endBar, rowStartBar, rowEndBar) {
+  const chunkStartBar = Math.max(startBar, rowStartBar);
+  const chunkEndBar = Math.min(endBar, rowEndBar);
+  if (chunkEndBar < chunkStartBar) return null;
+
+  return {
+    startBar: chunkStartBar,
+    endBar: chunkEndBar,
+    startColumn: chunkStartBar - rowStartBar + 1,
+    endColumn: chunkEndBar - rowStartBar + 2
+  };
+}
+
+function renderSectionBandsForRow(rowStartBar, rowEndBar) {
+  return sections
+    .map((section) => {
+      const chunk = rangeChunkForRow(section.startBar, section.endBar, rowStartBar, rowEndBar);
+      return chunk ? renderSectionBand(section, chunk) : null;
+    })
+    .filter(Boolean);
+}
+
+function renderSectionBand(section, chunk) {
   const band = document.createElement("div");
   band.className = "section-band";
   band.dataset.sectionId = section.id;
-  band.dataset.testid = `section-band-${bar}`;
-  band.textContent = sectionDisplayText(section);
+  band.dataset.rangeStart = String(chunk.startBar);
+  band.dataset.rangeEnd = String(chunk.endBar);
+  band.dataset.testid = `section-band-${chunk.startBar}`;
+  band.style.gridColumn = `${chunk.startColumn} / ${chunk.endColumn}`;
+  band.style.gridRow = "1";
 
-  const showControls = bar === section.startBar || bar === rowStartBar;
-  if (showControls) {
-    const renameButton = document.createElement("button");
-    renameButton.type = "button";
-    renameButton.dataset.sectionAction = "rename";
-    renameButton.dataset.sectionId = section.id;
-    renameButton.dataset.testid = `section-rename-${bar}`;
-    renameButton.setAttribute("aria-label", `Rename ${sectionDisplayText(section)}`);
-    renameButton.textContent = "Edit";
+  const isFirstChunk = chunk.startBar === section.startBar;
+  if (isFirstChunk) {
+    const label = document.createElement("span");
+    label.className = "section-band-label";
+    label.textContent = sectionDisplayText(section);
+    band.append(label);
+  } else {
+    band.setAttribute("aria-label", sectionDisplayText(section));
+  }
+
+  if (isFirstChunk) {
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.dataset.sectionAction = "edit";
+    editButton.dataset.sectionId = section.id;
+    editButton.dataset.testid = `section-edit-${section.startBar}`;
+    editButton.setAttribute("aria-label", `Edit ${sectionDisplayText(section)}`);
+    editButton.setAttribute("title", "Edit section");
+    editButton.textContent = "Edit";
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
     removeButton.dataset.sectionAction = "remove";
     removeButton.dataset.sectionId = section.id;
-    removeButton.dataset.testid = `section-remove-${bar}`;
+    removeButton.dataset.testid = `section-remove-${section.startBar}`;
     removeButton.setAttribute("aria-label", `Remove ${sectionDisplayText(section)}`);
     removeButton.textContent = "x";
 
-    band.append(renameButton, removeButton);
+    band.append(editButton, removeButton);
   }
 
   return band;
 }
 
-function renderChordBarSegment(bar, entries, grid, beatsPerBar, rowStartBar = 1) {
+function renderLoopRegionsForRow(rowStartBar, rowEndBar) {
+  const loopBars = activeLoopBarRange();
+  if (!loopBars) return [];
+
+  const chunk = rangeChunkForRow(loopBars.startBar, loopBars.endBar, rowStartBar, rowEndBar);
+  return chunk ? [renderChordLoopRegion(chunk, loopBars)] : [];
+}
+
+function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   const segment = document.createElement("div");
   segment.className = "chord-bar-segment";
   segment.dataset.bar = String(bar);
@@ -1176,8 +1297,6 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar, rowStartBar = 1)
   barNumber.textContent = String(bar);
 
   const loopRange = loopGridRangeForBar(bar, grid, beatsPerBar);
-  const loopBars = activeLoopBarRange();
-  const loopRegion = loopRange ? renderChordLoopRegion(bar, loopRange, loopBars) : null;
 
   const sortedEntries = entries.sort((left, right) => left.hit.beat - right.hit.beat || left.index - right.index);
   const occupiedCells = new Set();
@@ -1210,25 +1329,25 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar, rowStartBar = 1)
   });
 
   segment.classList.toggle("loop-active", Boolean(loopRange));
-  const sectionBand = activeSection ? renderSectionBand(activeSection, bar, rowStartBar) : null;
-  segment.append(barNumber, ...(sectionBand ? [sectionBand] : []), ...(loopRegion ? [loopRegion] : []), ...addButtons, ...cards);
+  segment.append(barNumber, ...addButtons, ...cards);
   return segment;
 }
 
-function renderChordLoopRegion(bar, range, loopBars) {
+function renderChordLoopRegion(chunk, loopBars) {
   const region = document.createElement("div");
   region.className = "chord-loop-region";
   region.dataset.loopAction = "move";
-  region.dataset.bar = String(bar);
-  region.dataset.testid = `chord-loop-region-${bar}`;
-  region.style.gridColumn = `${range.startCell} / ${range.endBoundary}`;
+  region.dataset.rangeStart = String(chunk.startBar);
+  region.dataset.rangeEnd = String(chunk.endBar);
+  region.dataset.testid = `chord-loop-region-${chunk.startBar}`;
+  region.style.gridColumn = `${chunk.startColumn} / ${chunk.endColumn}`;
   region.style.gridRow = "1";
 
-  if (loopBars?.startBar === bar) {
-    region.append(renderChordLoopHandle("start", bar));
+  if (loopBars?.startBar === chunk.startBar) {
+    region.append(renderChordLoopHandle("start", loopBars.startBar));
   }
-  if (loopBars?.endBar === bar) {
-    region.append(renderChordLoopHandle("end", bar));
+  if (loopBars?.endBar === chunk.endBar) {
+    region.append(renderChordLoopHandle("end", loopBars.endBar));
   }
   return region;
 }
@@ -1445,20 +1564,23 @@ function renderLoopDragPreview(startBar, endBar) {
   clearLoopDragPreview();
   if (!Number.isFinite(startBar) || !Number.isFinite(endBar)) return;
 
-  for (const segment of chordList?.querySelectorAll(".chord-bar-segment") || []) {
-    const bar = Number(segment.dataset.bar);
-    if (!Number.isFinite(bar) || bar < startBar || bar > endBar) continue;
+  for (const row of chordList?.querySelectorAll(".chord-chart-row") || []) {
+    const rowStartBar = Number(row.dataset.rowStartBar);
+    const rowEndBar = Number(row.dataset.rowEndBar);
+    if (!Number.isFinite(rowStartBar) || !Number.isFinite(rowEndBar)) continue;
+    const chunk = rangeChunkForRow(startBar, endBar, rowStartBar, rowEndBar);
+    if (!chunk) continue;
 
     const preview = document.createElement("div");
     preview.className = "chord-loop-preview-region";
-    preview.dataset.testid = `chord-loop-preview-${bar}`;
-    preview.style.gridColumn = "1 / -1";
+    preview.dataset.testid = `chord-loop-preview-${chunk.startBar}`;
+    preview.style.gridColumn = `${chunk.startColumn} / ${chunk.endColumn}`;
     preview.style.gridRow = "1";
 
-    segment.classList.add("loop-preview-active");
-    segment.classList.toggle("loop-preview-start", bar === startBar);
-    segment.classList.toggle("loop-preview-end", bar === endBar);
-    segment.append(preview);
+    row.classList.add("loop-preview-active");
+    row.classList.toggle("loop-preview-start", chunk.startBar === startBar);
+    row.classList.toggle("loop-preview-end", chunk.endBar === endBar);
+    row.append(preview);
   }
 }
 
@@ -2864,15 +2986,18 @@ barsPerRowSelect?.addEventListener("change", () => {
 addSectionButton?.addEventListener("click", addSectionFromControls);
 
 [sectionStartInput, sectionEndInput].forEach((input) => {
-  input?.addEventListener("change", clampSectionInputs);
+  input?.addEventListener("change", () => {
+    clearSectionControlError();
+    clampSectionInputs();
+  });
 });
 
 chordList?.addEventListener("click", (event) => {
   const sectionButton = event.target.closest("button[data-section-action]");
   if (sectionButton) {
     event.stopPropagation();
-    if (sectionButton.dataset.sectionAction === "rename") {
-      renameSection(sectionButton.dataset.sectionId);
+    if (sectionButton.dataset.sectionAction === "edit") {
+      openSectionEditDialog(sectionButton.dataset.sectionId);
     } else if (sectionButton.dataset.sectionAction === "remove") {
       removeSection(sectionButton.dataset.sectionId);
     }
@@ -2891,6 +3016,35 @@ chordList?.addEventListener("click", (event) => {
   if (Number.isInteger(index) && button.dataset.chordAction === "delete") {
     deleteChord(index);
   }
+});
+
+chordList?.addEventListener("dblclick", (event) => {
+  if (event.target.closest(".chord-card, button, input")) return;
+  const band = event.target.closest(".section-band");
+  if (band?.dataset.sectionId) {
+    event.preventDefault();
+    openSectionEditDialog(band.dataset.sectionId);
+    return;
+  }
+
+  const segment = event.target.closest(".chord-bar-segment");
+  const sectionId = segment?.dataset.sectionId;
+  if (!sectionId) return;
+  event.preventDefault();
+  openSectionEditDialog(sectionId);
+});
+
+sectionEditCancel?.addEventListener("click", closeSectionEditDialog);
+sectionEditDialog?.addEventListener("cancel", () => {
+  editingSectionId = null;
+  setSectionEditError("");
+});
+sectionEditForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  saveSectionEdit();
+});
+[sectionEditSymbolInput, sectionEditLabelInput, sectionEditStartInput, sectionEditEndInput].forEach((input) => {
+  input?.addEventListener("input", () => setSectionEditError(""));
 });
 
 chordList?.addEventListener("dragstart", (event) => {

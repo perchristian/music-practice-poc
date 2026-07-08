@@ -185,6 +185,8 @@ describe("mock backend", () => {
         },
         sections: [
           { id: "section-a", startBar: 1, endBar: 8, symbol: "A", label: "Verse" },
+          { id: "section-overlap", startBar: 4, endBar: 10, symbol: "B", label: "Overlap" },
+          { id: "section-c", startBar: 9, endBar: 12, symbol: "C", label: "Bridge" },
           { id: "blank-section", startBar: 9, endBar: 8, symbol: "", label: "" }
         ],
         harmonyView: {
@@ -236,6 +238,14 @@ describe("mock backend", () => {
         startBar: 1,
         endBar: 8,
         source: "user"
+      },
+      {
+        id: "section-c",
+        label: "Bridge",
+        symbol: "C",
+        startBar: 9,
+        endBar: 12,
+        source: "user"
       }
     ]);
     assert.deepEqual(updatedJob.practiceState.harmonyView, {
@@ -275,6 +285,21 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
     assert.equal(reopenedJob.practiceState.sections[0].label, "Verse");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
+
+    const sectionEditResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sections: [
+          { id: "section-a", startBar: 1, endBar: 8, symbol: "V", label: "Verse 1" },
+          { id: "section-c", startBar: 9, endBar: 12, symbol: "C", label: "Bridge" }
+        ]
+      })
+    });
+    assert.equal(sectionEditResponse.status, 200);
+    const sectionEditJob = await sectionEditResponse.json();
+    assert.equal(sectionEditJob.practiceState.sections[0].symbol, "V");
+    assert.equal(sectionEditJob.practiceState.sections[0].label, "Verse 1");
 
     const emptyChartResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
       method: "PUT",

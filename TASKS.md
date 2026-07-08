@@ -986,6 +986,14 @@ Verification:
 - Run focused GUI coverage.
 - Delete test-created songs/jobs.
 
+Result:
+- Implemented on 2026-07-08 with shared pure section helpers in `public/section-ranges.js`.
+- Frontend and backend normalization now reject overlapping sections while allowing adjacent ranges.
+- Existing sections can be edited through a compact dialog that updates `symbol`, `label`, `startBar`, and `endBar`.
+- `practiceState.sections` keeps the existing `id`, `label`, `symbol`, `startBar`, `endBar`, and `source` shape, with optional `colorKey` preserved for later color coding.
+
+Status: Complete on 2026-07-08. `npm test`, focused Playwright coverage, and full `npm run test:gui` pass.
+
 ### Phase 5B.2: Continuous Section and Loop Range Rendering
 
 Goal: Render sections and loops as continuous ranges across bar boundaries instead of repeated labels inside every bar.
@@ -1004,6 +1012,15 @@ Verification:
 - Run `npm test`.
 - Run focused GUI coverage, then full `npm run test:gui` if shared rendering changed broadly.
 - Delete test-created songs/jobs.
+
+Result:
+- Implemented on 2026-07-08 by rendering section and loop ranges as row-chunk overlays above the existing chord grid.
+- Section labels and edit/delete controls appear only on the first chunk for a section; wrapped chunks remain visual range continuations.
+- Section edit/delete controls are compact and subtle until hover/focus.
+- Double-clicking the visible section range opens the edit dialog.
+- Loop display and drag preview now use the same row-chunk range treatment while loop start/end handle dragging across rows remains covered.
+
+Status: Complete on 2026-07-08. `npm test`, focused Playwright coverage, and full `npm run test:gui` pass.
 
 ### Phase 5B.3: Bar Selection and Section Creation Flow
 

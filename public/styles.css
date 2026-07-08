@@ -1115,9 +1115,87 @@ audio {
   outline: none;
 }
 
+.section-edit-dialog {
+  width: min(460px, calc(100vw - 28px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 0;
+}
+
+.section-edit-dialog::backdrop {
+  background: rgba(28, 32, 38, 0.34);
+}
+
+.section-edit-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.section-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.section-edit-grid label {
+  display: grid;
+  gap: 4px;
+}
+
+.section-edit-grid label > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.section-edit-grid input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 9px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.form-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  border-radius: 7px;
+  background: #ecfdf5;
+  color: var(--accent-strong);
+  font-weight: 850;
+  padding: 0 12px;
+}
+
+.dialog-actions .secondary-button {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
 .chord-chart-row {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(var(--bars-per-row), minmax(0, 1fr));
+  grid-template-rows: 1fr;
   gap: 5px;
   min-width: 0;
 }
@@ -1147,10 +1225,7 @@ audio {
 }
 
 .section-band {
-  position: absolute;
-  top: 18px;
-  left: 4px;
-  right: 4px;
+  align-self: start;
   z-index: 4;
   display: flex;
   min-width: 0;
@@ -1164,9 +1239,16 @@ audio {
   font-size: 0.7rem;
   font-weight: 850;
   line-height: 1;
+  margin: 18px 4px 0;
   padding: 3px 5px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.section-band-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .section-band button {
@@ -1178,7 +1260,14 @@ audio {
   font-size: 0.64rem;
   font-weight: 850;
   line-height: 1;
+  opacity: 0;
   padding: 2px 4px;
+  transition: opacity 120ms ease, background 120ms ease;
+}
+
+.section-band:hover button,
+.section-band:focus-within button {
+  opacity: 1;
 }
 
 .section-band button:hover,
@@ -1205,12 +1294,21 @@ audio {
 
 .chord-loop-region {
   position: relative;
+  z-index: 4;
+  align-self: start;
   min-height: 40px;
   border: 1px solid rgba(180, 83, 9, 0.45);
   border-radius: 6px;
   background: rgba(255, 247, 237, 0.72);
   box-shadow: inset 0 0 0 1px rgba(180, 83, 9, 0.12);
   cursor: grab;
+  margin: 18px 4px 4px;
+  pointer-events: none;
+}
+
+.chord-chart-row.has-section-row .chord-loop-region,
+.chord-chart-row.has-section-row .chord-loop-preview-region {
+  margin-top: 40px;
 }
 
 .chord-loop-region.dragging,
@@ -1222,27 +1320,32 @@ audio {
   opacity: 0.58;
 }
 
-.chord-bar-segment.loop-preview-active {
+.chord-bar-segment.loop-preview-active,
+.chord-chart-row.loop-preview-active {
   box-shadow: inset 0 0 0 2px rgba(15, 118, 110, 0.28);
 }
 
 .chord-loop-preview-region {
   position: relative;
   z-index: 3;
+  align-self: start;
   min-height: 40px;
   border: 2px dashed rgba(15, 118, 110, 0.7);
   border-radius: 6px;
   background: rgba(204, 251, 241, 0.46);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  margin: 18px 4px 4px;
   pointer-events: none;
 }
 
-.chord-bar-segment.loop-preview-start .chord-loop-preview-region {
+.chord-bar-segment.loop-preview-start .chord-loop-preview-region,
+.chord-chart-row.loop-preview-start .chord-loop-preview-region {
   border-left-color: var(--accent-strong);
   border-left-style: solid;
 }
 
-.chord-bar-segment.loop-preview-end .chord-loop-preview-region {
+.chord-bar-segment.loop-preview-end .chord-loop-preview-region,
+.chord-chart-row.loop-preview-end .chord-loop-preview-region {
   border-right-color: var(--accent-strong);
   border-right-style: solid;
 }
@@ -1258,6 +1361,7 @@ audio {
   background: var(--warm);
   padding: 0;
   cursor: ew-resize;
+  pointer-events: auto;
 }
 
 .chord-loop-handle:hover,
@@ -1286,6 +1390,8 @@ audio {
 }
 
 .chord-add-cell {
+  position: relative;
+  z-index: 2;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -1311,7 +1417,7 @@ audio {
 
 .chord-card {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 2px;

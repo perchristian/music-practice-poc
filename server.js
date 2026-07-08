@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -1442,29 +1443,11 @@ function normalizeHarmonyView(value) {
 }
 
 function normalizeSections(value) {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .map((section) => {
-      const startBar = Math.round(clampNumber(Number(section?.startBar), 1, 1, MAX_CHORD_CHART_BARS));
-      const endBar = Math.round(clampNumber(Number(section?.endBar), startBar, startBar, MAX_CHORD_CHART_BARS));
-      const label = String(section?.label || "").trim().slice(0, 40);
-      const symbol = String(section?.symbol || "").trim().slice(0, 12);
-      if (!label && !symbol) return null;
-
-      const id = String(section?.id || randomUUID()).trim().slice(0, 64) || randomUUID();
-      return {
-        id,
-        label,
-        symbol,
-        startBar,
-        endBar,
-        source: section?.source === "suggested" ? "suggested" : "user"
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => left.startBar - right.startBar || left.endBar - right.endBar)
-    .slice(0, MAX_SECTION_COUNT);
+  return normalizeSectionRanges(value, {
+    idFactory: randomUUID,
+    maxBar: MAX_CHORD_CHART_BARS,
+    maxCount: MAX_SECTION_COUNT
+  });
 }
 
 function ensurePracticeState(job) {

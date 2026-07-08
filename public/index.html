@@ -232,6 +232,36 @@
                   <button id="addSectionButton" data-testid="add-section-button" type="button">Add section</button>
                 </div>
                 <div class="chord-list" id="chordList"></div>
+                <dialog class="section-edit-dialog" id="sectionEditDialog" data-testid="section-edit-dialog">
+                  <form method="dialog" class="section-edit-form" id="sectionEditForm">
+                    <div class="section-heading compact">
+                      <h2>Edit section</h2>
+                    </div>
+                    <div class="section-edit-grid">
+                      <label>
+                        <span>Start</span>
+                        <input id="sectionEditStartInput" data-testid="section-edit-start" type="number" min="1" step="1" required>
+                      </label>
+                      <label>
+                        <span>End</span>
+                        <input id="sectionEditEndInput" data-testid="section-edit-end" type="number" min="1" step="1" required>
+                      </label>
+                      <label>
+                        <span>Symbol</span>
+                        <input id="sectionEditSymbolInput" data-testid="section-edit-symbol" type="text" maxlength="12">
+                      </label>
+                      <label>
+                        <span>Label</span>
+                        <input id="sectionEditLabelInput" data-testid="section-edit-label" type="text" maxlength="40">
+                      </label>
+                    </div>
+                    <p class="form-error" id="sectionEditError" data-testid="section-edit-error" hidden></p>
+                    <div class="dialog-actions">
+                      <button type="button" class="secondary-button" id="sectionEditCancel" data-testid="section-edit-cancel">Cancel</button>
+                      <button type="submit" id="sectionEditSave" data-testid="section-edit-save">Save</button>
+                    </div>
+                  </form>
+                </dialog>
               </section>
 
               <section class="panel mixer-panel lower-panel" aria-labelledby="mixerTitle">

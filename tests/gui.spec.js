@@ -15,6 +15,7 @@ test.afterEach(async ({ request }) => {
     "mobile-workspace-",
     "editable-chords-",
     "flat-sections-",
+    "section-ranges-",
     "resize-chords-",
     "delete-last-chord-",
     "loop-bars-"
@@ -634,8 +635,8 @@ test("loop range can be marked and extended from the harmony chord grid", async 
   await expect(page.getByTestId("loop-start")).toHaveValue("1");
   await expect(page.getByTestId("loop-end")).toHaveValue("3");
   await expect(page.getByTestId("chord-loop-region-1")).toBeVisible();
-  await expect(page.getByTestId("chord-loop-region-2")).toBeVisible();
   await expect(page.getByTestId("chord-loop-region-3")).toBeVisible();
+  await expect(page.getByTestId("chord-loop-region-2")).toHaveCount(0);
 });
 
 test("song selection waits for real media duration instead of using a 16 second fallback", async ({ page }) => {
@@ -1100,6 +1101,8 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
   await page.getByTestId("add-section-button").click();
 
   await expect(page.getByTestId("section-band-1")).toContainText("A Verse");
+  await expect(page.locator(".section-band")).toHaveCount(1);
+  await expect(page.getByTestId("section-edit-1")).toHaveCount(1);
   await expect(page.locator(".chord-bar-segment.has-section")).toHaveCount(4);
 
   await expect
@@ -1121,24 +1124,25 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
       }
     ]);
 
-  await page.evaluate(() => {
-    window.prompt = () => "Intro";
-  });
-  await page.getByTestId("section-rename-1").click();
-  await expect(page.getByTestId("section-band-1")).toContainText("A Intro");
+  await page.getByTestId("section-edit-1").click();
+  await expect(page.getByTestId("section-edit-dialog")).toBeVisible();
+  await page.getByTestId("section-edit-symbol").fill("I");
+  await page.getByTestId("section-edit-label").fill("Intro");
+  await page.getByTestId("section-edit-save").click();
+  await expect(page.getByTestId("section-band-1")).toContainText("I Intro");
   await expect
     .poll(async () => {
       return page.evaluate(async (id) => {
         const response = await fetch(`/api/jobs/${id}`);
         const job = await response.json();
-        return job.practiceState.sections[0]?.label;
+        return job.practiceState.sections[0];
       }, jobId);
     })
-    .toBe("Intro");
+    .toMatchObject({ symbol: "I", label: "Intro" });
 
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
-  await expect(page.getByTestId("section-band-1")).toContainText("A Intro");
+  await expect(page.getByTestId("section-band-1")).toContainText("I Intro");
 
   await page.getByTestId("section-remove-1").click();
   await expect(page.locator(".section-band")).toHaveCount(0);
@@ -1152,6 +1156,49 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
       }, jobId);
     })
     .toEqual([]);
+});
+
+test("section ranges reject overlap and render one label across bars-per-row layouts", async ({ page }) => {
+  await page.goto("/");
+  const filename = `section-ranges-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("section-start").fill("1");
+  await page.getByTestId("section-end").fill("4");
+  await page.getByTestId("section-symbol").fill("A");
+  await page.getByTestId("section-label").fill("Verse");
+  await page.getByTestId("add-section-button").click();
+
+  await page.getByTestId("section-start").fill("4");
+  await page.getByTestId("section-end").fill("6");
+  await page.getByTestId("section-symbol").fill("B");
+  await page.getByTestId("section-label").fill("Overlap");
+  await page.getByTestId("add-section-button").click();
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        const job = await response.json();
+        return job.practiceState.sections;
+      }, jobId);
+    })
+    .toHaveLength(1);
+
+  for (const barsPerRow of ["1", "2", "4", "8"]) {
+    await page.getByTestId("bars-per-row-select").selectOption(barsPerRow);
+    await expect(page.locator(".section-band-label", { hasText: "A Verse" })).toHaveCount(1);
+    await expect(page.getByTestId("section-edit-1")).toHaveCount(1);
+  }
+
+  await page.getByTestId("section-band-1").dblclick();
+  await expect(page.getByTestId("section-edit-dialog")).toBeVisible();
+  await page.getByTestId("section-edit-symbol").fill("C");
+  await page.getByTestId("section-edit-label").fill("Chorus");
+  await page.getByTestId("section-edit-save").click();
+  await expect(page.getByTestId("section-band-1")).toContainText("C Chorus");
 });
 
 test("chord cards can be resized to expose beat cells for inserting chords", async ({ page }) => {
