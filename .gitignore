@@ -7,3 +7,4 @@ test-media/
 .DS_Store
 research/*
 !research/section-structure-prototype-plan.md
+!research/open-knowledge-format-context-assessment.md

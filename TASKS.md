@@ -909,6 +909,33 @@ Verification:
 
 Status: Planned. Logging is off until explicitly requested.
 
+## Process Task: OKF-Style Context Bundle Spike
+
+Goal: Evaluate whether Open Knowledge Format-style Markdown frontmatter can improve project context recovery for Codex sessions without changing the runtime application architecture.
+
+Reference:
+- `research/open-knowledge-format-context-assessment.md`
+
+Scope:
+- Treat OKF as a project-context and handoff convention, not as app storage.
+- Keep canonical runtime state in the existing JSON/API models.
+- Do not convert `job.json`, `practiceState.chordChart`, `practiceState.sections`, beat grids, stems, loops, or backend contracts to Markdown.
+- Start with a small curated `context/` bundle only if context recovery becomes a real bottleneck.
+
+Candidate deliverables:
+- `context/index.md` with links to the most important source documents.
+- Short OKF-style context summaries for architecture, current status, decisions, risks, task map, and selected research notes.
+- Minimal YAML frontmatter fields such as `type`, `title`, `description`, `resource`, `tags`, and `timestamp`.
+- A simulated Context Recovery Review using the context bundle plus linked canonical source documents.
+
+Verification:
+- A new or simulated session can identify current architecture, completed phases, remaining work, next recommended task, major risks, and likely edit targets.
+- The context bundle reduces repeated reading or reconstruction compared with using the full documents directly.
+- No runtime behavior changes.
+- No test-created songs/jobs are created.
+
+Status: Planned. Defer until context recovery overhead is observed or a human explicitly asks to try the context-bundle approach.
+
 ## Process Task: Fragmentation Cleanup Review
 
 Goal: Inspect the codebase for avoidable fragmentation caused by repeatedly preserving dirty worktree changes across tasks, then consolidate only where it improves clarity, demo reliability, or future iteration speed.
