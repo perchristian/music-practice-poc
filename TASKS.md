@@ -959,11 +959,150 @@ Result:
 
 Status: Complete in mock-compatible UI on 2026-07-08. `npm test`, focused Playwright Flat Sections coverage, and full `npm run test:gui` pass.
 
+## Phase 5B: Section Range UX and Chord Range Workflows
+
+Goal: Turn the first Flat Sections prototype into a practical grid workflow where sections, loops, and chord selections behave like musical ranges rather than repeated per-bar labels.
+
+Reason:
+- Product review on 2026-07-08 found that the first prototype is useful but too noisy: `A Verse` repeats on every bar, section controls only appear at the section start, section symbols cannot be edited after creation, and overlapping sections can be created.
+- The next implementation should keep the flat section model, but improve how ranges are created, edited, colored, selected, copied, and converted into loops.
+- This remains a Flat Sections workflow. Linked section templates and global edits are still deferred.
+
+### Phase 5B.1: Section Data Hygiene and Edit Dialog
+
+Goal: Fix the current section bugs before adding broader range interactions.
+
+Deliverables:
+- Add a section helper module or equivalent pure functions for normalizing, validating, and updating flat sections.
+- Support editing both `symbol` and `label` for an existing section.
+- Prevent overlapping sections. Adjacent sections are allowed; overlapping bar ranges are rejected or clamped before persistence.
+- Preserve existing `practiceState.sections` shape, with an optional `color` or `colorKey` field if needed for later color coding.
+- Keep backend persistence normalization aligned with frontend validation.
+
+Verification:
+- Unit/backend tests cover symbol edits and overlap rejection.
+- Focused Playwright coverage confirms an existing section can be edited from `A Verse` to another symbol/label and that overlapping creation does not persist.
+- Run `npm test`.
+- Run focused GUI coverage.
+- Delete test-created songs/jobs.
+
+### Phase 5B.2: Continuous Section and Loop Range Rendering
+
+Goal: Render sections and loops as continuous ranges across bar boundaries instead of repeated labels inside every bar.
+
+Deliverables:
+- Render section bands as row-level or row-chunk overlays that visually stretch from start bar to end bar, including across multiple bars per row.
+- Show section label/actions only once per section, or once on the first visible row chunk when a section wraps to another row.
+- Make section edit/delete controls subtle by default and clearer on hover/focus; use a pencil icon or compact icon button for edit.
+- Double-click any bar inside a section opens the section edit flow, so the user does not need to find the start bar.
+- Update loop visualization to use the same continuous range treatment where practical, so loops also read as ranges between bars rather than repeated per-bar boxes.
+- Keep chord cards, chord resize handles, and existing loop drag behavior working.
+
+Verification:
+- Playwright layout coverage for 1, 2, 4, and 8 bars per row confirms labels do not repeat per bar and controls appear in only one place.
+- Focused loop coverage confirms existing loop handle drag still works across rows.
+- Run `npm test`.
+- Run focused GUI coverage, then full `npm run test:gui` if shared rendering changed broadly.
+- Delete test-created songs/jobs.
+
+### Phase 5B.3: Bar Selection and Section Creation Flow
+
+Goal: Replace numeric start/end section creation with direct bar selection in the Harmony grid.
+
+Deliverables:
+- User can select one or more bars in the grid.
+- A `Create section` action appears only after at least one bar is selected.
+- Creating a section from selected bars asks only for symbol/label/color, not numeric start/end.
+- Remove or hide the old always-visible start/end/symbol/label section form.
+- Add a show/hide section-info toggle.
+- When section info is visible and a bar has no section, show a subtle `+` affordance for creating a section at that bar or current selected range, similar to chord add cells.
+- Selection must respect the no-overlap rule from Phase 5B.1.
+
+Verification:
+- Playwright coverage selects bars 5-8, creates `A Verse`, reloads, and confirms persistence.
+- Coverage confirms no `Create section` action appears before selection.
+- Coverage confirms an already-sectioned range cannot receive a second overlapping section.
+- Run `npm test`.
+- Run focused GUI coverage.
+- Delete test-created songs/jobs.
+
+### Phase 5B.4: Section Resize Handles and Color Coding
+
+Goal: Let users reshape and scan sections directly in the grid.
+
+Deliverables:
+- Add draggable start/end handles to section range overlays.
+- Dragging a section edge snaps to whole bars and updates `startBar`/`endBar`.
+- Dragging cannot create overlap with a neighboring section.
+- Add section color coding so repeated symbols or related labels can share a color.
+- Default color assignment should be deterministic and calm, for example all `A`/Verse variants share the same color unless the user chooses another.
+- Ensure color contrast remains readable in compact/mobile grid layouts.
+
+Verification:
+- Unit tests cover range resize transforms and overlap prevention.
+- Playwright coverage resizes a section earlier/later, reloads, and confirms persisted range and color.
+- Visual/layout probe at narrow width confirms labels and handles do not overlap chord controls.
+- Run `npm test`.
+- Run focused GUI coverage, then full `npm run test:gui` if pointer handling changed broadly.
+- Delete test-created songs/jobs.
+
+### Phase 5B.5: Chord Multi-Selection Foundation
+
+Goal: Add a reusable chord-selection model that can support copy/paste and loop commands without disturbing single-chord editing.
+
+Deliverables:
+- User can select multiple chords in the grid.
+- Support expected desktop gestures:
+  - click selects one chord
+  - Shift+click selects a range
+  - Cmd+click toggles individual chords on macOS
+  - Ctrl+click toggles individual chords on non-mac platforms
+- Add section-aware selection: choose all chords inside a section.
+- Selected chords have a clear but calm visual state.
+- Editing a chord name still works without accidentally changing selection.
+
+Verification:
+- Unit tests cover selection range calculations from chart order/grid position.
+- Playwright coverage verifies single select, Shift+click range select, Cmd/Ctrl toggle, and select-all-in-section.
+- Existing chord edit/add/delete/drag/resize tests still pass.
+- Run `npm test`.
+- Run focused GUI coverage.
+- Delete test-created songs/jobs.
+
+### Phase 5B.6: Chord Copy/Paste and Loop From Selection
+
+Goal: Use selected chord ranges for the two main practice workflows: copying repeated harmony and setting a loop.
+
+Deliverables:
+- Copy selected chords and paste them at another bar/beat destination.
+- Pasted chords remain independent flat chord events, not linked section templates.
+- Pasting should preserve relative rhythm and durations, while avoiding duplicate collisions in the destination range through a simple replacement or conflict rule documented in the UI tests.
+- Support Alt+drag to copy selected chords to another grid location if this can be done without making pointer handling fragile; otherwise defer Alt+drag and ship explicit copy/paste first.
+- Add a command to set loop start/end from selected chords using the first selected chord start and last selected chord end.
+- Add a section-level command to set loop to a section, either directly from the section overlay or indirectly by selecting all chords in the section.
+
+Verification:
+- Unit tests cover chart copy/paste transforms, collision behavior, and loop boundary derivation from selected chords.
+- Playwright coverage copies a section's chords to another section/range, reloads, and confirms persisted chord chart.
+- Playwright coverage sets loop from selected chords or from a section and confirms loop start/end inputs plus rendered loop overlay.
+- Run `npm test`.
+- Run focused GUI coverage, then full `npm run test:gui`.
+- Delete test-created songs/jobs.
+
+Recommended sequence:
+1. Phase 5B.1 first, because it fixes current correctness bugs and gives later UI a safe section contract.
+2. Phase 5B.2 next, because range rendering is shared by section labels, section handles, and loop display.
+3. Phase 5B.3 and 5B.4 after that, because creation and resizing both depend on the same range model.
+4. Phase 5B.5 before copy/paste, because loop-from-selection and section chord copy need one consistent multi-select model.
+5. Phase 5B.6 last, because it crosses chord editing, section workflows, loop state, keyboard modifiers, and persistence.
+
+Status: Planned from product review on 2026-07-08.
+
 ## Next Task
 
 Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
 
-Alternative next section-structure task: build Assisted Sections detection on top of the completed Flat Sections model. Start with a pure `detectSectionSuggestions(chordChart, grid)` function for exact/near repeated ranges, then add accept/ignore UI that writes ordinary flat `practiceState.sections`.
+Alternative next section-structure task: start Phase 5B.1, then continue through Phase 5B.2 before Assisted Sections. The product-review issues with the current Flat Sections UX should be fixed before adding automatic section suggestions.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
 
