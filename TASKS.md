@@ -765,6 +765,41 @@ Verification:
 
 Status: Planned.
 
+## Research Task: Section Structure Prototypes
+
+Goal: Determine whether repeated song-section support helps users maintain chord charts or creates confusing edit-scope complexity.
+
+Reference plan:
+- `research/section-structure-prototype-plan.md`
+
+Problem:
+- Songs often repeat sections such as intro, verse, chorus, bridge, and outro.
+- Repeated sections may be identical or only 95% identical, with one or two chord variations.
+- The current flat chord chart model makes users find these patterns themselves and maintain similar regions in multiple places.
+
+Prototype directions:
+- Flat Sections: label bar ranges and improve section-aware range workflows while keeping copied chords independent.
+- Linked Sections: define reusable section templates and arrangement order such as `Intro A B A C B Outro`.
+- Assisted Sections: detect repeated or near-repeated chord-chart regions and ask the user to accept, reject, or relabel suggested sections.
+
+Recommended order:
+- Build or sketch Flat Sections first.
+- Build or sketch Assisted Sections next.
+- Defer Linked Sections with local overrides until the simpler prototypes show that linked editing is necessary.
+
+Agent strategy:
+- Use one lead agent for the first prototype-spec and evaluation pass.
+- Do not parallelize builders until the shared scenario and evaluation criteria are stable.
+- If multiple agents are used later, assign separate builders to Flat, Linked, and Assisted prototypes and record that delegation in `STATUS.md`.
+
+Verification:
+- Compare prototypes against the same scenario from the reference plan.
+- Check whether the user can predict whether an edit affects one occurrence or every occurrence.
+- Confirm any implemented prototype keeps existing playback, loop, and chord editing behavior intact.
+- Delete any test-created songs/jobs before considering the task complete.
+
+Status: Planned. This is a research/prototype task, not a committed architecture change.
+
 ## UI System Task: Small Internal Design System
 
 Goal: Make the existing mobile-friendly web POC more consistent and easier to iterate on by extracting a small internal design system from the current HTML/CSS patterns, without migrating to a frontend framework or adding a broad component library.
@@ -893,6 +928,8 @@ Status: Complete on 2026-07-07. The review found a clean worktree, intentional c
 ## Next Task
 
 Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
+
+Alternative next research task: follow `research/section-structure-prototype-plan.md` to sketch or build the Flat Sections and Assisted Sections prototypes before considering linked section templates with local overrides.
 
 Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
 

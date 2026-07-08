@@ -50,6 +50,8 @@ A process task for on-demand context overhead auditing is documented in `TASKS.m
 
 UI system note added on 2026-07-08: a small internal design system pass is now planned in `TASKS.md`. The current recommendation is to keep the static HTML/CSS/vanilla JS frontend and standardize existing primitives before adding any broad component library. `ARCHITECTURE.md` documents the frontend UI-system direction, and `DECISIONS.md` records Decision 24 to defer React/shadcn/Radix, Ionic, Material, Tailwind, and broad web-component adoption for the current POC phase. Web Awesome can be reconsidered later for specific repeated primitives if the internal pass shows real maintenance cost.
 
+Section-structure research note added on 2026-07-08: repeated song parts such as verse/chorus/bridge are now captured as a planned research/prototype task in `TASKS.md`, with the detailed plan in `research/section-structure-prototype-plan.md`. The recommended order is Flat Sections, Assisted Sections, then only later Linked Sections with local overrides if simpler approaches are insufficient. No agents were delegated for this planning step; use one lead agent until the shared scenario and evaluation criteria are stable, and record any later multi-agent delegation or model switch here.
+
 ## Current Architecture
 
 Local web POC:
