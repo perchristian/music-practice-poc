@@ -771,6 +771,7 @@ Goal: Determine whether repeated song-section support helps users maintain chord
 
 Reference plan:
 - `research/section-structure-prototype-plan.md`
+- `research/section-structure-prototype-results.md`
 
 Problem:
 - Songs often repeat sections such as intro, verse, chorus, bridge, and outro.
@@ -798,7 +799,14 @@ Verification:
 - Confirm any implemented prototype keeps existing playback, loop, and chord editing behavior intact.
 - Delete any test-created songs/jobs before considering the task complete.
 
-Status: Planned. This is a research/prototype task, not a committed architecture change.
+Result:
+- Paper prototypes for Flat Sections, Linked Sections, and Assisted Sections were completed on 2026-07-08.
+- The same 48-bar Intro / A / B / A' / C / B / Outro scenario was used for all three prototypes.
+- Flat Sections and Assisted Sections fit the current grid-first `practiceState.chordChart` model and keep chord edits local to the visible occurrence.
+- Linked Sections provide the strongest exact-repeat maintenance, but require a new template/arrangement/override model and carry the highest edit-scope confusion risk.
+- Recommended implementation order is Flat Sections MVP first, Assisted Sections suggestions second, and Linked Sections only after user testing shows simpler approaches are insufficient.
+
+Status: Research pass complete on 2026-07-08. No runtime prototype has been implemented yet.
 
 ## UI System Task: Small Internal Design System
 

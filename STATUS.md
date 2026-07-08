@@ -52,6 +52,8 @@ UI system note added on 2026-07-08: a small internal design system pass is now p
 
 Section-structure research note added on 2026-07-08: repeated song parts such as verse/chorus/bridge are now captured as a planned research/prototype task in `TASKS.md`, with the detailed plan in `research/section-structure-prototype-plan.md`. The recommended order is Flat Sections, Assisted Sections, then only later Linked Sections with local overrides if simpler approaches are insufficient. No agents were delegated for this planning step; use one lead agent until the shared scenario and evaluation criteria are stable, and record any later multi-agent delegation or model switch here.
 
+Section-structure prototype research completed on 2026-07-08 in `research/section-structure-prototype-results.md`. The pass compared Flat Sections, Linked Sections, and Assisted Sections against the same 48-bar Intro / A / B / A' / C / B / Outro scenario. Recommendation: implement Flat Sections first as bar-range labels beside the existing grid-first `practiceState.chordChart`, add Assisted Sections next as non-destructive repeated-range suggestions that create flat labels when accepted, and keep Linked Sections as a deferred research prototype because template/global-edit semantics have the highest edit-scope confusion and would require a new model. No agents were delegated and no model switch was used. No runtime jobs or songs were created.
+
 ## Current Architecture
 
 Local web POC:
