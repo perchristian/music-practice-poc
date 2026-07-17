@@ -52,6 +52,7 @@ Local filesystem storage
 - `GET /api/jobs/:id/waveform.json`: returns the compact versioned min/max peak envelope, generating it lazily for older completed jobs when possible.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
 - `PUT /api/jobs/:id/practice-state`: persists per-song learning status, stem state, playback/loop state, constant grid overrides, optional variable-tempo anchors, chord chart, sections, and view settings.
+- `POST /api/jobs/:id/reanalyze-harmony`: re-runs real-audio chord analysis against persisted corrected timing after explicit working-chart replacement confirmation.
 - `PUT /api/jobs/:id/rename`: renames a processed song for the local library.
 - `DELETE /api/jobs/:id`: deletes a processed song and its local files.
 
@@ -121,7 +122,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. `GET /api/library` remains completed-only, while `GET /api/jobs` lets the client reconstruct active and failed rows and resume active polling after a browser reload. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. User chord edits now persist as grid-first `practiceState.chordChart` events; seconds-based cue values are derived from the corrected grid at render/playback time. Notes and multiple named practice loops are deferred until after the beat-aligned chord chart UI work.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. `GET /api/library` remains completed-only, while `GET /api/jobs` lets the client reconstruct active and failed rows and resume active polling after a browser reload. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. User chord edits now persist as grid-first `practiceState.chordChart` events; seconds-based cue values are derived from the corrected grid at render/playback time. A confirmed corrected-timing reanalysis stores the prior chart in `practiceState.chordChartBackup` and the new derived result in `metadata.correctedTimingAnalysis`; original `metadata.chords` remains unchanged. Notes and multiple named practice loops are deferred until after the beat-aligned chord chart UI work.
 
 ## Library UX
 
@@ -166,6 +167,8 @@ input media file -> processing job -> stem audio assets + harmonic metadata
 Mock mode records selected file metadata, simulates upload/processing, copies local demo stems from `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a` when both exist, and returns deterministic harmonic metadata. If those local files are missing, it generates short drums, bass, guitar, and piano WAV stems. It intentionally does not upload the full video bytes, so large screen recordings remain usable during POC demos.
 
 Real mode now stores uploaded source media, extracts `source-audio.wav` through FFmpeg, runs Demucs `htdemucs_6s` by default, and then runs `beat-aware-chroma-v2` over the full mix plus usable separated stems to estimate tempo, meter, first downbeat, beat/bar grid, key, chord names, and roman numerals. PCM readers cover the full recording and reduce each source/stem to an approximately 8 kHz mono analysis representation, avoiding the previous 120-second truncation without retaining full-rate analysis arrays for every stem. Bass/accompaniment stems support root evidence; other/accompaniment/guitar/piano stems support chord-quality evidence; very quiet stems are ignored. The old `ffmpeg-spectral-piano-v1` separator remains as an explicit fallback for lightweight testing. The current harmonic analyzer is a spike: it scores beat-length segments, merges adjacent repeated labels within each bar, and can emit multiple chord cues inside one bar when evidence is strong. It can still pick the wrong tempo, meter, downbeat, key, or chord quality on real recordings.
+
+After timing correction, `beat-aware-chroma-corrected-timing-v1` can reuse the existing source/stem audio and score chroma over beat windows derived from `practiceState.tempoMap`. This is a user-triggered derived analysis rather than a mutation of the original analyzer evidence. It becomes the active suggestion layer only after confirmation, with the displaced working chart retained as a backup.
 
 The next architecture priority is not a more complex chord labeler. It is a user-correctable musical grid and chord chart:
 

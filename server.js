@@ -6,7 +6,7 @@ import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
-import { normalizeTempoMap } from "./public/tempo-map.js";
+import { absoluteBeatToSeconds, normalizeTempoMap } from "./public/tempo-map.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -911,7 +911,34 @@ function romanNumeral(root, quality, key) {
   return `${numeral}${quality.romanSuffix}`;
 }
 
+function chordSegmentsForTimingGrid(beatGrid, durationSeconds) {
+  if (!beatGrid?.tempoMap) return null;
+  const segments = [];
+  const beatsPerBar = Math.max(1, Math.round(Number(beatGrid.beatsPerBar) || DEFAULT_BEATS_PER_BAR));
+
+  for (let beatIndex = 0; beatIndex < MAX_CHORD_CHART_CHORDS * beatsPerBar; beatIndex += 1) {
+    const rawStart = absoluteBeatToSeconds(beatGrid, beatIndex);
+    const rawEnd = absoluteBeatToSeconds(beatGrid, beatIndex + 1);
+    if (!Number.isFinite(rawStart) || !Number.isFinite(rawEnd) || rawEnd <= rawStart) break;
+    if (rawStart >= durationSeconds) break;
+    if (rawEnd <= 0) continue;
+    const start = Math.max(0, rawStart);
+    const end = Math.min(durationSeconds, rawEnd);
+    if (end - start < Math.min(0.18, (rawEnd - rawStart) * 0.4)) continue;
+    segments.push({
+      bar: Math.floor(beatIndex / beatsPerBar) + 1,
+      beat: (beatIndex % beatsPerBar) + 1,
+      start: Number(start.toFixed(3)),
+      end: Number(end.toFixed(3))
+    });
+  }
+
+  return segments.length ? segments : null;
+}
+
 function chordSegmentsForBeatGrid(beatGrid, durationSeconds) {
+  const timingSegments = chordSegmentsForTimingGrid(beatGrid, durationSeconds);
+  if (timingSegments) return timingSegments;
   if (!beatGrid.bars?.length || !finitePositiveNumber(beatGrid.beatDurationSeconds)) {
     return [{ bar: 1, beat: 1, start: 0, end: durationSeconds }];
   }
@@ -955,11 +982,11 @@ function mergeAdjacentChordDrafts(chordDrafts) {
   return merged;
 }
 
-async function analyzeHarmonyFromAudio(extracted, separation) {
+async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = null } = {}) {
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
   const stemAudios = await loadAnalysisStemAudios(extracted, separation);
-  const beatGrid = estimateBeatGrid(audio);
+  const beatGrid = timingGrid || estimateBeatGrid(audio);
   const segments = chordSegmentsForBeatGrid(beatGrid, audio.durationSeconds);
   const aggregateChroma = Array(12).fill(0);
   const chordDrafts = [];
@@ -987,20 +1014,20 @@ async function analyzeHarmonyFromAudio(extracted, separation) {
     name: chordName(chord.root, chord.quality),
     roman: romanNumeral(chord.root, chord.quality, key),
     confidence: chord.confidence,
-    source: "beat-aligned-chroma"
+    source: timingGrid ? "corrected-timing-chroma" : "beat-aligned-chroma"
   }));
   const { tonicPitchClass, ...publicKey } = key;
 
   return {
     durationSeconds: extracted.durationSeconds || audio.durationSeconds,
-    harmonySource: "real-audio-analysis-v1",
+    harmonySource: timingGrid ? "real-audio-corrected-timing-v1" : "real-audio-analysis-v1",
     analysisSource: "source-audio.wav",
     key: publicKey,
     chords,
     melody: [],
     beatGrid,
     analysis: {
-      name: "beat-aware-chroma-v2",
+      name: timingGrid ? "beat-aware-chroma-corrected-timing-v1" : "beat-aware-chroma-v2",
       available: true,
       durationMs: Date.now() - startedAt,
       sources: {
@@ -1018,7 +1045,9 @@ async function analyzeHarmonyFromAudio(extracted, separation) {
         "diminished"
       ],
       limitations: [
-        "Beat, downbeat, meter, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
+        timingGrid
+          ? "Bar and beat boundaries come from the user-corrected timing map."
+          : "Beat, downbeat, meter, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
         "Chord labels are scored on beat-aligned segments and adjacent repeated labels are merged within each bar.",
         "The first pass favors useful conservative labels over precise extensions."
       ]
@@ -1438,6 +1467,7 @@ async function createJobRecord({
       tempoMap: null,
       keyOverride: null,
       chordChart: null,
+      chordChartBackup: null,
       sections: [],
       harmonyView: {
         barsPerRow: 2,
@@ -1581,6 +1611,13 @@ function ensurePracticeState(job) {
     tempoMap: normalizeTempoMap(job.practiceState?.tempoMap),
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
+    chordChartBackup: job.practiceState?.chordChartBackup?.chordChart
+      ? {
+          createdAt: String(job.practiceState.chordChartBackup.createdAt || ""),
+          reason: "corrected-timing-reanalysis",
+          chordChart: normalizeChordChart(job.practiceState.chordChartBackup.chordChart)
+        }
+      : null,
     sections: normalizeSections(job.practiceState?.sections),
     harmonyView: normalizeHarmonyView(job.practiceState?.harmonyView),
     stemStates
@@ -2410,6 +2447,93 @@ async function handleUpdatePracticeState(req, id, res) {
   json(res, 200, publicJob(job));
 }
 
+function correctedTimingGridForJob(job) {
+  const source = job.metadata?.beatGrid || {};
+  const overrides = job.practiceState?.gridOverrides || {};
+  const tempoMap = normalizeTempoMap(job.practiceState?.tempoMap);
+  const bpm = Number(overrides.bpm || source.bpm);
+  const beatDurationSeconds = Number(source.beatDurationSeconds) || (bpm > 0 ? 60 / bpm : null);
+  const beatsPerBar = Math.max(1, Math.round(Number(overrides.beatsPerBar || source.beatsPerBar) || DEFAULT_BEATS_PER_BAR));
+  const beatUnit = Math.max(1, Math.round(Number(overrides.beatUnit || source.beatUnit) || 4));
+  const downbeatOffsetSeconds = Number(
+    overrides.downbeatOffsetSeconds ?? source.downbeatOffsetSeconds ?? source.beatOffsetSeconds ?? 0
+  );
+  if (!finitePositiveNumber(beatDurationSeconds)) return null;
+  return {
+    bpm: finitePositiveNumber(bpm) ? bpm : 60 / beatDurationSeconds,
+    beatDurationSeconds,
+    beatsPerBar,
+    beatUnit,
+    downbeatOffsetSeconds: Number.isFinite(downbeatOffsetSeconds) ? downbeatOffsetSeconds : 0,
+    tempoMap
+  };
+}
+
+async function handleReanalyzeHarmony(req, id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+  if (job.mode !== "real") {
+    badRequest(res, "Corrected-timing chord analysis is available for real-mode songs only.");
+    return;
+  }
+
+  const payload = await readJsonBody(req);
+  if (payload.replaceWorkingChart !== true) {
+    badRequest(res, "Confirm replacement of the working chord chart before reanalysis.");
+    return;
+  }
+
+  const timingGrid = correctedTimingGridForJob(job);
+  if (!timingGrid?.tempoMap) {
+    badRequest(res, "Add at least one timing correction before reanalyzing chords.");
+    return;
+  }
+
+  const sourceAudioPath = join(job.dir, SOURCE_AUDIO_FILENAME);
+  try {
+    await access(sourceAudioPath);
+  } catch {
+    badRequest(res, "The source-audio WAV required for reanalysis is unavailable.");
+    return;
+  }
+
+  const analysis = await analyzeHarmonyFromAudio({
+    path: sourceAudioPath,
+    durationSeconds: Number(job.metadata?.durationSeconds) || null
+  }, {
+    outputs: stemsForJob(job)
+  }, { timingGrid });
+
+  const previousChordCount = job.practiceState?.chordChart?.chords?.length || 0;
+  job.metadata.correctedTimingAnalysis = {
+    createdAt: new Date().toISOString(),
+    harmonySource: analysis.harmonySource,
+    analysisSource: analysis.analysisSource,
+    key: analysis.key,
+    chords: analysis.chords,
+    analysis: analysis.analysis,
+    timing: {
+      gridOverrides: { ...(job.practiceState?.gridOverrides || {}) },
+      tempoMap: timingGrid.tempoMap
+    },
+    replacedWorkingChordCount: previousChordCount
+  };
+  job.practiceState.chordChartBackup = job.practiceState?.chordChart
+    ? {
+        createdAt: new Date().toISOString(),
+        reason: "corrected-timing-reanalysis",
+        chordChart: normalizeChordChart(job.practiceState.chordChart)
+      }
+    : job.practiceState?.chordChartBackup || null;
+  job.practiceState.chordChart = null;
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
 async function handleDeleteJob(id, res) {
   const job = await readJobFromDisk(id);
   if (!job) {
@@ -2656,6 +2780,11 @@ async function route(req, res) {
     await handleUpdatePracticeState(req, practiceStateMatch[1], res);
     return;
   }
+  const reanalyzeHarmonyMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/reanalyze-harmony$/);
+  if (req.method === "POST" && reanalyzeHarmonyMatch) {
+    await handleReanalyzeHarmony(req, reanalyzeHarmonyMatch[1], res);
+    return;
+  }
   const renameJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/rename$/);
   if (req.method === "PUT" && renameJobMatch) {
     await handleRenameJob(req, renameJobMatch[1], res);
@@ -2700,7 +2829,7 @@ async function route(req, res) {
   notFound(res);
 }
 
-export { analyzeHarmonyFromAudio, estimateBeatGrid, readPcm16WavFromFile };
+export { analyzeHarmonyFromAudio, chordSegmentsForTimingGrid, estimateBeatGrid, readPcm16WavFromFile };
 
 async function startServer() {
   await ensureBaseDirs();

@@ -114,6 +114,8 @@ const tempoDouble = document.querySelector("#tempoDouble");
 const gridCorrection = document.querySelector("#gridCorrection");
 const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
+const reanalyzeHarmonyButton = document.querySelector("#reanalyzeHarmonyButton");
+const harmonyAnalysisStatus = document.querySelector("#harmonyAnalysisStatus");
 const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
 const barsPerRowSelect = document.querySelector("#barsPerRowSelect");
 const sectionInfoToggle = document.querySelector("#sectionInfoToggle");
@@ -185,6 +187,7 @@ let timingZoomFactor = 1;
 let selectedTimingAnchorBar = null;
 let timingDragState = null;
 let suppressTimelineClick = false;
+let harmonyReanalysisPending = false;
 let timelineHoverClientX = null;
 const timingTouchPointers = new Map();
 let timingPinchState = null;
@@ -356,6 +359,17 @@ function metadataGridDefaults(metadata) {
 function effectiveMetadata(metadata) {
   if (!metadata) return metadata;
 
+  const correctedAnalysis = metadata.correctedTimingAnalysis;
+  const analysisMetadata = correctedAnalysis
+    ? {
+      ...metadata,
+      harmonySource: correctedAnalysis.harmonySource,
+      analysisSource: correctedAnalysis.analysisSource,
+      key: correctedAnalysis.key,
+      chords: correctedAnalysis.chords,
+      analysis: correctedAnalysis.analysis
+    }
+    : metadata;
   const defaults = metadataGridDefaults(metadata);
   const bpm = roundedBpm(gridOverrides.bpm) || defaults.bpm;
   const beatDurationSeconds = bpm ? 60 / bpm : defaults.beatDurationSeconds;
@@ -366,7 +380,7 @@ function effectiveMetadata(metadata) {
     : defaults.downbeatOffsetSeconds;
   const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0;
 
-  const key = keyOverride || metadata.key;
+  const key = keyOverride || analysisMetadata.key;
   const effectiveGrid = bpm || beatDurationSeconds
     ? {
       bpm,
@@ -383,23 +397,25 @@ function effectiveMetadata(metadata) {
     hasGridOverride(gridOverrides, "downbeatOffsetSeconds") ||
     Boolean(tempoMap);
   const chartChords = chordChartToCues(chordChart, effectiveGrid, key);
-  const sourceChords = chartChords || metadata.chords || [];
+  const sourceChords = chartChords || analysisMetadata.chords || [];
   const chords = sourceChords.map((chord) => ({
-    ...(chord.source === "user" ? chord : hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
+    ...(chord.source === "user" || chord.source === "corrected-timing-chroma"
+      ? chord
+      : hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
     roman: romanNumeralForChord(chord.name, key) || chord.roman || "",
     source: chord.source || "analysis"
   }));
 
   if (!bpm && !beatDurationSeconds) {
     return {
-      ...metadata,
+      ...analysisMetadata,
       key,
       chords
     };
   }
 
   return {
-    ...metadata,
+    ...analysisMetadata,
     key,
     chords,
     beatGrid: {
@@ -1306,6 +1322,7 @@ function renderMetadata(metadata) {
   currentMetadata = effectiveMetadata(metadata);
   updateKeyControl();
   updateHarmonyViewControls();
+  updateHarmonyReanalysisControls();
   updateTempoControl();
   updateGridCorrectionControls();
   updateLoopControlMode();
@@ -1313,6 +1330,60 @@ function renderMetadata(metadata) {
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   chordList.replaceChildren(...renderChordGrid(currentMetadata.chords, grid));
+}
+
+function updateHarmonyReanalysisControls(message = "") {
+  const available = currentJob?.mode === "real" && Boolean(tempoMap);
+  if (reanalyzeHarmonyButton) {
+    reanalyzeHarmonyButton.hidden = !available;
+    reanalyzeHarmonyButton.disabled = harmonyReanalysisPending;
+    reanalyzeHarmonyButton.textContent = harmonyReanalysisPending ? "Analysing…" : "Reanalyse chords";
+  }
+  if (!harmonyAnalysisStatus) return;
+  const completed = currentAnalyzedMetadata?.correctedTimingAnalysis;
+  const status = message || (completed
+    ? `Reanalysed from corrected timing · ${completed.chords?.length || 0} chord cues`
+    : "");
+  harmonyAnalysisStatus.textContent = status;
+  harmonyAnalysisStatus.hidden = !status;
+}
+
+async function reanalyzeHarmonyFromCorrectedTiming() {
+  if (!currentJobId || harmonyReanalysisPending || currentJob?.mode !== "real" || !tempoMap) return;
+  const existingCount = chordChart?.chords?.length || 0;
+  const warning = existingCount
+    ? `Reanalyse chords from the corrected timing and replace the current working chart with new suggestions? The current chart has ${existingCount} chord events and will be kept as a backup.`
+    : "Reanalyse chords from the corrected timing and replace the current suggestions?";
+  if (!window.confirm(warning)) return;
+  if (!(await flushPendingPracticeState())) return;
+
+  harmonyReanalysisPending = true;
+  let failureMessage = "";
+  updateHarmonyReanalysisControls("Analysing source audio with corrected bar boundaries…");
+  try {
+    const response = await fetch(`/api/jobs/${currentJobId}/reanalyze-harmony`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ replaceWorkingChart: true })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Chord reanalysis failed.");
+    currentJob = payload;
+    gridOverrides = normalizedGridOverrides(payload.practiceState);
+    tempoMap = normalizeTempoMap(payload.practiceState?.tempoMap);
+    keyOverride = normalizedKeyOverride(payload.practiceState);
+    chordChart = normalizedChordChart(payload.practiceState);
+    renderMetadata(payload.result.metadata);
+    updateSelectedSongMeta();
+    setPracticeSaveStatus("saved");
+    await loadLibrary();
+  } catch (error) {
+    console.error(error);
+    failureMessage = error.message || "Chord reanalysis failed.";
+  } finally {
+    harmonyReanalysisPending = false;
+    updateHarmonyReanalysisControls(failureMessage);
+  }
 }
 
 function updateHarmonyViewControls() {
@@ -3686,6 +3757,10 @@ keySelect?.addEventListener("change", () => {
 
 tempoDisplay?.addEventListener("click", () => {
   openTempoInput();
+});
+
+reanalyzeHarmonyButton?.addEventListener("click", () => {
+  void reanalyzeHarmonyFromCorrectedTiming();
 });
 
 tempoInput?.addEventListener("keydown", (event) => {

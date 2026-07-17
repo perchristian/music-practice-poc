@@ -10,6 +10,7 @@ import {
   tempoMapWithAnchor,
   tempoMapWithoutAnchor
 } from "../public/tempo-map.js";
+import { chordSegmentsForTimingGrid } from "../server.js";
 
 const baseGrid = {
   bpm: 60,
@@ -99,5 +100,27 @@ describe("tempo map", () => {
     assert.equal(tempoMapWithAnchor(replaced, { bar: 2, timeSeconds: 9 }), null);
     assert.deepEqual(tempoMapWithoutAnchor(replaced, 3), initial);
     assert.deepEqual(tempoMapWithoutAnchor(replaced, 1), replaced);
+  });
+
+  it("creates chord-analysis windows from corrected variable-tempo beat boundaries", () => {
+    const segments = chordSegmentsForTimingGrid({
+      ...baseGrid,
+      tempoMap: {
+        version: 1,
+        anchors: [
+          { bar: 1, timeSeconds: 0 },
+          { bar: 2, timeSeconds: 4 },
+          { bar: 3, timeSeconds: 10 }
+        ]
+      }
+    }, 10);
+
+    assert.deepEqual(segments.slice(0, 5), [
+      { bar: 1, beat: 1, start: 0, end: 1 },
+      { bar: 1, beat: 2, start: 1, end: 2 },
+      { bar: 1, beat: 3, start: 2, end: 3 },
+      { bar: 1, beat: 4, start: 3, end: 4 },
+      { bar: 2, beat: 1, start: 4, end: 5.5 }
+    ]);
   });
 });

@@ -395,6 +395,43 @@ describe("real-mode FFmpeg extraction", () => {
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("A")));
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("F")));
     assert.ok(metadata.chords.some((chord) => chord.name.startsWith("G")));
+
+    const practiceResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        tempoMap: {
+          version: 1,
+          anchors: [
+            { bar: 1, timeSeconds: 0.65 },
+            { bar: 2, timeSeconds: 4.65 },
+            { bar: 3, timeSeconds: 8.65 }
+          ]
+        },
+        chordChart: {
+          version: 1,
+          divisionsPerQuarter: 4,
+          chords: [{ id: "old-chart", bar: 1, offsetDiv: 0, durationDiv: 16, raw: "C", source: "user" }]
+        }
+      })
+    });
+    assert.equal(practiceResponse.status, 200);
+
+    const reanalysisResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/reanalyze-harmony`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ replaceWorkingChart: true })
+    });
+    assert.equal(reanalysisResponse.status, 200);
+    const reanalyzedJob = await reanalysisResponse.json();
+    assert.equal(reanalyzedJob.practiceState.chordChart, null);
+    assert.equal(reanalyzedJob.practiceState.chordChartBackup.chordChart.chords[0].raw, "C");
+    assert.equal(reanalyzedJob.result.metadata.chords[0].source, "beat-aligned-chroma");
+    assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v1");
+    assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.replacedWorkingChordCount, 1);
+    assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.length >= 3);
+    assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.every((chord) => chord.source === "corrected-timing-chroma"));
+    assert.ok(Math.abs(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords[0].start - 0.65) <= 0.01);
   });
 });
 

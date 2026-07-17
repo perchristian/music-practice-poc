@@ -937,6 +937,81 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
   await expect(page.locator(".cue-roman").first()).toHaveText("III");
 });
 
+test("corrected timing can drive a guarded chord reanalysis", async ({ page }) => {
+  const jobId = "33333333-3333-4333-8333-333333333333";
+  const tempoMap = {
+    version: 1,
+    anchors: [
+      { bar: 1, timeSeconds: 0 },
+      { bar: 2, timeSeconds: 5 }
+    ]
+  };
+  const job = {
+    id: jobId,
+    mode: "real",
+    status: "complete",
+    progress: 100,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    originalFilename: "corrected-reanalysis.mov",
+    practiceState: {
+      learningStatus: "not_started",
+      stemStates: {},
+      tempoMap,
+      gridOverrides: {},
+      chordChart: {
+        version: 1,
+        divisionsPerQuarter: 4,
+        chords: [{ id: "old", bar: 1, offsetDiv: 0, durationDiv: 16, raw: "C", source: "user" }]
+      }
+    },
+    result: {
+      stems: [{ id: "piano", name: "Piano", audioUrl: `/api/jobs/${jobId}/stems/piano.wav` }],
+      metadata: {
+        durationSeconds: 10,
+        key: { tonic: "C", mode: "major" },
+        beatGrid: { bpm: 60, beatsPerBar: 4, beatUnit: 4, beatDurationSeconds: 1, downbeatOffsetSeconds: 0 },
+        chords: [{ bar: 1, beat: 1, start: 0, end: 4, name: "C", roman: "I", source: "beat-aligned-chroma" }],
+        melody: []
+      }
+    }
+  };
+
+  await page.route("**/api/library", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify([job]) });
+  });
+  await page.route(`**/api/jobs/${jobId}`, async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
+  });
+  await page.route(`**/api/jobs/${jobId}/reanalyze-harmony`, async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ replaceWorkingChart: true });
+    job.practiceState.chordChart = null;
+    job.result.metadata.correctedTimingAnalysis = {
+      createdAt: new Date().toISOString(),
+      harmonySource: "real-audio-corrected-timing-v1",
+      analysisSource: "source-audio.wav",
+      key: { tonic: "G", mode: "major" },
+      chords: [
+        { bar: 1, beat: 1, start: 0, end: 5, name: "G", roman: "I", source: "corrected-timing-chroma" },
+        { bar: 2, beat: 1, start: 5, end: 10, name: "D", roman: "V", source: "corrected-timing-chroma" }
+      ],
+      analysis: { name: "beat-aware-chroma-corrected-timing-v1" }
+    };
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
+  });
+
+  await page.goto("/");
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("reanalyze-harmony")).toBeVisible();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("C");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByTestId("reanalyze-harmony").click();
+  await expect(page.getByTestId("harmony-analysis-status")).toContainText("2 chord cues");
+  await expect(page.getByTestId("key-select")).toHaveValue("G:major");
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-1")).toHaveValue("D");
+});
+
 test("waveform timing editor persists variable-tempo downbeats and keeps playback consumers aligned", async ({ page }) => {
   await page.goto("/");
   const filename = `timing-map-${Date.now()}.mov`;

@@ -282,17 +282,18 @@ Current data contract:
 
 Execution sequence:
 1. Choose a small repeatable set of real songs and expected chord timelines together with the user.
-2. Inspect analyzer suggestions beside user corrections.
-3. Classify false extra changes, missing changes, wrong roots, and wrong qualities.
-4. Decide how raw/dense candidates and a conservative default presentation should be represented separately.
-5. Prototype optional insertion of extra analyzer suggestions, comparison against user edits, and an explicit `Back to analysis` action with confirmation or undo.
-6. Adjust one musical heuristic at a time and retain only improvements that generalize across the calibration set.
+2. Re-run chord analysis against corrected timing without mutating the original analyzer result; replace the working chart only after confirmation and keep a backup.
+3. Inspect analyzer suggestions beside user corrections.
+4. Classify false extra changes, missing changes, wrong roots, and wrong qualities.
+5. Decide how raw/dense candidates and a conservative default presentation should be represented separately.
+6. Prototype optional insertion of extra analyzer suggestions, comparison against user edits, and an explicit `Back to analysis` action with confirmation or undo.
+7. Adjust one musical heuristic at a time and retain only improvements that generalize across the calibration set.
 
 Constraints:
 - Do not automatically train on or overwrite user edits.
 - Do not change chord-change frequency, bass heuristics, smoothing, or vocabulary before the shared baseline has been reviewed.
 
-Status: Human checkpoint after Phase 3G.1 establishes a trustworthy timing foundation.
+Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; the user reported that the corrected timing worked excellently. Corrected-timing chord reanalysis is implemented and produced 279 cues with an A-minor estimate at 0.44 confidence, while backing up 95 prior working events. Listening/comparison of this dense output is next.
 
 ### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
 
@@ -401,9 +402,7 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Run the Phase 3G.1 human timing checkpoint on at least one real recording that audibly drifts: align several important downbeats in `Edit timing`, then listen through click, chord changes, a bar loop, and repeated count-in. Record whether sparse linear spans are sufficient or whether more anchors/smoother interpolation are required.
-
-Do not tune chord heuristics in Phase 2J until this listening checkpoint passes. If human review is not immediately available, Phase 3G.2 normal-playback zoom/follow is the next independent implementation task.
+Run corrected-timing chord reanalysis on the calibrated `TeAmo.mov` job, then compare the new chord suggestions against the recording and classify false extra changes, missing changes, wrong roots, and wrong qualities before changing heuristics.
 
 ## Parked Work
 

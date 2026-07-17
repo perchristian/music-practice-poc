@@ -1065,6 +1065,12 @@ audio {
   align-items: end;
 }
 
+.harmony-analysis-status {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .compact-button {
   min-height: 34px;
   padding: 7px 10px;
