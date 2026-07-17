@@ -68,6 +68,8 @@ Phase 5B.3 implemented on 2026-07-08. Harmony section creation now starts from s
 
 Phase 5C.1 implemented on 2026-07-17. Practice-state persistence now snapshots both the target job ID and JSON payload when an edit occurs, serializes PUT requests, flushes pending work before a song switch, and retains a failed pending snapshot instead of silently discarding it. The selected-song header exposes `Saving...`, `Saved`, and `Save failed`; request versions prevent stale responses from changing the visible state for another song. Focused Playwright coverage changes speed and immediately opens another song, confirms the first job retained the change, injects a failed save, and confirms recovery. No agents were delegated and no model switch or skill was used.
 
+Phase 5C.2 implemented on 2026-07-17. `GET /api/jobs` lists every valid persisted `job.json`, while `/api/library` remains completed-only. On page load the browser reconstructs queued, processing, and failed entries, resumes polling active backend work, preserves backend error messages, and offers deletion for failed jobs. Backend coverage verifies active and failed list entries; focused Playwright coverage reloads during mock processing, waits for recovered polling to complete, reloads a deliberately failed real upload, shows its error, and deletes it. No agents were delegated and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:

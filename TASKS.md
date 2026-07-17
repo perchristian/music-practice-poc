@@ -1192,7 +1192,12 @@ Verification:
 - Run `npm test` and focused/full GUI coverage.
 - Delete test-created jobs.
 
-Status: Planned for the current reliability pass.
+Result:
+- Implemented on 2026-07-17 with `GET /api/jobs` alongside the completed-only `/api/library` contract.
+- The browser reconstructs queued, processing, and failed rows from persisted `job.json` records, resumes polling active work, and keeps backend errors available after reload.
+- Failed jobs can be deleted from their failure detail; active jobs are not exposed to unsafe deletion while processing continues.
+
+Status: Complete on 2026-07-17. Backend tests cover active/failed listing, and focused Playwright coverage reloads both states and removes the failed job.
 
 ## Phase 2I: Full-Song Analysis Coverage Without Chord-Logic Changes
 

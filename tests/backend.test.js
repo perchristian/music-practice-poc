@@ -88,6 +88,13 @@ describe("mock backend", () => {
     const createdJob = await createResponse.json();
     assert.equal(createdJob.mockUpload, true);
 
+    const jobsResponse = await fetch(`${baseUrl}/api/jobs`);
+    assert.equal(jobsResponse.status, 200);
+    const activeJob = (await jobsResponse.json()).find((entry) => entry.id === createdJob.id);
+    assert.ok(activeJob);
+    assert.notEqual(activeJob.status, "complete");
+    assert.equal(activeJob.result, null);
+
     const completedJob = await waitForComplete(createdJob.id);
     assert.equal(completedJob.status, "complete");
     assert.equal(completedJob.progress, 100);

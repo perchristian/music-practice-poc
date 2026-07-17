@@ -10,6 +10,8 @@ test.afterEach(async ({ request }) => {
     "screen-recording-",
     "phase-one-library-",
     "save-reliability-",
+    "persistent-job-",
+    "persistent-failed-",
     "queue-first-",
     "queue-second-",
     "recent-",
@@ -22,7 +24,7 @@ test.afterEach(async ({ request }) => {
     "delete-last-chord-",
     "loop-bars-"
   ];
-  const entries = await request.get("/api/library").then((response) => (response.ok() ? response.json() : []));
+  const entries = await request.get("/api/jobs").then((response) => (response.ok() ? response.json() : []));
   await Promise.all(
     entries
       .filter((entry) => testSongNames.includes(entry.originalFilename) || testSongPrefixes.some((prefix) => entry.originalFilename.startsWith(prefix)))
@@ -1669,6 +1671,70 @@ test("practice state saves to the edited song before an immediate song switch", 
   await page.unroute(`**/api/jobs/${secondJobId}/practice-state`);
   await page.getByTestId("speed-1").click();
   await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+});
+
+test("active and failed backend jobs remain available after reload", async ({ page }) => {
+  const suffix = Date.now();
+  const activeFilename = `persistent-job-${suffix}.mov`;
+  const failedFilename = `persistent-failed-${suffix}.mov`;
+
+  await page.goto("/");
+  const activeJob = await page.evaluate(async (filename) => {
+    const response = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ filename, size: 128, type: "video/quicktime" })
+    });
+    return response.json();
+  }, activeFilename);
+
+  await page.reload();
+  await expect(page.getByTestId(`song-row-${activeJob.id}`)).toBeVisible();
+  await page.getByTestId(`song-row-${activeJob.id}`).click();
+  await expect(page.getByTestId("processing-detail")).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId(`song-row-${activeJob.id}`)).toBeVisible();
+  await expect(page.getByTestId(`song-row-${activeJob.id}`)).toContainText("Not started", { timeout: 15_000 });
+
+  await page.evaluate(async () => {
+    await fetch("/api/settings/pipeline-mode", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "real" })
+    });
+  });
+  const failedJob = await page.evaluate(async (filename) => {
+    const formData = new FormData();
+    formData.append("media", new File(["not valid media"], filename, { type: "video/quicktime" }));
+    const response = await fetch("/api/jobs", { method: "POST", body: formData });
+    return response.json();
+  }, failedFilename);
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        return (await response.json()).status;
+      }, failedJob.id);
+    }, { timeout: 15_000 })
+    .toBe("failed");
+  await page.evaluate(async () => {
+    await fetch("/api/settings/pipeline-mode", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "mock" })
+    });
+  });
+
+  await page.reload();
+  const failedRow = page.getByTestId(`song-row-${failedJob.id}`);
+  await expect(failedRow).toContainText("Failed");
+  await failedRow.click();
+  await expect(page.getByTestId("failed-detail")).toBeVisible();
+  await expect(page.locator("#failedMessage")).not.toHaveText("The job could not be processed.");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByTestId("failed-delete-button").click();
+  await expect(failedRow).toHaveCount(0);
 });
 
 test("home upload queue processes multiple files without opening practice", async ({ page }) => {

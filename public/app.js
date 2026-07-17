@@ -61,6 +61,7 @@ const processingProgress = document.querySelector("#processingProgress");
 const readyDetail = document.querySelector("#readyDetail");
 const failedDetail = document.querySelector("#failedDetail");
 const failedMessage = document.querySelector("#failedMessage");
+const failedDeleteButton = document.querySelector("#failedDeleteButton");
 const stemDeck = document.querySelector("#stemDeck");
 const stemMixer = document.querySelector("#stemMixer");
 const playButton = document.querySelector("#playButton");
@@ -1179,12 +1180,20 @@ function renderLibraryEntries(entries) {
 
 async function loadLibrary() {
   try {
-    const response = await fetch("/api/library");
+    const [response, jobsResponse] = await Promise.all([
+      fetch("/api/library"),
+      fetch("/api/jobs")
+    ]);
     if (response.status === 404) {
       throw new Error("Restart the backend to enable the processed song library.");
     }
     if (!response.ok) throw new Error("Could not load processed song library.");
     const entries = await response.json();
+    if (jobsResponse.ok) {
+      recoverPersistedJobs(await jobsResponse.json());
+    } else {
+      console.error("Could not restore active and failed jobs.");
+    }
     renderLibraryEntries(entries);
   } catch (error) {
     console.error(error);
@@ -2677,6 +2686,61 @@ function removeQueueJob(localId) {
   renderSongList();
 }
 
+function startQueuePolling(queueJob) {
+  if (!queueJob?.jobId || queueJob.timer || ["complete", "failed"].includes(queueJob.status)) return;
+  queueJob.timer = window.setInterval(() => {
+    pollQueueJob(queueJob.localId).catch((error) => {
+      console.error(error);
+      const latestQueueJob = queueJobs.get(queueJob.localId);
+      if (!latestQueueJob) return;
+      window.clearInterval(latestQueueJob.timer);
+      latestQueueJob.timer = null;
+    });
+  }, 500);
+}
+
+function recoverPersistedJobs(entries) {
+  const incompleteIds = new Set(entries.filter((entry) => entry.status !== "complete").map((entry) => entry.id));
+
+  for (const [localId, queueJob] of queueJobs) {
+    if (queueJob.recovered && !incompleteIds.has(queueJob.jobId)) {
+      removeQueueJob(localId);
+    }
+  }
+
+  for (const entry of entries) {
+    if (entry.status === "complete") continue;
+    let queueJob = [...queueJobs.values()].find((candidate) => candidate.jobId === entry.id);
+    if (!queueJob) {
+      const localId = `persisted-${entry.id}`;
+      queueJob = {
+        localId,
+        filename: entry.originalFilename,
+        status: entry.status,
+        progress: Number(entry.progress) || 0,
+        pipelineStage: entry.pipelineStage || null,
+        timer: null,
+        jobId: entry.id,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+        error: entry.error || null,
+        thumbnailDataUrl: entry.thumbnailDataUrl || null,
+        recovered: true
+      };
+      queueJobs.set(localId, queueJob);
+    } else {
+      queueJob.filename = entry.originalFilename;
+      queueJob.status = entry.status;
+      queueJob.progress = Number(entry.progress) || 0;
+      queueJob.pipelineStage = entry.pipelineStage || null;
+      queueJob.updatedAt = entry.updatedAt;
+      queueJob.error = entry.error || null;
+      queueJob.thumbnailDataUrl = entry.thumbnailDataUrl || queueJob.thumbnailDataUrl || null;
+    }
+    startQueuePolling(queueJob);
+  }
+}
+
 async function selectQueueJob(queueJob) {
   if (!(await flushPendingPracticeState())) return;
   selectedQueueLocalId = queueJob.localId;
@@ -2996,19 +3060,7 @@ async function uploadFiles(files) {
         queueJob.jobId = job.id;
         queueJob.thumbnailDataUrl = job.thumbnailDataUrl || queueJob.thumbnailDataUrl;
         updateQueueJob(queueJob, job);
-        queueJob.timer = window.setInterval(() => {
-          pollQueueJob(localId).catch((error) => {
-            console.error(error);
-            const latestQueueJob = queueJobs.get(localId);
-            if (!latestQueueJob) return;
-            window.clearInterval(latestQueueJob.timer);
-            updateQueueJob(latestQueueJob, {
-              status: "failed",
-              progress: latestQueueJob.progress,
-              pipelineStage: latestQueueJob.pipelineStage
-            });
-          });
-        }, 500);
+        startQueuePolling(queueJob);
         await pollQueueJob(localId);
       } catch (error) {
         queueJob.error = error.message;
@@ -3521,6 +3573,19 @@ selectedDeleteButton.addEventListener("click", async () => {
   const response = await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
   if (!response.ok) return;
 
+  await loadLibrary();
+  clearSelection();
+});
+
+failedDeleteButton?.addEventListener("click", async () => {
+  const queueJob = queueJobs.get(selectedQueueLocalId);
+  if (!queueJob?.jobId || queueJob.status !== "failed") return;
+  if (!window.confirm(`Delete ${queueJob.filename}?`)) return;
+
+  const response = await fetch(`/api/jobs/${queueJob.jobId}`, { method: "DELETE" });
+  if (!response.ok) return;
+
+  removeQueueJob(queueJob.localId);
   await loadLibrary();
   clearSelection();
 });

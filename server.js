@@ -2199,6 +2199,26 @@ async function handleListLibrary(res) {
   }
 }
 
+async function handleListJobs(res) {
+  try {
+    const entries = [];
+    const jobDirs = await readdir(JOBS_DIR, { withFileTypes: true });
+
+    for (const jobDir of jobDirs) {
+      if (!jobDir.isDirectory()) continue;
+      const job = await readJobFromDisk(jobDir.name);
+      if (!job) continue;
+      entries.push(publicJob(job));
+    }
+
+    entries.sort((left, right) => new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt));
+    json(res, 200, entries);
+  } catch (error) {
+    console.error(error);
+    json(res, 500, { error: "Could not load jobs." });
+  }
+}
+
 async function handleUpdatePracticeState(req, id, res) {
   const job = await readJobFromDisk(id);
   if (!job) {
@@ -2493,6 +2513,11 @@ async function route(req, res) {
 
   if (req.method === "POST" && url.pathname === "/api/jobs") {
     await handleCreateJob(req, res);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/jobs") {
+    await handleListJobs(res);
     return;
   }
 

@@ -235,6 +235,12 @@ describe("real-mode upload contract with missing FFmpeg", () => {
     assert.match(persistedJob.error, /FFmpeg was not found/);
     assert.equal(persistedJob.metadata.failure.sourceStored, true);
     assert.equal(persistedJob.metadata.failure.ffmpeg.missingCommand, true);
+
+    const jobsResponse = await fetch(`${baseUrl}/api/jobs`);
+    assert.equal(jobsResponse.status, 200);
+    const listedFailure = (await jobsResponse.json()).find((entry) => entry.id === createdJob.id);
+    assert.equal(listedFailure.status, "failed");
+    assert.match(listedFailure.error, /FFmpeg was not found/);
   });
 
   it("rejects real-mode multipart uploads larger than 150 MB", async () => {

@@ -112,7 +112,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, per-stem mute/solo/volume controls, playback speed selection, bar-based loop controls, repeated count-in clicks before offset-correct loop playback starts, saved thumbnail rendering, beat/bar marker rendering, dense timeline marker simplification, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, compact beat-aligned Harmony chord grid rendering, active loop display and loop-handle dragging in Harmony, editable chord add/edit/drag/drop/delete operations, flat section-label add/rename/remove persistence, persisted Harmony view settings, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, active and failed job recovery after reload, failed-job removal, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, visible practice-state save feedback, safe immediate song switching, per-stem mute/solo/volume controls, playback speed selection, bar-based loop controls, repeated count-in clicks before offset-correct loop playback starts, saved thumbnail rendering, beat/bar marker rendering, dense timeline marker simplification, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, compact beat-aligned Harmony chord grid rendering, active loop display and loop-handle dragging in Harmony, editable chord add/edit/drag/drop/delete operations, flat section-label add/rename/remove persistence, persisted Harmony view settings, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -122,7 +122,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 2. Choose one or more screen recordings or small media files.
 3. Upload them from the song list.
 4. Confirm each file appears immediately in the same song list with inline status/progress.
-5. Wait for mock processing to complete and confirm the app does not auto-open practice.
+5. Reload once while mock processing is active and confirm its row returns and continues updating. Wait for mock processing to complete and confirm the app does not auto-open practice.
 6. Confirm completed songs remain in the same list with human-readable activity time and duration.
 7. Select a completed song by clicking the whole row.
 8. On desktop, confirm the song list stays visible on the left while practice opens on the right.

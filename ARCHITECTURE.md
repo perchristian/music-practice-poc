@@ -44,6 +44,7 @@ Local filesystem storage
 - `GET /api/health`: returns active mode, startup mode, FFmpeg path, and service status.
 - `PUT /api/settings/pipeline-mode`: switches active local pipeline mode for new jobs between `mock` and `real`.
 - `POST /api/jobs`: in mock mode, accepts JSON file metadata and creates one simulated upload job per request; in real mode, accepts one multipart media file, stores it in the job directory, and creates a processing job. The browser can create multiple jobs from one multi-file selection.
+- `GET /api/jobs`: returns all persisted jobs, including queued, processing, failed, and complete states, so the unified song list can recover lifecycle state after a browser reload.
 - `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains Demucs stems by default and approximate beat-aware harmonic metadata.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
 - `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
@@ -118,7 +119,7 @@ Use local filesystem storage under `data/` for the POC. Store uploaded files, ge
 
 Cloud/object storage is deferred until remote demos or larger files require it.
 
-The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. User chord edits now persist as grid-first `practiceState.chordChart` events; seconds-based cue values are derived from the corrected grid at render/playback time. Notes and multiple named practice loops are deferred until after the beat-aligned chord chart UI work.
+The processed-song library treats completed jobs as reusable practice items instead of one-off processing results. `GET /api/library` remains completed-only, while `GET /api/jobs` lets the client reconstruct active and failed rows and resume active polling after a browser reload. Practice state such as stem mute/solo state, per-stem volume, playback speed, loop points, learning status, last position, grid overrides, key override, and the user's working chord chart is stored per song in `job.json`. User chord edits now persist as grid-first `practiceState.chordChart` events; seconds-based cue values are derived from the corrected grid at render/playback time. Notes and multiple named practice loops are deferred until after the beat-aligned chord chart UI work.
 
 ## Library UX
 
