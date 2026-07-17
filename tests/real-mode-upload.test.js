@@ -408,6 +408,7 @@ describe("real-mode FFmpeg extraction", () => {
             { bar: 3, timeSeconds: 8.65 }
           ]
         },
+        keyOverride: { tonic: "C", mode: "major" },
         chordChart: {
           version: 1,
           divisionsPerQuarter: 4,
@@ -428,6 +429,13 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(reanalyzedJob.practiceState.chordChartBackup.chordChart.chords[0].raw, "C");
     assert.equal(reanalyzedJob.result.metadata.chords[0].source, "beat-aligned-chroma");
     assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v1");
+    assert.deepEqual(reanalyzedJob.result.metadata.correctedTimingAnalysis.key, {
+      tonic: "C",
+      mode: "major",
+      confidence: 1,
+      source: "user"
+    });
+    assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.analysis.keySource, "user-override");
     assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.replacedWorkingChordCount, 1);
     assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.length >= 3);
     assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.every((chord) => chord.source === "corrected-timing-chroma"));

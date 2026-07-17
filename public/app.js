@@ -1342,7 +1342,7 @@ function updateHarmonyReanalysisControls(message = "") {
   if (!harmonyAnalysisStatus) return;
   const completed = currentAnalyzedMetadata?.correctedTimingAnalysis;
   const status = message || (completed
-    ? `Reanalysed from corrected timing · ${completed.chords?.length || 0} chord cues`
+    ? `Reanalysed from corrected timing · ${completed.chords?.length || 0} chord cues · ${keyLabel(completed)}`
     : "");
   harmonyAnalysisStatus.textContent = status;
   harmonyAnalysisStatus.hidden = !status;
@@ -1351,9 +1351,12 @@ function updateHarmonyReanalysisControls(message = "") {
 async function reanalyzeHarmonyFromCorrectedTiming() {
   if (!currentJobId || harmonyReanalysisPending || currentJob?.mode !== "real" || !tempoMap) return;
   const existingCount = chordChart?.chords?.length || 0;
+  const keyBasis = keyOverride
+    ? ` The selected key ${keyOverride.tonic} ${keyOverride.mode} will be used as the analysis key.`
+    : " The key will be estimated because no user key is selected.";
   const warning = existingCount
-    ? `Reanalyse chords from the corrected timing and replace the current working chart with new suggestions? The current chart has ${existingCount} chord events and will be kept as a backup.`
-    : "Reanalyse chords from the corrected timing and replace the current suggestions?";
+    ? `Reanalyse chords from the corrected timing and replace the current working chart with new suggestions? The current chart has ${existingCount} chord events and will be kept as a backup.${keyBasis}`
+    : `Reanalyse chords from the corrected timing and replace the current suggestions?${keyBasis}`;
   if (!window.confirm(warning)) return;
   if (!(await flushPendingPracticeState())) return;
 

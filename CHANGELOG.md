@@ -21,6 +21,7 @@ The project currently uses date-based development milestones rather than numbere
 - Bar 1 timing now uses the same correction editor as every other anchor; nudge actions are compact icon buttons and the playhead is visually distinct from downbeats.
 - Count-in defaults to off for new jobs and remains available before both ordinary playback and every loop pass.
 - Corrected-timing analysis is stored separately from the immutable original analyzer result; replacing a working chart requires confirmation and keeps the previous chart as a backup.
+- An explicitly selected user key is now authoritative during corrected-timing reanalysis and roman-numeral generation; key estimation runs only when no user key exists.
 
 ### Fixed
 

@@ -293,7 +293,7 @@ Constraints:
 - Do not automatically train on or overwrite user edits.
 - Do not change chord-change frequency, bass heuristics, smoothing, or vocabulary before the shared baseline has been reviewed.
 
-Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; the user reported that the corrected timing worked excellently. Corrected-timing chord reanalysis is implemented and produced 279 cues with an A-minor estimate at 0.44 confidence, while backing up 95 prior working events. Listening/comparison of this dense output is next.
+Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; the user reported that the corrected timing worked excellently. Corrected-timing chord reanalysis is implemented and produced 279 cues using the user's authoritative C-major key, while backing up 95 prior working events. Listening/comparison of this dense output is next.
 
 ### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
 

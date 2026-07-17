@@ -959,6 +959,7 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
       stemStates: {},
       tempoMap,
       gridOverrides: {},
+      keyOverride: { tonic: "C", mode: "major" },
       chordChart: {
         version: 1,
         divisionsPerQuarter: 4,
@@ -990,10 +991,10 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
       createdAt: new Date().toISOString(),
       harmonySource: "real-audio-corrected-timing-v1",
       analysisSource: "source-audio.wav",
-      key: { tonic: "G", mode: "major" },
+      key: { tonic: "C", mode: "major", confidence: 1, source: "user" },
       chords: [
-        { bar: 1, beat: 1, start: 0, end: 5, name: "G", roman: "I", source: "corrected-timing-chroma" },
-        { bar: 2, beat: 1, start: 5, end: 10, name: "D", roman: "V", source: "corrected-timing-chroma" }
+        { bar: 1, beat: 1, start: 0, end: 5, name: "G", roman: "V", source: "corrected-timing-chroma" },
+        { bar: 2, beat: 1, start: 5, end: 10, name: "D", roman: "II", source: "corrected-timing-chroma" }
       ],
       analysis: { name: "beat-aware-chroma-corrected-timing-v1" }
     };
@@ -1004,10 +1005,13 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("reanalyze-harmony")).toBeVisible();
   await expect(page.getByTestId("chord-name-0")).toHaveValue("C");
-  page.once("dialog", (dialog) => dialog.accept());
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("selected key C major");
+    dialog.accept();
+  });
   await page.getByTestId("reanalyze-harmony").click();
   await expect(page.getByTestId("harmony-analysis-status")).toContainText("2 chord cues");
-  await expect(page.getByTestId("key-select")).toHaveValue("G:major");
+  await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
   await expect(page.getByTestId("chord-name-1")).toHaveValue("D");
 });

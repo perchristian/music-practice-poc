@@ -45,6 +45,10 @@ const MAX_CHORD_CHART_DIVISIONS = 4096;
 const MAX_SECTION_COUNT = 64;
 const WAVEFORM_PEAKS_PER_SECOND = 80;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const NOTE_PITCH_CLASSES = {
+  C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4, F: 5,
+  "F#": 6, Gb: 6, G: 7, "G#": 8, Ab: 8, A: 9, "A#": 10, Bb: 10, B: 11
+};
 const MIN_ANALYSIS_STEM_RMS = 0.001;
 const HARMONIC_STEM_WEIGHTS = {
   other: 1.4,
@@ -897,6 +901,18 @@ function adjustKeyWithChordSequence(key, chordDrafts) {
   };
 }
 
+function userProvidedAnalysisKey(value) {
+  const tonicPitchClass = NOTE_PITCH_CLASSES[value?.tonic];
+  if (!Number.isInteger(tonicPitchClass) || !["major", "minor"].includes(value?.mode)) return null;
+  return {
+    tonic: value.tonic,
+    mode: value.mode,
+    confidence: 1,
+    tonicPitchClass,
+    source: "user"
+  };
+}
+
 function romanNumeral(root, quality, key) {
   const majorScale = [0, 2, 4, 5, 7, 9, 11];
   const minorScale = [0, 2, 3, 5, 7, 8, 10];
@@ -982,7 +998,7 @@ function mergeAdjacentChordDrafts(chordDrafts) {
   return merged;
 }
 
-async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = null } = {}) {
+async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = null, fixedKey = null } = {}) {
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
   const stemAudios = await loadAnalysisStemAudios(extracted, separation);
@@ -1005,7 +1021,8 @@ async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = nul
   const normalizedAggregate = aggregateMax > 0
     ? aggregateChroma.map((value) => value / aggregateMax)
     : aggregateChroma;
-  const key = adjustKeyWithChordSequence(estimateKey(normalizedAggregate), mergedChordDrafts);
+  const key = userProvidedAnalysisKey(fixedKey) ||
+    adjustKeyWithChordSequence(estimateKey(normalizedAggregate), mergedChordDrafts);
   const chords = mergedChordDrafts.map((chord) => ({
     start: chord.start,
     end: chord.end,
@@ -1030,6 +1047,7 @@ async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = nul
       name: timingGrid ? "beat-aware-chroma-corrected-timing-v1" : "beat-aware-chroma-v2",
       available: true,
       durationMs: Date.now() - startedAt,
+      keySource: key.source === "user" ? "user-override" : "estimated",
       sources: {
         fullMix: SOURCE_AUDIO_FILENAME,
         stems: separation.outputs?.map((stem) => stem.id) || []
@@ -2505,7 +2523,10 @@ async function handleReanalyzeHarmony(req, id, res) {
     durationSeconds: Number(job.metadata?.durationSeconds) || null
   }, {
     outputs: stemsForJob(job)
-  }, { timingGrid });
+  }, {
+    timingGrid,
+    fixedKey: job.practiceState?.keyOverride
+  });
 
   const previousChordCount = job.practiceState?.chordChart?.chords?.length || 0;
   job.metadata.correctedTimingAnalysis = {
