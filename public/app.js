@@ -46,6 +46,7 @@ const selectedSongArt = document.querySelector("#selectedSongArt");
 const selectedSongEyebrow = document.querySelector("#selectedSongEyebrow");
 const selectedSongTitle = document.querySelector("#selectedSongTitle");
 const selectedSongMeta = document.querySelector("#selectedSongMeta");
+const practiceSaveStatus = document.querySelector("#practiceSaveStatus");
 const selectedSongActions = document.querySelector("#selectedSongActions");
 const selectedMoreButton = document.querySelector("#selectedMoreButton");
 const selectedMoreMenu = document.querySelector("#selectedMoreMenu");
@@ -149,6 +150,9 @@ let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
 let persistTimer = null;
+let pendingPracticeStatePersist = null;
+let practicePersistVersion = 0;
+let practicePersistChain = Promise.resolve(true);
 let selectedQueueLocalId = null;
 let selectedReadyJobId = null;
 let isUploading = false;
@@ -524,6 +528,9 @@ function showSelectedHeader({ eyebrow, title, meta, actions = false, thumbnailDa
   if (selectedStatusControl) {
     selectedStatusControl.hidden = !actions;
   }
+  if (practiceSaveStatus) {
+    practiceSaveStatus.hidden = true;
+  }
   if (selectedMoreMenu) {
     selectedMoreMenu.hidden = true;
   }
@@ -541,6 +548,18 @@ function clearSelection() {
   homeView.classList.remove("detail-open");
   showDetailPane("empty");
   renderSongList();
+}
+
+function setPracticeSaveStatus(state) {
+  if (!practiceSaveStatus) return;
+  const labels = {
+    saving: "Saving...",
+    saved: "Saved",
+    error: "Save failed"
+  };
+  practiceSaveStatus.textContent = labels[state] || labels.saved;
+  practiceSaveStatus.dataset.state = state;
+  practiceSaveStatus.hidden = false;
 }
 
 function openMobileDetail() {
@@ -898,23 +917,8 @@ function removeSection(sectionId) {
   commitSections(sections.filter((section) => section.id !== sectionId));
 }
 
-function queuePracticeStatePersist(refreshLibrary = false) {
-  if (!currentJobId) return;
-
-  if (persistTimer) {
-    window.clearTimeout(persistTimer);
-  }
-
-  persistTimer = window.setTimeout(() => {
-    persistTimer = null;
-    void persistPracticeState(refreshLibrary);
-  }, 200);
-}
-
-async function persistPracticeState(refreshLibrary = false) {
-  if (!currentJobId) return;
-
-  const payload = {
+function practiceStatePayload() {
+  return {
     learningStatus: learningStatusSelect?.value || "not_started",
     playbackRate,
     loopStart: loopInputSeconds(loopStart),
@@ -942,21 +946,73 @@ async function persistPracticeState(refreshLibrary = false) {
       ])
     )
   };
+}
 
+function queuePracticeStatePersist(refreshLibrary = false) {
+  if (!currentJobId) return;
+
+  if (persistTimer) {
+    window.clearTimeout(persistTimer);
+  }
+
+  practicePersistVersion += 1;
+  pendingPracticeStatePersist = {
+    jobId: currentJobId,
+    body: JSON.stringify(practiceStatePayload()),
+    refreshLibrary: refreshLibrary || pendingPracticeStatePersist?.refreshLibrary || false,
+    version: practicePersistVersion
+  };
+  setPracticeSaveStatus("saving");
+
+  persistTimer = window.setTimeout(() => {
+    void flushPendingPracticeState();
+  }, 200);
+}
+
+function flushPendingPracticeState() {
+  if (persistTimer) {
+    window.clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  const pending = pendingPracticeStatePersist;
+  pendingPracticeStatePersist = null;
+  if (!pending) return practicePersistChain;
+
+  practicePersistChain = practicePersistChain.then(
+    () => persistPracticeState(pending),
+    () => persistPracticeState(pending)
+  );
+  return practicePersistChain;
+}
+
+async function persistPracticeState(pending) {
   try {
-    const response = await fetch(`/api/jobs/${currentJobId}/practice-state`, {
+    const response = await fetch(`/api/jobs/${pending.jobId}/practice-state`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
+      body: pending.body
     });
-    if (response.ok) {
-      currentJob = await response.json();
-      if (refreshLibrary) {
-        await loadLibrary();
-      }
+    if (!response.ok) {
+      throw new Error("Could not save practice settings.");
     }
+    const savedJob = await response.json();
+    if (currentJobId === pending.jobId && practicePersistVersion === pending.version) {
+      currentJob = savedJob;
+      setPracticeSaveStatus("saved");
+    }
+    if (pending.refreshLibrary) {
+      await loadLibrary();
+    }
+    return true;
   } catch (error) {
     console.error(error);
+    if (!pendingPracticeStatePersist && practicePersistVersion === pending.version) {
+      pendingPracticeStatePersist = pending;
+    }
+    if (currentJobId === pending.jobId && practicePersistVersion === pending.version) {
+      setPracticeSaveStatus("error");
+    }
+    return false;
   }
 }
 
@@ -1101,7 +1157,7 @@ function renderSongRow(item) {
       void loadJob(item.id);
       return;
     }
-    selectQueueJob(item.queueJob);
+    void selectQueueJob(item.queueJob);
   });
 
   return row;
@@ -1140,6 +1196,7 @@ async function loadLibrary() {
 }
 
 async function loadJob(jobId) {
+  if (!(await flushPendingPracticeState())) return;
   const response = await fetch(`/api/jobs/${jobId}`);
   if (!response.ok) throw new Error("Could not load processed song.");
   const job = await response.json();
@@ -1178,6 +1235,7 @@ function renderCompletedJob(job) {
   if (learningStatusSelect) {
     learningStatusSelect.value = job.practiceState?.learningStatus || "not_started";
   }
+  setPracticeSaveStatus("saved");
   renderSongList();
 }
 
@@ -2619,7 +2677,8 @@ function removeQueueJob(localId) {
   renderSongList();
 }
 
-function selectQueueJob(queueJob) {
+async function selectQueueJob(queueJob) {
+  if (!(await flushPendingPracticeState())) return;
   selectedQueueLocalId = queueJob.localId;
   selectedReadyJobId = null;
   currentJobId = null;
@@ -3426,6 +3485,7 @@ selectedRenameButton.addEventListener("click", async () => {
   const jobId = currentJobId || selectedReadyJobId;
   const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
   if (!jobId || !entry) return;
+  if (!(await flushPendingPracticeState())) return;
 
   const nextName = window.prompt("Rename processed song", entry.originalFilename);
   if (!nextName) return;
@@ -3456,6 +3516,7 @@ selectedDeleteButton.addEventListener("click", async () => {
   const entry = libraryEntries.find((candidate) => candidate.id === jobId) || currentJob;
   if (!jobId || !entry) return;
   if (!window.confirm(`Delete ${entry.originalFilename}?`)) return;
+  if (!(await flushPendingPracticeState())) return;
 
   const response = await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
   if (!response.ok) return;

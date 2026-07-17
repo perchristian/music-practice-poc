@@ -1151,14 +1151,94 @@ Recommended sequence:
 4. Phase 5B.5 before copy/paste, because loop-from-selection and section chord copy need one consistent multi-select model.
 5. Phase 5B.6 last, because it crosses chord editing, section workflows, loop state, keyboard modifiers, and persistence.
 
-Status: Planned from product review on 2026-07-08.
+Status: Phase 5B.1-5B.3 complete; Phase 5B.4-5B.6 remain planned.
+
+## Phase 5C: Data Trust Before Further Practice UX
+
+Goal: Make the app trustworthy across rapid song changes and page reloads before adding more editing gestures.
+
+### Phase 5C.1: Practice-State Save Reliability and Feedback
+
+Deliverables:
+- Persist a snapshot for the song that was edited instead of reading whichever song is selected when the debounce expires.
+- Flush pending changes before switching to another completed or processing song.
+- Show a compact `Saving`, `Saved`, or `Save failed` state in the selected-song header.
+- Prevent an older save response from replacing the visible state for a newly selected song.
+
+Verification:
+- Playwright coverage changes playback speed and immediately opens another song, then confirms the first song retained the change.
+- Coverage confirms the visible status moves from saving to saved and reports a failed request.
+- Run `npm test` and focused GUI coverage.
+- Delete test-created jobs.
+
+Result:
+- Implemented on 2026-07-17 with job-bound JSON snapshots and serialized PUT requests.
+- Pending edits are flushed before opening another completed or processing song; a failed flush retains the pending snapshot and prevents the switch until the save can succeed.
+- The selected-song header exposes `Saving...`, `Saved`, and `Save failed`, and response-version guards prevent stale requests from updating a newly selected song.
+
+Status: Complete on 2026-07-17. Focused Playwright coverage reproduces the former immediate-switch race and covers visible success/failure feedback.
+
+### Phase 5C.2: Persist Active and Failed Jobs Across Reload
+
+Deliverables:
+- Add an API list that includes persisted queued, processing, failed, and complete jobs without changing the completed-library contract.
+- Rebuild active/failed song-list rows from persisted jobs when the page loads.
+- Resume polling an active backend job after a page reload.
+- Keep failed jobs visible after reload with their backend error message and a safe removal action.
+
+Verification:
+- Backend coverage verifies the all-jobs endpoint includes incomplete and failed jobs.
+- Playwright coverage reloads during processing and after failure, then confirms the rows and details remain available.
+- Run `npm test` and focused/full GUI coverage.
+- Delete test-created jobs.
+
+Status: Planned for the current reliability pass.
+
+## Phase 2I: Full-Song Analysis Coverage Without Chord-Logic Changes
+
+Goal: Ensure analysis and the editable chart cover the whole recording while deliberately leaving chord-change selection unchanged.
+
+Deliverables:
+- Remove the current 120-second analysis truncation.
+- Downsample PCM while reading so full-song analysis does not retain full-rate copies of every supporting stem in memory.
+- Replace the 128-event working-chart bottleneck with a much higher defensive limit suitable for full songs.
+- Do not change smoothing, chord vocabulary, chord-change frequency, bass heuristics, or other musical decision logic in this phase.
+
+Verification:
+- A deterministic fixture longer than 120 seconds produces analysis cues beyond 120 seconds.
+- Frontend and backend normalization retain more than 128 valid working-chart events.
+- Existing harmonic known-answer fixtures still pass unchanged.
+
+Status: Planned for the current analysis-integrity pass.
+
+## Phase 2J: Analyzer Suggestions and User Working Chart
+
+Goal: Improve chord usefulness through a human-in-the-loop calibration cycle, without allowing automatic analysis to overwrite user work.
+
+Product model:
+- `job.result.metadata.chords` remains the immutable analyzer suggestion/provenance layer.
+- `practiceState.chordChart` remains the user's authoritative working chart and presentation layer once created.
+- Future UI may reveal additional analyzer suggestions on demand, insert selected suggestions into the working chart, compare suggestions with user edits, and restore the working chart from analysis after explicit confirmation.
+- Raw/dense evidence and the default conservative presentation should be modeled separately when the analyzer is revised; presentation filtering must not destroy the evidence needed for comparison.
+
+Learning loop before implementation:
+1. Choose a small, repeatable set of real songs and expected chord timelines.
+2. Inspect the analyzer suggestions beside the user's corrections.
+3. Classify errors such as false extra changes, missing changes, wrong roots, and wrong qualities.
+4. Adjust one musical heuristic at a time and rerun the same fixtures.
+5. Keep only changes that improve the practice chart across the set, not just one song.
+
+Deferred decisions:
+- How conservative the default chart should be per bar.
+- Whether same-bass evidence should suppress short chord changes.
+- Whether extra analyzer changes appear as optional suggestions, confidence layers, or a comparison mode.
+- Exact `Back to analysis` confirmation/undo behavior.
+- Any learning or training loop based on user edits; first collect comparable data without claiming model learning.
+
+Status: Deliberately deferred until a joint try/fail/learn/adjust calibration session.
 
 ## Next Task
 
-Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
+Complete Phase 5C.1, then Phase 5C.2, then Phase 2I. Stop before Phase 2J chord-logic changes and prepare the current analyzer output plus user working chart for a joint calibration session.
 
-Alternative next section-structure task: start Phase 5B.1, then continue through Phase 5B.2 before Assisted Sections. The product-review issues with the current Flat Sections UX should be fixed before adding automatic section suggestions.
-
-Alternative next product task: implement chord preview and an optional generated chord-instrument stem if audible chord validation is more important than saved practice-loop workflow for the next user test.
-
-Alternative next maintainability task: complete the small internal design system pass before adding more practice controls, especially if mobile usability or CSS drift is starting to slow iteration.
+After this reliability pass, prioritize the compact always-available transport/header/mobile improvements from product review before Phase 5B.4-5B.6 unless user testing shows section resizing or chord copy/paste has higher learning value.

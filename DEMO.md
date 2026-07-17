@@ -143,7 +143,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 23. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
 24. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
 25. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
-26. Reload the page, reopen the song from the unified song list, and confirm those practice settings, section labels, Harmony view settings, and chord edits return.
+26. Change a practice setting and confirm the selected-song header moves from `Saving...` to `Saved`. Reload the page, reopen the song from the unified song list, and confirm those practice settings, section labels, Harmony view settings, and chord edits return.
 27. Rename the selected song from the selected-song header more menu.
 28. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
 29. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update best-effort for the working chart.

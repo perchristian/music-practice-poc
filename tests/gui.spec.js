@@ -9,6 +9,7 @@ test.afterEach(async ({ request }) => {
   const testSongPrefixes = [
     "screen-recording-",
     "phase-one-library-",
+    "save-reliability-",
     "queue-first-",
     "queue-second-",
     "recent-",
@@ -1628,6 +1629,46 @@ test("processed song library reopens songs and persists practice state", async (
     return response.status;
   }, jobId);
   expect(deletedStatus).toBe(404);
+});
+
+test("practice state saves to the edited song before an immediate song switch", async ({ page }) => {
+  const suffix = Date.now();
+  const firstFilename = `save-reliability-first-${suffix}.mov`;
+  const secondFilename = `save-reliability-second-${suffix}.mov`;
+
+  await page.goto("/");
+  const firstJobId = await createProcessedJob(page, firstFilename);
+  const secondJobId = await createProcessedJob(page, secondFilename);
+  await page.reload();
+
+  await page.getByTestId(`song-row-${firstJobId}`).click();
+  await expect(page.getByTestId("selected-song-title")).toHaveText(firstFilename);
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+
+  await page.getByTestId("speed-05").click();
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saving...");
+  await page.getByTestId(`song-row-${secondJobId}`).click();
+  await expect(page.getByTestId("selected-song-title")).toHaveText(secondFilename);
+
+  await expect
+    .poll(async () => {
+      return page.evaluate(async (id) => {
+        const response = await fetch(`/api/jobs/${id}`);
+        return (await response.json()).practiceState.playbackRate;
+      }, firstJobId);
+    })
+    .toBe(0.5);
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+
+  await page.route(`**/api/jobs/${secondJobId}/practice-state`, (route) => {
+    route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "test save failure" }) });
+  });
+  await page.getByTestId("speed-075").click();
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Save failed");
+
+  await page.unroute(`**/api/jobs/${secondJobId}/practice-state`);
+  await page.getByTestId("speed-1").click();
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
 });
 
 test("home upload queue processes multiple files without opening practice", async ({ page }) => {
