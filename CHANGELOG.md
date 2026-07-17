@@ -9,6 +9,17 @@ The project currently uses date-based development milestones rather than numbere
 ### Added
 
 - Added this curated changelog and made changelog maintenance part of the completion criteria for future implementation iterations.
+- Added a gated waveform timing editor where users can zoom, scrub, and drag existing bar lines into persisted downbeat anchors.
+- Added compact real/mock waveform result assets and a shared variable-tempo mapping module.
+
+### Changed
+
+- Displayed BPM now follows the active tempo-map segment, and segment edits move only its next anchored downbeat.
+- Timeline markers, metronome clicks, chord timing, loops, Harmony overlays, and count-in now use the same invertible musical-time map.
+
+### Fixed
+
+- Fixed cumulative click and chord-chart drift on recordings that require more than one tempo segment.
 
 ## 2026-07-17 — Reliability and Full-Song Coverage
 

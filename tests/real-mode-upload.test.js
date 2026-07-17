@@ -359,6 +359,14 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(sourceAudioResponse.status, 200);
     assert.match(sourceAudioResponse.headers.get("content-type"), /^audio\/wav/);
     assert.ok((await sourceAudioResponse.arrayBuffer()).byteLength > 44);
+
+    const waveformResponse = await fetch(`${extractionBaseUrl}${completedJob.result.waveformUrl}`);
+    assert.equal(waveformResponse.status, 200);
+    const waveform = await waveformResponse.json();
+    assert.equal(waveform.version, 1);
+    assert.equal(waveform.durationSeconds, 6);
+    assert.equal(waveform.peaksPerSecond, 80);
+    assert.ok(waveform.peaks.some(([min, max]) => min < 0 || max > 0));
   });
 
   it("aligns first-pass real chord cues to an estimated bar grid", async (t) => {

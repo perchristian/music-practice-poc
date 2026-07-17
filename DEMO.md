@@ -14,7 +14,7 @@ PIPELINE_MODE=mock
 
 Mock mode does not perform real stem separation or transcription. If local demo stems exist at `data/jobs/Bare piano.m4a` and `data/jobs/Uten piano.m4a`, it returns piano and accompaniment stems from those files so piano mute/unmute can be evaluated by ear. If those files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems plus plausible harmonic metadata.
 
-In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, beat/bar timeline markers, grid-aligned metronome click, editable key/meter corrections, editable chord-chart corrections, flat song-section labels, video thumbnail display when the browser can extract a frame, and harmonic display.
+In mock mode, the browser sends selected file metadata instead of uploading the full video bytes. This keeps large iOS screen recordings usable while still exercising multi-file job creation, per-file processing status, the unified song workspace, reusable processed-song library entries, synchronized stem playback, per-stem mute/solo/volume controls, looping, learning status, beat/bar timeline markers over a deterministic waveform, variable-tempo downbeat correction, grid-aligned metronome click, editable key/meter corrections, editable chord-chart corrections, flat song-section labels, video thumbnail display when the browser can extract a frame, and harmonic display.
 
 In real mode, the browser uploads the actual selected file as multipart form data, with a 150 MB POC upload limit. The backend stores the uploaded source media under the job directory, invokes FFmpeg, writes `source-audio.wav` as uncompressed PCM WAV, then runs Demucs `htdemucs_6s` by default to write `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems. It also runs a first-pass dependency-free harmonic analysis across the full `source-audio.wav`, using a reduced-rate analysis representation for memory control: broad onset energy estimates tempo, first downbeat, and a beat/bar grid; beat-length chroma scoring estimates chord cues that can include multiple changes inside a bar when evidence is strong; and roman numerals are generated from the estimated key. Listening on `MakeYouFeelMyLovePart2.mov` showed the piano-removal play-along use case is good enough for the POC, while the solo piano stem can still contain crackle/artifacts.
 
@@ -112,7 +112,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, active and failed job recovery after reload, failed-job removal, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song header more-menu rename/delete, persisted learning status, visible practice-state save feedback, safe immediate song switching, per-stem mute/solo/volume controls, playback speed selection, bar-based loop controls, repeated count-in clicks before offset-correct loop playback starts, saved thumbnail rendering, beat/bar marker rendering, dense timeline marker simplification, metronome click scheduling from the mixer row, editable key/meter corrections including negative Bar 1 start values, compact beat-aligned Harmony chord grid rendering, active loop display and loop-handle dragging in Harmony, editable chord add/edit/drag/drop/delete operations, flat section-label add/rename/remove persistence, persisted Harmony view settings, persistence of user chord edits, preservation of analyzer chord metadata, chord labels, and roman numerals.
+The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, active and failed job recovery after reload, failed-job removal, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song actions, persisted learning/practice state, stem controls, playback speed, loops/count-in, thumbnails, waveform rendering, timing edit-mode gating, edit-only zoom, downbeat drag/persistence, contextual segment BPM, variable-grid chord/loop alignment, beat/bar markers, metronome scheduling, key/meter correction, Harmony chord editing, section labels, and analyzer provenance.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -136,17 +136,21 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 16. Unmute the `Grid click` mixer row, play the song, and listen for whether the click feels aligned with the music.
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
-19. Adjust click volume from the mixer row; downbeat accent is always on for now.
-20. Enable Loop, then change loop start/end and count-in. When the song has a beat grid, loop start/end are whole bars, so `1` means all of Bar 1. With count-in enabled, confirm clicks happen before the loop audio starts and before each repeated loop pass, including after changing `Bar 1 start`.
-21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
-22. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
-23. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
-24. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
-25. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
-26. Change a practice setting and confirm the selected-song header moves from `Saving...` to `Saved`. Reload the page, reopen the song from the unified song list, and confirm those practice settings, section labels, Harmony view settings, and chord edits return.
-27. Rename the selected song from the selected-song header more menu.
-28. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
-29. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update best-effort for the working chart.
+19. Select `Edit timing`. Confirm the timeline grows into a waveform editor and the normal timeline could not be edited before entering this mode.
+20. Increase `Zoom`, horizontally scroll to a known downbeat, and drag its existing numbered bar line onto the visible audio event. Use the ±0.01-second controls for fine adjustment if needed.
+21. Confirm the moved bar line becomes an adjusted marker, the displayed BPM reflects that segment, and click/chord timing updates immediately. Add another correction later in the song if the click drifts again.
+22. Select `Done`, reload, reopen the song, and confirm the timing corrections return. Re-enter the editor and use `Reset tempo map` from Bar 1 only when intentionally returning to the constant-tempo grid.
+23. Adjust click volume from the mixer row; downbeat accent is always on for now.
+24. Enable Loop, then change loop start/end and count-in. When the song has a beat grid, loop start/end are whole bars, so `1` means all of Bar 1. With count-in enabled, confirm clicks happen before the loop audio starts and before each repeated loop pass, including after timing corrections.
+25. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header. Time signature and `/2`/`x2` are intentionally disabled while a tempo map exists.
+26. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
+27. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
+28. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
+29. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
+30. Change a practice setting and confirm the selected-song header moves from `Saving...` to `Saved`. Reload the page, reopen the song from the unified song list, and confirm those practice settings, timing anchors, section labels, Harmony view settings, and chord edits return.
+31. Rename the selected song from the selected-song header more menu.
+32. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
+33. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update best-effort for the working chart.
 
 ## Real-Mode Separation Smoke
 
@@ -165,13 +169,14 @@ npm run generate:test-media
 8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
 10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
-11. Enable Loop, set start/end as whole bars, enable 1-bar count-in, and confirm loop playback starts at the correct audio point after `Bar 1 start` correction and uses count-in again on repeated passes.
-12. Confirm the beat markers update immediately after grid correction and the Harmony chart remains expressed as musical grid placement rather than visible seconds ranges. On long songs, confirm the timeline remains readable by showing fewer bar numbers instead of overlapping every label.
-13. Edit at least one chord label, add one section label, resize one chord by dragging its right edge, reload the page, reopen the song, and confirm the corrected BPM, bar 1 start, time signature, key, loop bars, section labels, and chord chart persist.
-14. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
-15. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
-16. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
-17. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav` and the stem WAV files exist with nonzero size.
+11. If the click later drifts, enter `Edit timing`, zoom to a recognizable downbeat, and drag that numbered bar line onto the waveform event. Repeat only at important later drift/tempo-change points.
+12. Enable Loop, set start/end as whole bars, enable 1-bar count-in, and confirm loop playback starts at the corrected mapped bar boundary and uses mapped count-in timing again on repeated passes.
+13. Confirm beat markers and chord highlighting update immediately after timing correction while Harmony remains expressed in musical bars/beats rather than visible seconds.
+14. Edit at least one chord label, add one section label, resize one chord, reload, reopen the song, and confirm BPM/grid seed, timing anchors, key, loop bars, sections, and chord chart persist.
+15. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
+16. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+17. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
+18. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav`, `waveform.json`, and the stem WAV files exist with nonzero size.
 
 `source-audio.wav` is intentionally kept in each real-mode job directory so it can be compared against the original upload and the separated stems. The FFmpeg extraction step writes uncompressed `pcm_s16le` WAV rather than MP3/AAC, so compression artifacts heard after separation are more likely from the original screen recording or the separator than from FFmpeg's source-audio extraction.
 
@@ -248,6 +253,7 @@ These files are generated in-repo, are not commercial recordings, and do not inc
 - Real transcription is not implemented yet.
 - Chord editing is a lightweight chart editor. It preserves user text and recalculates roman numerals best-effort, but it is not a full music-notation parser.
 - Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 start, time signature, key, and chord labels can be corrected manually; the chord editor is still a compact POC editor, not full music notation.
+- Variable timing uses constant tempo inside each span between sparse downbeat anchors. Expressive accelerando/ritardando may need several anchors; smooth curves, per-beat warping, mid-song meter changes, and automatic transient snapping are not implemented.
 - Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.
 - Browser stem playback uses synchronized HTML audio elements, which is sufficient for the POC but not sample-accurate.

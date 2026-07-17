@@ -28,6 +28,16 @@ import {
   sectionDisplayText,
   updateSectionInList
 } from "./section-ranges.js";
+import {
+  absoluteBeatToSeconds,
+  enumerateBeatTimes,
+  localTempoAtSeconds,
+  musicalPositionToSeconds,
+  normalizeTempoMap,
+  secondsToAbsoluteBeat,
+  tempoMapWithAnchor,
+  tempoMapWithoutAnchor
+} from "./tempo-map.js";
 
 const serviceStatus = document.querySelector("#serviceStatus");
 const pipelineEyebrow = document.querySelector("#pipelineEyebrow");
@@ -68,6 +78,19 @@ const playButton = document.querySelector("#playButton");
 const backToStartButton = document.querySelector("#backToStartButton");
 const scrubber = document.querySelector("#scrubber");
 const gridTimeline = document.querySelector("#gridTimeline");
+const timelineViewport = document.querySelector("#timelineViewport");
+const timelineTrack = document.querySelector("#timelineTrack");
+const waveformCanvas = document.querySelector("#waveformCanvas");
+const editTimingButton = document.querySelector("#editTimingButton");
+const timingEditorControls = document.querySelector("#timingEditorControls");
+const timingZoom = document.querySelector("#timingZoom");
+const timingFitButton = document.querySelector("#timingFitButton");
+const timingDoneButton = document.querySelector("#timingDoneButton");
+const timingAnchorControls = document.querySelector("#timingAnchorControls");
+const timingAnchorLabel = document.querySelector("#timingAnchorLabel");
+const timingNudgeLeft = document.querySelector("#timingNudgeLeft");
+const timingNudgeRight = document.querySelector("#timingNudgeRight");
+const timingRemoveAnchor = document.querySelector("#timingRemoveAnchor");
 const speedControls = document.querySelector("#speedControls");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
@@ -139,6 +162,7 @@ let currentJob = null;
 let currentJobId = null;
 let currentAnalyzedMetadata = null;
 let gridOverrides = {};
+let tempoMap = null;
 let keyOverride = null;
 let chordChart = null;
 let sections = [];
@@ -150,6 +174,13 @@ let loopDragState = null;
 let metronomeEnabled = false;
 let metronomeSolo = false;
 let metronomeVolume = 0.45;
+let waveformData = null;
+let waveformLoadId = 0;
+let timingEditMode = false;
+let timingZoomFactor = 1;
+let selectedTimingAnchorBar = null;
+let timingDragState = null;
+let suppressTimelineClick = false;
 let persistTimer = null;
 let pendingPracticeStatePersist = null;
 let practicePersistVersion = 0;
@@ -335,13 +366,15 @@ function effectiveMetadata(metadata) {
       beatDurationSeconds,
       beatsPerBar,
       beatUnit,
-      downbeatOffsetSeconds
+      downbeatOffsetSeconds,
+      tempoMap
     }
     : null;
   const hasTimingGridOverride =
     Boolean(roundedBpm(gridOverrides.bpm)) ||
     Boolean(gridOverrides.beatsPerBar || gridOverrides.beatUnit) ||
-    hasGridOverride(gridOverrides, "downbeatOffsetSeconds");
+    hasGridOverride(gridOverrides, "downbeatOffsetSeconds") ||
+    Boolean(tempoMap);
   const chartChords = chordChartToCues(chordChart, effectiveGrid, key);
   const sourceChords = chartChords || metadata.chords || [];
   const chords = sourceChords.map((chord) => ({
@@ -372,6 +405,7 @@ function effectiveMetadata(metadata) {
       downbeatOffsetSeconds,
       meter: { beatsPerBar, beatUnit },
       timeSignature: { beatsPerBar, beatUnit },
+      tempoMap,
       tempoOverride: Boolean(roundedBpm(gridOverrides.bpm)),
       gridOverride: Object.keys(gridOverrides).length > 0
     }
@@ -387,6 +421,7 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
   const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
   const downbeatOffsetSeconds = Number(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0) || 0;
+  const effectiveTempoMap = normalizeTempoMap(grid.tempoMap);
   const metadataDuration = Number(metadata?.durationSeconds ?? metadata?.duration);
   const chordDuration = Math.max(0, ...(metadata?.chords || []).map((chord) => Number(chord.end) || 0));
   const durationSeconds = [durationFallback, metadataDuration, chordDuration]
@@ -401,6 +436,7 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
     beatUnit,
     beatDurationSeconds,
     downbeatOffsetSeconds,
+    tempoMap: effectiveTempoMap,
     durationSeconds
   };
 }
@@ -598,14 +634,15 @@ function loopSecondsFromValue(value, mode = loopMode(), edge = "start") {
   const grid = currentLoopGrid();
   if (!grid) return boundTransportTime(numericValue);
   const barPosition = Math.max(1, Math.round(numericValue));
-  const beatOffset = (edge === "end" ? barPosition : barPosition - 1) * grid.beatsPerBar;
-  return boundTransportTime(grid.downbeatOffsetSeconds + beatOffset * grid.beatDurationSeconds);
+  const boundaryBar = edge === "end" ? barPosition + 1 : barPosition;
+  return boundTransportTime(musicalPositionToSeconds(grid, { bar: boundaryBar, beat: 1 }));
 }
 
 function loopBarPositionFromSeconds(seconds, edge = "start") {
   const grid = currentLoopGrid();
   if (!grid) return null;
-  const beatOffset = (Number(seconds) - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
+  const beatOffset = secondsToAbsoluteBeat(grid, Number(seconds));
+  if (!Number.isFinite(beatOffset)) return null;
   const barOffset = beatOffset / grid.beatsPerBar;
   return edge === "end"
     ? Math.max(1, Math.ceil(barOffset - 0.001))
@@ -932,6 +969,7 @@ function practiceStatePayload() {
     metronomeAccent: true,
     metronomeSolo,
     gridOverrides,
+    tempoMap,
     keyOverride,
     chordChart,
     sections,
@@ -1020,6 +1058,7 @@ async function persistPracticeState(pending) {
 function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
   gridOverrides = normalizedGridOverrides(state);
+  tempoMap = normalizeTempoMap(state.tempoMap);
   keyOverride = normalizedKeyOverride(state);
   chordChart = normalizedChordChart(state);
   sections = normalizedSections(state);
@@ -1226,6 +1265,7 @@ function renderCompletedJob(job) {
     ? job.result.stems
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
   gridOverrides = normalizedGridOverrides(job.practiceState);
+  tempoMap = normalizeTempoMap(job.practiceState?.tempoMap);
   keyOverride = normalizedKeyOverride(job.practiceState);
   chordChart = normalizedChordChart(job.practiceState);
   showSelectedHeader({
@@ -1246,6 +1286,8 @@ function renderCompletedJob(job) {
   }
   setPracticeSaveStatus("saved");
   renderSongList();
+  setTimingEditMode(false);
+  void loadWaveform(job.result.waveformUrl);
 }
 
 function renderMetadata(metadata) {
@@ -1285,8 +1327,8 @@ function activeLoopBeatRange(grid) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
 
   return {
-    startBeat: Math.max(0, (start - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds),
-    endBeat: Math.max(0, (end - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds)
+    startBeat: Math.max(0, secondsToAbsoluteBeat(grid, start)),
+    endBeat: Math.max(0, secondsToAbsoluteBeat(grid, end))
   };
 }
 
@@ -1329,8 +1371,9 @@ function renderChordGrid(chords, grid) {
     entriesByBar.set(hit.bar, row);
   });
 
-  const gridBarCount = chartGrid.durationSeconds && chartGrid.beatDurationSeconds
-    ? Math.ceil(Math.max(1, (chartGrid.durationSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds) / beatsPerBar)
+  const finalBeat = chartGrid.durationSeconds ? secondsToAbsoluteBeat(chartGrid, chartGrid.durationSeconds) : null;
+  const gridBarCount = Number.isFinite(finalBeat)
+    ? Math.ceil(Math.max(1, finalBeat) / beatsPerBar)
     : 1;
   for (const section of sections) {
     highestSectionBar = Math.max(highestSectionBar, section.endBar);
@@ -1850,12 +1893,25 @@ function updateKeyControl() {
 function updateTempoControl() {
   if (!tempoControl || !tempoDisplay || !currentMetadata) return;
 
-  const label = tempoLabel(currentMetadata);
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const selectedSegment = timingEditMode && grid ? activeTempoAnchorSegment() : null;
+  const selectedSegmentBpm = selectedSegment?.right
+    ? ((selectedSegment.right.bar - selectedSegment.left.bar) * grid.beatsPerBar * 60) /
+      (selectedSegment.right.timeSeconds - selectedSegment.left.timeSeconds)
+    : null;
+  const contextualBpm = tempoMap && grid
+    ? selectedSegmentBpm || localTempoAtSeconds(grid, transportTime())
+    : null;
+  const displayBpm = roundedBpm(contextualBpm) || roundedBpm(currentMetadata.beatGrid?.bpm);
+  const label = displayBpm ? `${displayBpm} BPM` : "";
   tempoControl.hidden = !label;
   tempoDisplay.textContent = label || "Tempo";
-  tempoDisplay.classList.toggle("overridden", Boolean(roundedBpm(gridOverrides.bpm)));
+  tempoDisplay.classList.toggle("overridden", Boolean(roundedBpm(gridOverrides.bpm)) || Boolean(tempoMap));
+  tempoDisplay.setAttribute("aria-label", tempoMap ? "Edit tempo for current segment" : "Edit tempo");
+  if (tempoHalf) tempoHalf.disabled = Boolean(tempoMap);
+  if (tempoDouble) tempoDouble.disabled = Boolean(tempoMap);
   if (tempoInput && document.activeElement !== tempoInput) {
-    tempoInput.value = roundedBpm(currentMetadata.beatGrid?.bpm) || "";
+    tempoInput.value = displayBpm || "";
   }
 }
 
@@ -1864,11 +1920,65 @@ function updateSelectedSongMeta() {
   selectedSongMeta.textContent = `${formatActivityTime(currentJob.createdAt)} - ${jobDurationLabel(currentJob)} - ${keyTempoLabel(currentMetadata)}`;
 }
 
+function activeTempoAnchorSegment() {
+  const anchors = tempoMap?.anchors || [];
+  if (!anchors.length) return null;
+
+  const selectedIndex = anchors.findIndex((anchor) => anchor.bar === selectedTimingAnchorBar);
+  if (timingEditMode && selectedIndex >= 0) {
+    if (selectedIndex > 0) return { left: anchors[selectedIndex - 1], right: anchors[selectedIndex] };
+    if (anchors[1]) return { left: anchors[0], right: anchors[1] };
+    return { left: anchors[0], right: null };
+  }
+
+  const time = transportTime();
+  if (time < anchors[0].timeSeconds) {
+    return { left: anchors[0], right: anchors[1] || null };
+  }
+  for (let index = 0; index < anchors.length - 1; index += 1) {
+    if (time < anchors[index + 1].timeSeconds) {
+      return { left: anchors[index], right: anchors[index + 1] };
+    }
+  }
+  return { left: anchors.at(-1), right: null };
+}
+
 function applyTempoOverride(nextBpm) {
   const bpm = roundedBpm(nextBpm);
   if (!bpm || !currentAnalyzedMetadata) return;
 
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const segment = tempoMap && grid ? activeTempoAnchorSegment() : null;
+  if (segment) {
+    const rightBar = segment.right?.bar || segment.left.bar + 1;
+    const beatCount = (rightBar - segment.left.bar) * grid.beatsPerBar;
+    const nextRightTime = segment.left.timeSeconds + beatCount * (60 / bpm);
+    const nextMap = tempoMapWithAnchor(tempoMap, {
+      bar: rightBar,
+      timeSeconds: nextRightTime
+    });
+    if (nextMap) {
+      commitTempoMap(nextMap, rightBar);
+    } else {
+      updateTempoControl();
+    }
+    return;
+  }
+
   applyGridOverrides({ bpm });
+}
+
+function commitTempoMap(nextMap, selectedBar = selectedTimingAnchorBar) {
+  tempoMap = normalizeTempoMap(nextMap);
+  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === selectedBar) ? selectedBar : null;
+  if (currentJob?.practiceState) {
+    currentJob.practiceState.tempoMap = tempoMap;
+  }
+  resetMetronomeSchedule();
+  renderMetadata(currentAnalyzedMetadata);
+  updateSelectedSongMeta();
+  updateTimingAnchorControls();
+  queuePracticeStatePersist();
 }
 
 function applyGridOverrides(nextOverrides = {}) {
@@ -1916,11 +2026,23 @@ function updateGridCorrectionControls() {
   if (meterSelect && document.activeElement !== meterSelect) {
     meterSelect.value = timeSignatureValue(effectiveGrid);
   }
+  if (meterSelect) {
+    meterSelect.disabled = Boolean(tempoMap);
+    meterSelect.title = tempoMap ? "Remove timing corrections before changing time signature." : "";
+  }
 }
 
 function applyBarStartFromInput() {
   const seconds = roundedSeconds(barStartInput?.value, minBarStartSeconds, maxBarStartSeconds);
   if (seconds === null) return;
+  if (tempoMap) {
+    const nextMap = tempoMapWithAnchor(tempoMap, { bar: 1, timeSeconds: seconds });
+    if (nextMap) {
+      gridOverrides = normalizedGridOverrides({ gridOverrides: { ...gridOverrides, downbeatOffsetSeconds: seconds } });
+      commitTempoMap(nextMap, 1);
+    }
+    return;
+  }
   applyGridOverrides({ downbeatOffsetSeconds: seconds });
 }
 
@@ -1935,14 +2057,19 @@ function nudgeGridValue(target, delta) {
       : defaults.downbeatOffsetSeconds;
     const next = roundedSeconds(current + step, minBarStartSeconds, maxBarStartSeconds);
     if (next !== null) {
-      applyGridOverrides({ downbeatOffsetSeconds: next });
+      if (tempoMap) {
+        placeTimingAnchor(1, next);
+      } else {
+        applyGridOverrides({ downbeatOffsetSeconds: next });
+      }
     }
   }
 }
 
 function openTempoInput() {
   if (!tempoInput || !tempoDisplay || !currentMetadata) return;
-  tempoInput.value = roundedBpm(currentMetadata.beatGrid?.bpm) || "";
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  tempoInput.value = roundedBpm(tempoMap && grid ? localTempoAtSeconds(grid, transportTime()) : currentMetadata.beatGrid?.bpm) || "";
   tempoInput.hidden = false;
   tempoDisplay.hidden = true;
   tempoInput.focus();
@@ -1958,18 +2085,232 @@ function closeTempoInput(commit = false) {
   tempoDisplay.hidden = false;
 }
 
+async function loadWaveform(url) {
+  const requestId = ++waveformLoadId;
+  waveformData = null;
+  drawWaveform();
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Waveform unavailable.");
+    const payload = await response.json();
+    if (
+      requestId !== waveformLoadId ||
+      Number(payload?.version) !== 1 ||
+      !Number.isFinite(Number(payload?.durationSeconds)) ||
+      !Array.isArray(payload?.peaks)
+    ) {
+      return;
+    }
+    waveformData = payload;
+    drawWaveform();
+  } catch (error) {
+    if (requestId === waveformLoadId) {
+      console.error(error);
+    }
+  }
+}
+
+function drawWaveform() {
+  if (!waveformCanvas || !timelineTrack) return;
+  const cssWidth = Math.max(1, timelineTrack.clientWidth || timelineViewport?.clientWidth || 720);
+  const cssHeight = Math.max(1, timelineTrack.clientHeight || 58);
+  const pixelRatio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const width = Math.max(1, Math.min(16384, Math.round(cssWidth * pixelRatio)));
+  const height = Math.max(1, Math.round(cssHeight * pixelRatio));
+  if (waveformCanvas.width !== width) waveformCanvas.width = width;
+  if (waveformCanvas.height !== height) waveformCanvas.height = height;
+
+  const context = waveformCanvas.getContext("2d");
+  if (!context) return;
+  context.clearRect(0, 0, width, height);
+  const peaks = waveformData?.peaks;
+  if (!Array.isArray(peaks) || !peaks.length) return;
+
+  const middle = height / 2;
+  context.fillStyle = "rgba(15, 118, 110, 0.58)";
+  for (let x = 0; x < width; x += 1) {
+    const startIndex = Math.floor((x / width) * peaks.length);
+    const endIndex = Math.max(startIndex + 1, Math.ceil(((x + 1) / width) * peaks.length));
+    let min = 0;
+    let max = 0;
+    for (let index = startIndex; index < Math.min(peaks.length, endIndex); index += 1) {
+      min = Math.min(min, Number(peaks[index]?.[0]) || 0);
+      max = Math.max(max, Number(peaks[index]?.[1]) || 0);
+    }
+    const top = middle - max * middle * 0.88;
+    const bottom = middle - min * middle * 0.88;
+    context.fillRect(x, top, 1, Math.max(1, bottom - top));
+  }
+}
+
+function updateTimelineTrackSize({ preserveCenter = true } = {}) {
+  if (!timelineTrack || !timelineViewport) return;
+  const previousWidth = timelineTrack.clientWidth || timelineViewport.clientWidth;
+  const previousCenter = timelineViewport.scrollLeft + timelineViewport.clientWidth / 2;
+  const centerRatio = previousWidth > 0 ? previousCenter / previousWidth : 0;
+  timelineTrack.style.width = timingEditMode ? `${Math.max(1, timingZoomFactor) * 100}%` : "100%";
+  requestAnimationFrame(() => {
+    if (preserveCenter && timingEditMode) {
+      timelineViewport.scrollLeft = Math.max(0, centerRatio * timelineTrack.clientWidth - timelineViewport.clientWidth / 2);
+    }
+    drawWaveform();
+    if (currentMetadata) renderGridTimeline(currentMetadata);
+  });
+}
+
+function setTimingEditMode(enabled) {
+  timingEditMode = Boolean(enabled && currentMetadata);
+  timingViewportState();
+  if (!timingEditMode) {
+    timingZoomFactor = 1;
+    selectedTimingAnchorBar = null;
+    timingDragState = null;
+    if (timingZoom) timingZoom.value = "1";
+    if (timelineViewport) timelineViewport.scrollLeft = 0;
+  }
+  updateTimelineTrackSize({ preserveCenter: timingEditMode });
+  updateTimingAnchorControls();
+}
+
+function timingViewportState() {
+  timelineViewport?.classList.toggle("editing", timingEditMode);
+  if (editTimingButton) editTimingButton.hidden = timingEditMode || !currentMetadata;
+  if (timingEditorControls) timingEditorControls.hidden = !timingEditMode;
+  gridTimeline?.setAttribute("aria-label", timingEditMode
+    ? "Editable beat and bar grid over waveform"
+    : "Beat and bar grid");
+}
+
+function selectedTimingAnchor() {
+  return tempoMap?.anchors.find((anchor) => anchor.bar === selectedTimingAnchorBar) || null;
+}
+
+function updateTimingAnchorControls() {
+  const anchor = selectedTimingAnchor();
+  const visible = timingEditMode && Boolean(anchor);
+  if (timingAnchorControls) timingAnchorControls.hidden = !visible;
+  if (!visible) {
+    if (currentMetadata) updateTempoControl();
+    return;
+  }
+  if (timingAnchorLabel) {
+    timingAnchorLabel.textContent = `Bar ${anchor.bar} · ${anchor.timeSeconds.toFixed(3)}s`;
+  }
+  if (timingRemoveAnchor) {
+    timingRemoveAnchor.disabled = false;
+    timingRemoveAnchor.textContent = anchor.bar === 1 ? "Reset tempo map" : "Remove correction";
+  }
+  updateTempoControl();
+}
+
+function baseTempoMapForEditing(grid) {
+  if (tempoMap) return tempoMap;
+  const barOneSeconds = musicalPositionToSeconds(grid, { bar: 1, beat: 1 });
+  return normalizeTempoMap({
+    version: 1,
+    anchors: [{ bar: 1, timeSeconds: barOneSeconds }]
+  });
+}
+
+function placeTimingAnchor(bar, timeSeconds) {
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!grid) return false;
+  const startingMap = baseTempoMapForEditing(grid);
+  const nextMap = tempoMapWithAnchor(startingMap, { bar, timeSeconds });
+  if (!nextMap) return false;
+  if (bar === 1) {
+    gridOverrides = normalizedGridOverrides({
+      gridOverrides: { ...gridOverrides, downbeatOffsetSeconds: timeSeconds }
+    });
+    if (currentJob?.practiceState) currentJob.practiceState.gridOverrides = gridOverrides;
+  }
+  commitTempoMap(nextMap, bar);
+  return true;
+}
+
+function nudgeSelectedTimingAnchor(deltaSeconds) {
+  const anchor = selectedTimingAnchor();
+  if (!anchor) return;
+  placeTimingAnchor(anchor.bar, anchor.timeSeconds + Number(deltaSeconds));
+}
+
+function removeSelectedTimingAnchor() {
+  const anchor = selectedTimingAnchor();
+  if (!anchor) return;
+  if (anchor.bar === 1) {
+    commitTempoMap(null, null);
+    return;
+  }
+  commitTempoMap(tempoMapWithoutAnchor(tempoMap, anchor.bar), null);
+}
+
+function timelineSecondsForClientX(clientX) {
+  if (!timelineTrack) return 0;
+  const rect = timelineTrack.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
+  return ratio * transportDuration();
+}
+
+function beginTimingMarkerDrag(event, marker) {
+  if (!timingEditMode || !marker?.classList.contains("downbeat")) return;
+  const bar = Number(marker.dataset.bar);
+  if (!Number.isInteger(bar) || bar < 1) return;
+  event.preventDefault();
+  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === bar) ? bar : null;
+  timingDragState = {
+    pointerId: event.pointerId,
+    bar,
+    marker,
+    startX: event.clientX,
+    moved: false,
+    previewSeconds: Number(marker.dataset.time)
+  };
+  marker.setPointerCapture?.(event.pointerId);
+  marker.classList.add("selected");
+  updateTimingAnchorControls();
+}
+
+function updateTimingMarkerDrag(event) {
+  if (!timingDragState || event.pointerId !== timingDragState.pointerId) return;
+  const seconds = timelineSecondsForClientX(event.clientX);
+  timingDragState.moved ||= Math.abs(event.clientX - timingDragState.startX) > 2;
+  timingDragState.previewSeconds = seconds;
+  timingDragState.marker.style.left = `${timelinePercent(seconds)}%`;
+}
+
+function finishTimingMarkerDrag(event, cancelled = false) {
+  if (!timingDragState || event.pointerId !== timingDragState.pointerId) return;
+  const state = timingDragState;
+  timingDragState = null;
+  if (!cancelled && state.moved) {
+    suppressTimelineClick = true;
+    window.setTimeout(() => {
+      suppressTimelineClick = false;
+    }, 0);
+    if (!placeTimingAnchor(state.bar, state.previewSeconds)) {
+      renderGridTimeline(currentMetadata);
+    }
+  } else {
+    selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === state.bar) ? state.bar : null;
+    renderGridTimeline(currentMetadata);
+    updateTimingAnchorControls();
+  }
+}
+
 function renderGridTimeline(metadata) {
   if (!gridTimeline) return;
+
+  timingViewportState();
 
   const grid = normalizedBeatGrid(metadata, transportDuration());
   gridTimeline.replaceChildren();
   gridTimeline.classList.toggle("empty", !grid);
   if (!grid) return;
 
-  const startBeatIndex = Math.floor((0 - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) - 1;
-  const endBeatIndex = Math.ceil((grid.durationSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds) + 1;
-  const timelineWidth = gridTimeline.clientWidth || 720;
-  const visibleBeatCount = Math.max(1, endBeatIndex - startBeatIndex + 1);
+  const beats = enumerateBeatTimes(grid, 0, grid.durationSeconds, { paddingBeats: 1 });
+  const timelineWidth = timelineTrack?.clientWidth || gridTimeline.clientWidth || 720;
+  const visibleBeatCount = Math.max(1, beats.length);
   const beatSpacing = timelineWidth / visibleBeatCount;
   const showBeatMarkers = beatSpacing >= 4;
   const downbeatCount = Math.max(1, Math.ceil(visibleBeatCount / grid.beatsPerBar));
@@ -1978,8 +2319,7 @@ function renderGridTimeline(metadata) {
     ? 1
     : 2 ** Math.ceil(Math.log2(rawBarLabelInterval));
 
-  for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
-    const time = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
+  for (const { beatIndex, timeSeconds: time } of beats) {
     if (time < 0 || time > grid.durationSeconds) continue;
 
     const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
@@ -1995,6 +2335,15 @@ function renderGridTimeline(metadata) {
 
     if (isDownbeat) {
       const barNumber = Math.floor(beatIndex / grid.beatsPerBar) + 1;
+      marker.dataset.bar = String(barNumber);
+      const anchored = tempoMap?.anchors.some((anchor) => anchor.bar === barNumber);
+      marker.classList.toggle("anchored", Boolean(anchored));
+      marker.classList.toggle("selected", barNumber === selectedTimingAnchorBar);
+      if (timingEditMode) {
+        marker.tabIndex = 0;
+        marker.setAttribute("role", "button");
+        marker.setAttribute("aria-label", `${anchored ? "Adjusted" : "Calculated"} downbeat for bar ${barNumber}`);
+      }
       const label = document.createElement("span");
       label.textContent = String(barNumber);
       if (barNumber === 1 || (barNumber > 0 && (barNumber - 1) % barLabelInterval === 0)) {
@@ -2006,6 +2355,7 @@ function renderGridTimeline(metadata) {
   }
 
   renderTimelineIndicators();
+  drawWaveform();
 }
 
 function cancelScheduledMetronomeAudio() {
@@ -2121,14 +2471,21 @@ function loopCountInConfig() {
   if (!grid) return null;
 
   const beats = Math.max(1, Math.round(bars * grid.beatsPerBar));
-  const durationSeconds = beats * grid.beatDurationSeconds;
+  const targetBeatIndex = Math.round(secondsToAbsoluteBeat(grid, start));
+  const firstBeatIndex = targetBeatIndex - beats;
+  const firstBeatTime = absoluteBeatToSeconds(grid, firstBeatIndex);
+  const targetBeatTime = absoluteBeatToSeconds(grid, targetBeatIndex);
+  const clickOffsetsSeconds = Array.from({ length: beats }, (_, index) =>
+    Math.max(0, absoluteBeatToSeconds(grid, firstBeatIndex + index) - firstBeatTime)
+  );
+  const durationSeconds = Math.max(0.05, targetBeatTime - firstBeatTime);
   return {
     targetTime: boundTransportTime(start),
     beats,
     durationSeconds,
-    beatDurationSeconds: grid.beatDurationSeconds,
+    clickOffsetsSeconds,
     beatsPerBar: grid.beatsPerBar,
-    targetBeatIndex: Math.round((start - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds)
+    targetBeatIndex
   };
 }
 
@@ -2138,7 +2495,7 @@ function scheduleLoopCountInClicks(config) {
   for (let index = 0; index < config.beats; index += 1) {
     const beatIndex = firstBeatIndex + index;
     const beatWithinBar = ((beatIndex % config.beatsPerBar) + config.beatsPerBar) % config.beatsPerBar;
-    const delaySeconds = (index * config.beatDurationSeconds) / Math.max(0.1, playbackRate);
+    const delaySeconds = config.clickOffsetsSeconds[index] / Math.max(0.1, playbackRate);
     playMetronomeClick(delaySeconds, beatWithinBar === 0);
   }
 }
@@ -2176,7 +2533,7 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
   if (!grid) return;
 
   const lookaheadSeconds = 0.45;
-  const startBeatIndex = Math.floor((currentTime - grid.downbeatOffsetSeconds - 0.04) / grid.beatDurationSeconds);
+  const startBeatIndex = Math.floor(secondsToAbsoluteBeat(grid, currentTime - 0.04));
   const loopStartSeconds = loopInputSeconds(loopStart);
   const loopEndSeconds = loopInputSeconds(loopEnd);
   const hasActiveLoop =
@@ -2187,10 +2544,10 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
     currentTime >= loopStartSeconds - 0.02 &&
     currentTime < loopEndSeconds;
   const scheduleEndTime = hasActiveLoop ? Math.min(grid.durationSeconds, loopEndSeconds) : grid.durationSeconds;
-  const endBeatIndex = Math.ceil((currentTime + lookaheadSeconds * playbackRate - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds);
+  const endBeatIndex = Math.ceil(secondsToAbsoluteBeat(grid, currentTime + lookaheadSeconds * playbackRate));
 
   for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
-    const beatTime = grid.downbeatOffsetSeconds + beatIndex * grid.beatDurationSeconds;
+    const beatTime = absoluteBeatToSeconds(grid, beatIndex);
     if (beatTime < 0 || beatTime < currentTime - 0.06 || beatTime >= scheduleEndTime) continue;
     const key = `${beatIndex}:${Math.round(beatTime * 1000)}`;
     if (scheduledMetronomeBeats.has(key)) continue;
@@ -2248,6 +2605,7 @@ function updateTimeDisplay() {
   }
 
   renderTimelineIndicators();
+  if (tempoMap) updateTempoControl();
 }
 
 function highlightCurrentChord() {
@@ -3121,6 +3479,48 @@ scrubber.addEventListener("input", () => {
 scrubber.addEventListener("change", () => {
   setTransportTime(Number(scrubber.value));
   isSeeking = false;
+});
+
+editTimingButton?.addEventListener("click", () => setTimingEditMode(true));
+timingDoneButton?.addEventListener("click", () => setTimingEditMode(false));
+timingFitButton?.addEventListener("click", () => {
+  timingZoomFactor = 1;
+  if (timingZoom) timingZoom.value = "1";
+  if (timelineViewport) timelineViewport.scrollLeft = 0;
+  updateTimelineTrackSize({ preserveCenter: false });
+});
+timingZoom?.addEventListener("input", () => {
+  timingZoomFactor = Math.max(1, Number(timingZoom.value) || 1);
+  updateTimelineTrackSize();
+});
+timingNudgeLeft?.addEventListener("click", () => nudgeSelectedTimingAnchor(-0.01));
+timingNudgeRight?.addEventListener("click", () => nudgeSelectedTimingAnchor(0.01));
+timingRemoveAnchor?.addEventListener("click", removeSelectedTimingAnchor);
+
+gridTimeline?.addEventListener("pointerdown", (event) => {
+  const marker = event.target.closest(".grid-marker.downbeat");
+  if (marker) beginTimingMarkerDrag(event, marker);
+});
+gridTimeline?.addEventListener("pointermove", updateTimingMarkerDrag);
+gridTimeline?.addEventListener("pointerup", (event) => finishTimingMarkerDrag(event));
+gridTimeline?.addEventListener("pointercancel", (event) => finishTimingMarkerDrag(event, true));
+gridTimeline?.addEventListener("click", (event) => {
+  if (!timingEditMode || suppressTimelineClick || event.target.closest(".grid-marker.downbeat")) return;
+  setTransportTime(timelineSecondsForClientX(event.clientX));
+});
+gridTimeline?.addEventListener("keydown", (event) => {
+  const marker = event.target.closest(".grid-marker.downbeat");
+  if (!timingEditMode || !marker || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  const bar = Number(marker.dataset.bar);
+  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === bar) ? bar : null;
+  renderGridTimeline(currentMetadata);
+  updateTimingAnchorControls();
+});
+
+window.addEventListener("resize", () => {
+  drawWaveform();
+  if (currentMetadata) renderGridTimeline(currentMetadata);
 });
 
 stemMixer.addEventListener("click", (event) => {

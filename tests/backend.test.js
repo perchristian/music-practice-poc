@@ -102,6 +102,22 @@ describe("mock backend", () => {
     assert.equal(completedJob.result.metadata.key.tonic, "C");
     assert.equal(completedJob.result.metadata.beatGrid.bpm, 60);
     assert.equal(completedJob.result.metadata.beatGrid.beatsPerBar, 4);
+    assert.match(completedJob.result.waveformUrl, /waveform\.json$/);
+
+    const waveformResponse = await fetch(`${baseUrl}${completedJob.result.waveformUrl}`);
+    assert.equal(waveformResponse.status, 200);
+    const waveformBody = await waveformResponse.text();
+    assert.ok(Buffer.byteLength(waveformBody) < 500_000);
+    const waveform = JSON.parse(waveformBody);
+    assert.equal(waveform.version, 1);
+    assert.equal(waveform.durationSeconds, 74);
+    assert.equal(waveform.peaksPerSecond, 80);
+    assert.ok(waveform.peaks.length >= 74 * 80);
+
+    await rm(join(testDataDir, "jobs", completedJob.id, "waveform.json"), { force: true });
+    const regeneratedWaveformResponse = await fetch(`${baseUrl}${completedJob.result.waveformUrl}`);
+    assert.equal(regeneratedWaveformResponse.status, 200);
+    assert.equal((await regeneratedWaveformResponse.json()).durationSeconds, 74);
 
     const stems = completedJob.result.stems;
     const stemIds = stems.map((stem) => stem.id).sort();
@@ -178,6 +194,14 @@ describe("mock backend", () => {
           beatUnit: 8,
           downbeatOffsetSeconds: -0.37
         },
+        tempoMap: {
+          version: 1,
+          anchors: [
+            { bar: 1, timeSeconds: -0.37 },
+            { bar: 5, timeSeconds: 15.92 },
+            { bar: 9, timeSeconds: 33.11 }
+          ]
+        },
         keyOverride: {
           tonic: "Bb",
           mode: "major"
@@ -222,6 +246,14 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 7);
     assert.equal(updatedJob.practiceState.gridOverrides.beatUnit, 8);
     assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, -0.37);
+    assert.deepEqual(updatedJob.practiceState.tempoMap, {
+      version: 1,
+      anchors: [
+        { bar: 1, timeSeconds: -0.37 },
+        { bar: 5, timeSeconds: 15.92 },
+        { bar: 9, timeSeconds: 33.11 }
+      ]
+    });
     assert.deepEqual(updatedJob.practiceState.keyOverride, { tonic: "Bb", mode: "major" });
     assert.deepEqual(updatedJob.practiceState.chordChart, {
       version: 1,
@@ -298,6 +330,7 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.lastPosition, 3.25);
     assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
     assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
+    assert.equal(reopenedJob.practiceState.tempoMap.anchors[1].bar, 5);
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
     assert.equal(reopenedJob.practiceState.sections[0].label, "Verse");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
@@ -357,6 +390,21 @@ describe("mock backend", () => {
     const longChartJob = await longChartResponse.json();
     assert.equal(longChartJob.practiceState.chordChart.chords.length, 160);
     assert.equal(longChartJob.practiceState.chordChart.chords.at(-1).bar, 160);
+
+    const invalidTempoMapResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        tempoMap: {
+          version: 1,
+          anchors: [
+            { bar: 1, timeSeconds: 4 },
+            { bar: 2, timeSeconds: 3 }
+          ]
+        }
+      })
+    });
+    assert.equal(invalidTempoMapResponse.status, 400);
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

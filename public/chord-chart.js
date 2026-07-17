@@ -1,3 +1,5 @@
+import { absoluteBeatToSeconds, secondsToAbsoluteBeat } from "./tempo-map.js";
+
 export const notePitchClasses = {
   C: 0,
   "C#": 1,
@@ -109,6 +111,7 @@ export function fallbackChartGrid(grid = null) {
     beatsPerBar: Number(grid?.beatsPerBar) || defaultTimeSignature.beatsPerBar,
     beatUnit: Number(grid?.beatUnit) || defaultTimeSignature.beatUnit,
     downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0,
+    tempoMap: grid?.tempoMap || null,
     durationSeconds: Number(grid?.durationSeconds) || null
   };
 }
@@ -133,10 +136,10 @@ export function chordCueToChartEvent(chord, grid, divisionsPerQuarter, idFactory
   const startSeconds = Number(chord.start);
   const endSeconds = Number(chord.end);
   const startBeat = Number.isFinite(startSeconds)
-    ? (startSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds
+    ? secondsToAbsoluteBeat(chartGrid, startSeconds)
     : ((Number(chord.bar) || 1) - 1) * chartGrid.beatsPerBar + ((Number(chord.beat) || 1) - 1);
   const endBeat = Number.isFinite(endSeconds)
-    ? (endSeconds - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds
+    ? secondsToAbsoluteBeat(chartGrid, endSeconds)
     : startBeat + chartGrid.beatsPerBar;
   const startDiv = Math.max(0, Math.round(startBeat * divPerBeat));
   const durationDiv = Math.max(1, Math.round(Math.max(1 / divPerBeat, endBeat - startBeat) * divPerBeat));
@@ -160,8 +163,8 @@ export function chordChartToCues(chart, grid, key) {
   return normalized.chords.map((chord) => {
     const startBeat = chartChordTotalDiv(chord, chartGrid, normalized.divisionsPerQuarter) / divPerBeat;
     const endBeat = startBeat + chord.durationDiv / divPerBeat;
-    const start = chartGrid.downbeatOffsetSeconds + startBeat * chartGrid.beatDurationSeconds;
-    const end = chartGrid.downbeatOffsetSeconds + endBeat * chartGrid.beatDurationSeconds;
+    const start = absoluteBeatToSeconds(chartGrid, startBeat);
+    const end = absoluteBeatToSeconds(chartGrid, endBeat);
     return {
       chartId: chord.id,
       start,
@@ -187,7 +190,7 @@ export function chordBeatRange(chord, grid) {
   let startBeat = null;
 
   if (Number.isFinite(startSeconds)) {
-    startBeat = (startSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds;
+    startBeat = secondsToAbsoluteBeat(grid, startSeconds);
   } else if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
     startBeat = (bar - 1) * grid.beatsPerBar + (beat - 1);
   }
@@ -195,7 +198,7 @@ export function chordBeatRange(chord, grid) {
   if (!Number.isFinite(startBeat)) return null;
 
   let endBeat = Number.isFinite(endSeconds)
-    ? (endSeconds - grid.downbeatOffsetSeconds) / grid.beatDurationSeconds
+    ? secondsToAbsoluteBeat(grid, endSeconds)
     : startBeat + 1;
   if (!Number.isFinite(endBeat) || endBeat <= startBeat) {
     endBeat = startBeat + 1;
@@ -220,8 +223,8 @@ export function adjustChordTimingForGrid(chord, sourceGrid, targetGrid) {
   const beatRange = chordBeatRange(chord, sourceGrid);
   if (!beatRange) return chord;
 
-  const start = targetGrid.downbeatOffsetSeconds + beatRange.startBeat * targetGrid.beatDurationSeconds;
-  const end = targetGrid.downbeatOffsetSeconds + beatRange.endBeat * targetGrid.beatDurationSeconds;
+  const start = absoluteBeatToSeconds(targetGrid, beatRange.startBeat);
+  const end = absoluteBeatToSeconds(targetGrid, beatRange.endBeat);
   const gridPosition = chordGridPosition(beatRange.startBeat, targetGrid);
 
   return {
@@ -287,7 +290,7 @@ export function chordGridHit(chord, grid) {
   } else {
     const start = Number(chord.start);
     if (Number.isFinite(start) && Number.isFinite(chartGrid.beatDurationSeconds) && chartGrid.beatDurationSeconds > 0) {
-      absoluteBeat = (start - chartGrid.downbeatOffsetSeconds) / chartGrid.beatDurationSeconds;
+      absoluteBeat = secondsToAbsoluteBeat(chartGrid, start);
     }
   }
 

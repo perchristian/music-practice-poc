@@ -134,7 +134,29 @@
                     </div>
                   </div>
                   <input id="scrubber" type="range" min="0" max="0" step="0.1" value="0" aria-label="Playback position">
-                  <div class="grid-timeline" id="gridTimeline" data-testid="grid-timeline" aria-label="Beat and bar grid"></div>
+                  <div class="timing-toolbar">
+                    <button type="button" class="secondary-button compact-button" id="editTimingButton" data-testid="edit-timing">Edit timing</button>
+                    <div class="timing-editor-controls" id="timingEditorControls" data-testid="timing-editor-controls" hidden>
+                      <label>
+                        <span>Zoom</span>
+                        <input id="timingZoom" data-testid="timing-zoom" type="range" min="1" max="24" step="1" value="1">
+                      </label>
+                      <button type="button" class="secondary-button compact-button" id="timingFitButton" data-testid="timing-fit">Fit</button>
+                      <button type="button" class="secondary-button compact-button" id="timingDoneButton" data-testid="timing-done">Done</button>
+                    </div>
+                  </div>
+                  <div class="timeline-viewport" id="timelineViewport" data-testid="timeline-viewport">
+                    <div class="timeline-track" id="timelineTrack">
+                      <canvas class="waveform-canvas" id="waveformCanvas" data-testid="waveform-canvas" aria-hidden="true"></canvas>
+                      <div class="grid-timeline" id="gridTimeline" data-testid="grid-timeline" aria-label="Beat and bar grid"></div>
+                    </div>
+                  </div>
+                  <div class="timing-anchor-controls" id="timingAnchorControls" data-testid="timing-anchor-controls" hidden>
+                    <strong id="timingAnchorLabel">Bar</strong>
+                    <button type="button" class="secondary-button compact-button" id="timingNudgeLeft" data-testid="timing-nudge-left" aria-label="Move selected downbeat 0.01 seconds earlier">−0.01s</button>
+                    <button type="button" class="secondary-button compact-button" id="timingNudgeRight" data-testid="timing-nudge-right" aria-label="Move selected downbeat 0.01 seconds later">+0.01s</button>
+                    <button type="button" class="secondary-button compact-button" id="timingRemoveAnchor" data-testid="timing-remove-anchor">Remove correction</button>
+                  </div>
                   <div class="timeline-tools">
                     <label class="toggle">
                       <input id="loopEnabled" data-testid="loop-enabled" type="checkbox">

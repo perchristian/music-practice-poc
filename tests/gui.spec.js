@@ -22,7 +22,8 @@ test.afterEach(async ({ request }) => {
     "section-selection-",
     "resize-chords-",
     "delete-last-chord-",
-    "loop-bars-"
+    "loop-bars-",
+    "timing-map-"
   ];
   const entries = await request.get("/api/jobs").then((response) => (response.ok() ? response.json() : []));
   await Promise.all(
@@ -151,6 +152,19 @@ async function selectSectionBars(page, startBar, endBar = startBar) {
   if (endBar !== startBar) {
     await page.locator(`.chord-bar-segment[data-bar="${endBar}"]`).click({ position: { x: 8, y: 8 }, modifiers: ["Shift"] });
   }
+}
+
+async function dragTimelineBarToSeconds(page, bar, seconds, duration = 16) {
+  const marker = page.locator(`.grid-marker.downbeat[data-bar="${bar}"]`);
+  const track = page.locator("#timelineTrack");
+  await marker.scrollIntoViewIfNeeded();
+  const markerBox = await marker.boundingBox();
+  const trackBox = await track.boundingBox();
+  if (!markerBox || !trackBox) throw new Error("Could not resolve timing marker drag boxes.");
+  await page.mouse.move(markerBox.x + markerBox.width / 2, markerBox.y + markerBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(trackBox.x + trackBox.width * (seconds / duration), markerBox.y + markerBox.height / 2);
+  await page.mouse.up();
 }
 
 async function createSectionFromBars(page, startBar, endBar, { symbol = "", label = "", color = "" } = {}) {
@@ -912,6 +926,74 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
   await page.getByTestId("key-select").selectOption("A:minor");
   await expect(page.getByTestId("selected-song-meta")).toContainText("A minor · 145 BPM");
   await expect(page.locator(".cue-roman").first()).toHaveText("III");
+});
+
+test("waveform timing editor persists variable-tempo downbeats and keeps playback consumers aligned", async ({ page }) => {
+  await page.goto("/");
+  const filename = `timing-map-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("waveform-canvas")).toBeVisible();
+  await expect(page.getByTestId("timing-editor-controls")).not.toBeVisible();
+  await expect(page.locator('.grid-marker.downbeat[data-bar="2"]')).not.toHaveClass(/anchored/);
+
+  await page.getByTestId("edit-timing").click();
+  await expect(page.getByTestId("timing-editor-controls")).toBeVisible();
+  await page.getByTestId("timing-zoom").fill("2");
+  await expect
+    .poll(async () => page.locator("#timelineTrack").evaluate((element) => element.clientWidth))
+    .toBeGreaterThan(await page.getByTestId("timeline-viewport").evaluate((element) => element.clientWidth));
+
+  await dragTimelineBarToSeconds(page, 2, 6);
+  await expect(page.locator('.grid-marker.downbeat[data-bar="1"]')).toHaveClass(/anchored/);
+  await expect(page.locator('.grid-marker.downbeat[data-bar="2"]')).toHaveClass(/anchored/);
+  await expect(page.getByTestId("timing-anchor-controls")).toBeVisible();
+  await expect(page.getByTestId("tempo-display")).toHaveText("40 BPM");
+
+  await expect
+    .poll(async () => page.evaluate(async (id) => {
+      const response = await fetch(`/api/jobs/${id}`);
+      return (await response.json()).practiceState.tempoMap;
+    }, jobId))
+    .toEqual({
+      version: 1,
+      anchors: [
+        { bar: 1, timeSeconds: 0 },
+        { bar: 2, timeSeconds: 6 }
+      ]
+    });
+
+  await setPlaybackPosition(page, 5);
+  await expect(page.getByTestId("chord-card-0")).toHaveClass(/active/);
+  await setPlaybackPosition(page, 6.1);
+  await expect(page.getByTestId("chord-card-1")).toHaveClass(/active/);
+
+  await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("loop-start").fill("2");
+  await page.getByTestId("loop-start").dispatchEvent("change");
+  await page.getByTestId("loop-end").fill("2");
+  await page.getByTestId("loop-end").dispatchEvent("change");
+  await expect
+    .poll(async () => page.evaluate(async (id) => {
+      const response = await fetch(`/api/jobs/${id}`);
+      const state = (await response.json()).practiceState;
+      return { loopStart: state.loopStart, loopEnd: state.loopEnd };
+    }, jobId))
+    .toEqual({ loopStart: 6, loopEnd: 12 });
+
+  await page.getByTestId("timing-done").click();
+  await expect(page.getByTestId("timing-editor-controls")).not.toBeVisible();
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("edit-timing").click();
+  await expect(page.locator('.grid-marker.downbeat[data-bar="2"]')).toHaveClass(/anchored/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+    .toBe(true);
+  await expect(page.getByTestId("timing-editor-controls")).toBeVisible();
 });
 
 test("harmony chord beat labels stay musical through manual grid tempo and bar start corrections", async ({ page }) => {

@@ -684,15 +684,82 @@ audio {
   accent-color: var(--accent);
 }
 
-.grid-timeline {
+.timing-toolbar,
+.timing-editor-controls,
+.timing-anchor-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timing-toolbar {
+  justify-content: space-between;
+}
+
+.timing-editor-controls[hidden],
+.timing-anchor-controls[hidden] {
+  display: none;
+}
+
+.timing-editor-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.timing-editor-controls input[type="range"] {
+  width: min(180px, 38vw);
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.timeline-viewport {
   position: relative;
-  overflow: hidden;
-  height: 38px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  height: 58px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(37, 99, 235, 0.04)),
     #fff;
+  touch-action: pan-x;
+}
+
+.timeline-viewport.editing {
+  height: 164px;
+  overflow-x: auto;
+  cursor: crosshair;
+  touch-action: pan-x;
+}
+
+.timeline-track {
+  position: relative;
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+}
+
+.waveform-canvas,
+.grid-timeline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.waveform-canvas {
+  opacity: 0.62;
+}
+
+.grid-timeline {
+  overflow: hidden;
 }
 
 .grid-timeline.empty::after {
@@ -719,6 +786,34 @@ audio {
   width: 2px;
   height: 100%;
   background: var(--accent);
+}
+
+.timeline-viewport.editing .grid-marker.downbeat {
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.grid-marker.downbeat.anchored {
+  width: 3px;
+  background: #b45309;
+}
+
+.grid-marker.downbeat.selected::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #b45309;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 1px rgba(120, 53, 15, 0.4);
+}
+
+.timeline-viewport.editing .timeline-playhead {
+  pointer-events: none;
 }
 
 .grid-marker span {
@@ -977,6 +1072,11 @@ audio {
 .tempo-control button:focus-visible {
   border-color: rgba(37, 99, 235, 0.55);
   outline: none;
+}
+
+.tempo-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .tempo-display {

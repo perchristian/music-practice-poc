@@ -165,4 +165,26 @@ describe("chord chart transforms", () => {
       ]
     );
   });
+
+  it("derives working-chart cue times from a variable tempo map without moving musical positions", () => {
+    const cues = chordChartToCues(baseChart(), {
+      ...grid,
+      tempoMap: {
+        version: 1,
+        anchors: [
+          { bar: 1, timeSeconds: 0 },
+          { bar: 2, timeSeconds: 6 },
+          { bar: 3, timeSeconds: 11 }
+        ]
+      }
+    }, { tonic: "C", mode: "major" });
+
+    assert.deepEqual(
+      cues.map(({ bar, beat, start, end }) => ({ bar, beat, start, end })),
+      [
+        { bar: 1, beat: 1, start: 0, end: 6 },
+        { bar: 2, beat: 1, start: 6, end: 11 }
+      ]
+    );
+  });
 });

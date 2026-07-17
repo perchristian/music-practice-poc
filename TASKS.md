@@ -270,7 +270,7 @@ Acceptance criteria:
 - Edit controls cannot move bar lines outside `Edit timing` mode.
 - Mock mode remains dependency-light and demonstrates the editor flow.
 
-Status: Next implementation task. Product behavior and architecture have been reviewed; runtime implementation has not started.
+Status: Implemented and complete for automated verification on 2026-07-17. Pure timing tests cover changing segment tempos and inverse mapping; backend tests cover waveform assets plus validated persistence; Playwright covers edit-mode gating, zoom, drag, contextual BPM, chord/loop alignment, reload, and 390 px layout. Human listening/alignment on a real drifting recording remains the completion gate before Phase 2J.
 
 ### 16. Phase 2J: Joint Analyzer/Working-Chart Calibration
 
@@ -401,9 +401,9 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Implement Phase 3G.1 as one vertical timing-correction slice: persisted tempo-map anchors, source waveform, edit-only zoom/scrub, draggable bar lines, contextual segment tempo, and one shared mapping for every playback consumer.
+Run the Phase 3G.1 human timing checkpoint on at least one real recording that audibly drifts: align several important downbeats in `Edit timing`, then listen through click, chord changes, a bar loop, and repeated count-in. Record whether sparse linear spans are sufficient or whether more anchors/smoother interpolation are required.
 
-Do not tune chord heuristics in Phase 2J until Phase 3G.1 has established the calibration set's timing foundation. Do not start normal-playback zoom/follow until the edit-mode timing flow works on a real drifting recording.
+Do not tune chord heuristics in Phase 2J until this listening checkpoint passes. If human review is not immediately available, Phase 3G.2 normal-playback zoom/follow is the next independent implementation task.
 
 ## Parked Work
 

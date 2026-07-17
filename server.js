@@ -6,6 +6,7 @@ import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
+import { normalizeTempoMap } from "./public/tempo-map.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -21,6 +22,7 @@ const FFMPEG_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
 const DEMUCS_SEPARATOR_NAME = `demucs-${DEMUCS_MODEL}`;
 const REAL_SEPARATOR_NAME = REAL_SEPARATOR === "ffmpeg-spectral" ? FFMPEG_SEPARATOR_NAME : DEMUCS_SEPARATOR_NAME;
 const SOURCE_AUDIO_FILENAME = "source-audio.wav";
+const WAVEFORM_FILENAME = "waveform.json";
 const SOURCE_AUDIO_CODEC = "pcm_s16le";
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, "data");
 const JOBS_DIR = join(DATA_DIR, "jobs");
@@ -41,6 +43,7 @@ const MAX_CHORD_CHART_CHORDS = 4096;
 const MAX_CHORD_CHART_BARS = 10000;
 const MAX_CHORD_CHART_DIVISIONS = 4096;
 const MAX_SECTION_COUNT = 64;
+const WAVEFORM_PEAKS_PER_SECOND = 80;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 const MIN_ANALYSIS_STEM_RMS = 0.001;
 const HARMONIC_STEM_WEIGHTS = {
@@ -299,6 +302,68 @@ function rmsEnvelope(audio, frameSeconds = 0.05) {
   }
 
   return { values: envelope, frameSeconds };
+}
+
+function waveformEnvelope(audio, peaksPerSecond = WAVEFORM_PEAKS_PER_SECOND) {
+  const bucketSize = Math.max(1, Math.round(audio.sampleRate / peaksPerSecond));
+  const peaks = [];
+  let overallPeak = 0;
+
+  for (let start = 0; start < audio.samples.length; start += bucketSize) {
+    let min = 1;
+    let max = -1;
+    const end = Math.min(audio.samples.length, start + bucketSize);
+    for (let index = start; index < end; index += 1) {
+      const sample = audio.samples[index];
+      min = Math.min(min, sample);
+      max = Math.max(max, sample);
+    }
+    if (end === start) {
+      min = 0;
+      max = 0;
+    }
+    overallPeak = Math.max(overallPeak, Math.abs(min), Math.abs(max));
+    peaks.push([min, max]);
+  }
+
+  const scale = overallPeak > 0 ? 1 / overallPeak : 1;
+  return {
+    version: 1,
+    durationSeconds: Number(audio.durationSeconds.toFixed(3)),
+    peaksPerSecond,
+    peaks: peaks.map(([min, max]) => [
+      Number((min * scale).toFixed(3)),
+      Number((max * scale).toFixed(3))
+    ])
+  };
+}
+
+function mockWaveformEnvelope(durationSeconds = MOCK_DURATION_SECONDS) {
+  const safeDuration = Math.max(1, Math.min(60 * 60, Number(durationSeconds) || MOCK_DURATION_SECONDS));
+  const peaks = [];
+  const count = Math.ceil(safeDuration * WAVEFORM_PEAKS_PER_SECOND);
+  for (let index = 0; index < count; index += 1) {
+    const time = index / WAVEFORM_PEAKS_PER_SECOND;
+    let min = 1;
+    let max = -1;
+    for (let probe = 0; probe < 8; probe += 1) {
+      const sampleTime = time + probe / (WAVEFORM_PEAKS_PER_SECOND * 8);
+      const sample = Math.max(-1, Math.min(1, pianoSample(sampleTime) + drumSample(sampleTime) * 0.45));
+      min = Math.min(min, sample);
+      max = Math.max(max, sample);
+    }
+    peaks.push([Number(min.toFixed(3)), Number(max.toFixed(3))]);
+  }
+  return {
+    version: 1,
+    durationSeconds: Number(safeDuration.toFixed(3)),
+    peaksPerSecond: WAVEFORM_PEAKS_PER_SECOND,
+    peaks
+  };
+}
+
+async function writeWaveformAsset(job, envelope) {
+  await writeFile(join(job.dir, WAVEFORM_FILENAME), JSON.stringify(envelope));
 }
 
 function onsetEnvelope(rmsValues) {
@@ -1369,6 +1434,7 @@ async function createJobRecord({
       metronomeAccent: true,
       metronomeSolo: false,
       gridOverrides: {},
+      tempoMap: null,
       keyOverride: null,
       chordChart: null,
       sections: [],
@@ -1510,6 +1576,7 @@ function ensurePracticeState(job) {
     metronomeAccent: true,
     metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
+    tempoMap: normalizeTempoMap(job.practiceState?.tempoMap),
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
     sections: normalizeSections(job.practiceState?.sections),
@@ -1548,6 +1615,7 @@ function publicJob(job) {
     result: job.status === "complete"
       ? {
           audioUrl: `/api/jobs/${job.id}/piano.wav`,
+          waveformUrl: `/api/jobs/${job.id}/waveform.json`,
           stems: stems.map((stem) => publicStem(job, stem)),
           metadata: job.metadata
         }
@@ -1607,6 +1675,7 @@ async function completeMockJob(job) {
   job.status = "complete";
   job.progress = 100;
   job.metadata = createMockMetadata(job.originalDurationSeconds || MOCK_DURATION_SECONDS);
+  await writeWaveformAsset(job, mockWaveformEnvelope(job.metadata.durationSeconds));
   job.updatedAt = new Date().toISOString();
   await saveJob(job);
 }
@@ -2023,6 +2092,7 @@ async function runRealPipeline(job) {
 
   try {
     const extracted = await extractSourceAudio(job);
+    await writeWaveformAsset(job, waveformEnvelope(await readPcm16WavFromFile(extracted.path)));
     job.progress = 55;
     job.metadata = {
       ...job.metadata,
@@ -2229,6 +2299,14 @@ async function handleUpdatePracticeState(req, id, res) {
   }
 
   const payload = await readJsonBody(req);
+  let requestedTempoMap = null;
+  if (Object.prototype.hasOwnProperty.call(payload, "tempoMap") && payload.tempoMap !== null) {
+    requestedTempoMap = normalizeTempoMap(payload.tempoMap);
+    if (!requestedTempoMap) {
+      badRequest(res, "Tempo map must contain ordered downbeat anchors beginning at bar 1.");
+      return;
+    }
+  }
   const practiceState = ensurePracticeState(job);
 
   if (typeof payload.learningStatus === "string" && ["not_started", "practicing", "learned"].includes(payload.learningStatus)) {
@@ -2283,6 +2361,9 @@ async function handleUpdatePracticeState(req, id, res) {
         clampNumber(downbeatOffsetSeconds, 0, MIN_BAR_START_SECONDS, MAX_BAR_START_SECONDS).toFixed(2)
       );
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "tempoMap")) {
+    practiceState.tempoMap = payload.tempoMap === null ? null : requestedTempoMap;
   }
   if (payload.keyOverride && typeof payload.keyOverride === "object") {
     const noteNames = new Set(["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"]);
@@ -2494,6 +2575,32 @@ async function handleGetSourceAudio(req, id, res) {
   await streamMediaFile(req, res, sourceAudioPath, "audio/wav");
 }
 
+async function handleGetWaveform(id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+
+  try {
+    const envelope = JSON.parse(await readFile(join(job.dir, WAVEFORM_FILENAME), "utf8"));
+    json(res, 200, envelope);
+  } catch {
+    try {
+      let envelope;
+      if (job.mode === "real") {
+        envelope = waveformEnvelope(await readPcm16WavFromFile(join(job.dir, SOURCE_AUDIO_FILENAME)));
+      } else {
+        envelope = mockWaveformEnvelope(durationSecondsFromMetadata(job.metadata) || MOCK_DURATION_SECONDS);
+      }
+      await writeWaveformAsset(job, envelope);
+      json(res, 200, envelope);
+    } catch {
+      notFound(res);
+    }
+  }
+}
+
 async function route(req, res) {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
@@ -2565,6 +2672,12 @@ async function route(req, res) {
   const sourceAudioMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/source-audio\.wav$/);
   if (req.method === "GET" && sourceAudioMatch) {
     await handleGetSourceAudio(req, sourceAudioMatch[1], res);
+    return;
+  }
+
+  const waveformMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/waveform\.json$/);
+  if (req.method === "GET" && waveformMatch) {
+    await handleGetWaveform(waveformMatch[1], res);
     return;
   }
 
