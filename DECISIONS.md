@@ -558,3 +558,29 @@ High for the current POC phase; medium for later mobile/native phases.
 
 Date:
 2026-07-08
+
+## Decision 25
+
+Decision:
+Represent user-corrected variable timing as sparse downbeat anchors over a source waveform, with piecewise-linear musical-position/time mapping shared by every playback consumer.
+
+Reason:
+The current corrected grid still has one BPM, one meter, and one Bar 1 offset for the whole recording. It therefore accumulates audible and visual drift on rubato, ritardando, accelerando, and ordinary human tempo variation. Chords, click, loops, and count-in all depend on the grid, so chord-analysis calibration should not proceed on a timing model that cannot represent the source. Users already understand the bar lines; in a gated editor those same lines can be aligned to visible waveform events without inventing a second marker system.
+
+The analyzer grid remains immutable provenance. `practiceState.gridOverrides` remains the base constant-tempo seed and backward-compatible fallback. An optional user-owned `practiceState.tempoMap` stores a versioned, strictly ordered list of `{ bar, timeSeconds }` downbeat anchors. A shared pure module interpolates beats evenly between anchors and provides both musical-to-audio and audio-to-musical mapping. Real mode uses a compact server-generated peak envelope from `source-audio.wav`; mock mode provides deterministic representative waveform data without heavy dependencies.
+
+Alternatives considered:
+- Keep one BPM and downbeat offset. Advantages: no new model or UI. Disadvantages: cannot solve cumulative drift. Effort is low, technical risk is low, and expected demo quality is inadequate on variable-tempo recordings.
+- Store every beat/downbeat explicitly. Advantages: maximum manual precision and simple lookup. Disadvantages: high user effort, noisy persistence, and fragile editing. Effort and interaction risk are high; expected technical alignment is high but demo usability is low.
+- Use a smooth spline through sparse anchors. Advantages: continuous tempo change can sound more natural. Disadvantages: curve behavior is harder to explain, can overshoot between sparse points, and complicates inverse mapping. Effort and technical risk are medium-to-high; expected demo quality is uncertain before sparse linear anchors are tested.
+- Add automatic dynamic beat tracking or audio-to-score alignment first. Advantages: potentially less manual work. Disadvantages: adds analyzer/dependency uncertainty, may be opaque to correct, and still needs an editing model. Effort and technical risk are high; expected demo quality is potentially high but unpredictable.
+- Decode full source audio and build the waveform entirely in the browser. Advantages: fewer backend assets. Disadvantages: unnecessary memory/startup cost for user-length PCM, especially on mobile. Effort is medium, platform risk is medium-to-high, and expected demo quality is similar to a precomputed envelope.
+
+Tradeoffs:
+Piecewise-linear mapping makes important anchors exact and keeps the model understandable, testable, and invertible, but tempo is constant inside each anchored span rather than a mathematically smooth ritardando. Users may need several anchors through expressive passages. The first version keeps meter constant, does not warp individual beats, and does not snap automatically to transients. Those limits are acceptable because the product requirement is useful downbeat alignment rather than studio-grade tempo mapping. Normal-playback zoom/follow is split into a later phase so the first implementation can validate correction value without absorbing unrelated timeline polish.
+
+Confidence:
+High that sparse waveform-aligned downbeats solve the identified drift more directly than further chord heuristics; medium for the exact number of anchors and waveform resolution until tested on several real recordings.
+
+Date:
+2026-07-17

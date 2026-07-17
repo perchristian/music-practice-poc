@@ -74,6 +74,8 @@ Phase 2I implemented on 2026-07-17 without changing musical chord-decision logic
 
 Roadmap documentation reorganized on 2026-07-17. `TASKS.md` is now a concise chronological execution plan: completed work is ordered by implementation date, and planned work is numbered in intended execution order. Phase IDs are retained as subsystem lineage even when they are not numerically increasing. The next human checkpoint is Phase 2J analyzer/working-chart calibration; Phase 5D is the next independent implementation task, followed by Phase 5B.4-5B.6. Conditional and unscheduled work moved to `IDEAS.md` with promotion triggers, including advanced chord vocabulary, lyrics/melody, chord preview, transposition, saved loops, extra practice targets, Assisted/Linked Sections, broad design-system work, native iOS, waveform correction, and context experiments. Documentation-only change; no runtime tests or jobs were needed. No agents were delegated and no model switch or skill was used.
 
+Variable-tempo planning revised on 2026-07-17 after product review identified unavoidable chord/click drift on recordings that do not hold one constant BPM. Phase 3G.1 is now the next implementation task: a gated zoomable source-waveform editor will reuse bar lines as draggable downbeat anchors, persist an optional user-owned piecewise-linear `practiceState.tempoMap`, expose contextual segment tempo, and route click, chords, timeline, loops, and count-in through one shared musical-time mapping. Phase 2J chord calibration follows once timing is trustworthy. Normal-playback zoom/follow is separated into Phase 3G.2 so it does not expand the first vertical timing slice; it proceeds after the calibration checkpoint or while that human session is waiting. The former parked waveform idea was promoted into `TASKS.md`. Planning only: no runtime code, tests, songs, or jobs changed; no agents were delegated and no model switch or skill was used.
+
 Changelog process established on 2026-07-17. A new root `CHANGELOG.md` backfills notable app and developer-facing changes from the Git history and the verified outcomes in `TASKS.md`/`STATUS.md`, grouped into dated POC milestones for 2026-07-05, 2026-07-06, 2026-07-07, 2026-07-08, and 2026-07-17. `AGENTS.md` now requires completed implementation iterations to add concise `Added`, `Changed`, `Fixed`, or `Removed` entries under `Unreleased` in the same focused commit; planning-only and routine internal changes are excluded unless they materially affect development. `README.md` links the changelog and clarifies the roles of the main project documents. Documentation-only change; no runtime tests or jobs were needed. No agents were delegated and no model switch or skill was used.
 
 ## Current Architecture
@@ -314,9 +316,9 @@ Local web POC:
 
 ## Next Recommended Task
 
-Prepare the Phase 2J calibration set with the user and compare immutable analyzer suggestions with the user's working chart before changing chord heuristics.
+Implement Phase 3G.1 as a complete variable-tempo timing-correction journey: generate a compact source waveform, enter a guarded timing editor, zoom/scrub, drag important bar lines to downbeats, persist the tempo map, and make every playback consumer use it.
 
-If that human checkpoint cannot start yet, begin Phase 5D.1 library/app-shell/header cleanup as the next independent implementation task. Phase 5B.4-5B.6 follow the compact shell and touch-accessibility pass.
+After real-song timing review, run Phase 2J analyzer/working-chart calibration. Phase 3G.2 normal-playback zoom/follow is the next independent task if that human checkpoint is waiting.
 
 ## Skills Used
 

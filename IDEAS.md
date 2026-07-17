@@ -143,17 +143,6 @@ Entry signals:
 Why parked:
 - Native setup does not answer the product hypothesis before the web workflow proves useful.
 
-### Waveform-Based Grid Correction
-
-Candidate scope:
-- Visual waveform support for Bar 1/downbeat placement and fine grid correction.
-
-Why parked:
-- Current numeric correction and audible click may be sufficient.
-
-Promotion trigger:
-- Manual testing shows users cannot reliably align the grid with click and numeric nudges.
-
 ## Process and Context Experiments
 
 ### On-Demand Context Overhead Audit

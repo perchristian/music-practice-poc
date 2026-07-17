@@ -209,7 +209,70 @@ Status: Complete.
 
 Do not start a later item merely because an earlier item requires human review. Record the blocker and ask whether to continue with the next independent item.
 
-### 15. Phase 2J: Joint Analyzer/Working-Chart Calibration
+### 15. Phase 3G.1: Waveform Timing Editor and Variable-Tempo Grid
+
+Goal: Let a user align important bar downbeats to visible audio events so click, chords, loops, and count-in follow recordings that do not hold one constant tempo.
+
+Why this precedes chord calibration:
+- The current grid derives every beat from one BPM and one downbeat offset, so timing necessarily drifts on rubato, ritardando, accelerando, and ordinary human tempo variation.
+- Chord-quality calibration is misleading while correct musical bar positions can still map to the wrong audio times.
+- Existing grid-first chords and sections can remain stable if the app gains one shared musical-position/time mapping.
+
+Data contract:
+- Keep analyzer `job.result.metadata.beatGrid` immutable as provenance.
+- Keep `practiceState.gridOverrides` as the corrected base BPM, meter, and Bar 1 seed for old songs and songs without a tempo map.
+- Add optional user-owned `practiceState.tempoMap` with `version: 1` and sorted anchors shaped as `{ bar, timeSeconds }`.
+- Require unique, increasing integer bar numbers and strictly increasing finite audio times; reject invalid/conflicting anchors rather than silently repairing them.
+- Use piecewise-linear musical-position/time mapping between anchors. Beats are evenly distributed inside each anchored span. Before the first and after the last usable span, extrapolate from the nearest segment; fall back to base BPM when only one anchor exists.
+- Keep meter constant across the first tempo-map version. Mid-song meter changes, per-beat warping, splines, and automatic transient snapping are out of scope.
+
+User journey:
+1. The normal timeline remains safe and non-editable.
+2. `Edit timing` opens a distinct editor with a larger source waveform, horizontal pan, edit-only zoom, playback/scrubbing, and the existing bar lines over the waveform.
+3. Dragging a bar line to an audible/visible downbeat creates or updates its anchor. Manually anchored lines gain a restrained handle/state only in edit mode; they are not represented by a second competing marker system.
+4. Selecting an anchored line exposes precise time and small nudge controls plus `Remove correction`; Bar 1 can move but remains the required seed anchor once a tempo map exists.
+5. Every change previews click, chord, loop, and marker alignment immediately and persists through the existing serialized practice-state save path. `Done` exits edit mode; no broad history editor is required for the first pass.
+
+Waveform contract:
+- Generate a compact versioned min/max peak envelope during processing and serve it as a separate result asset instead of embedding raw PCM or a large peak array in `job.json`.
+- Real mode derives the envelope from `source-audio.wav`, which is the timing reference even when the user listens to a stem mix.
+- Mock mode supplies deterministic representative peaks without adding FFmpeg or other heavy default dependencies.
+- Target roughly 50-100 peak buckets per second, then confirm payload size and useful zoom depth on a user-length recording before fixing the final resolution.
+- Do not decode the full source WAV in the browser for the first pass.
+
+Tempo-control semantics:
+- Without a tempo map, the current BPM, `/2`, and `x2` behavior remains the base-grid correction flow.
+- With a tempo map, the visible value becomes the average local tempo of the segment containing the playhead; in edit mode, the selected segment takes precedence.
+- Editing a mapped segment tempo keeps its left anchor fixed and moves only its right anchor. Later explicit anchors keep their audio times, so important later downbeats are not cascaded; the following segment's calculated tempo may consequently change.
+- If no right anchor exists, create the next bar downbeat as the right anchor.
+- `/2` and `x2` must not silently rewrite an existing map; require an explicit reset/reinterpret action with confirmation if that capability is retained.
+
+Shared timing responsibilities:
+- Add one pure timing module for `musicalPositionToSeconds`, `secondsToMusicalPosition`, beat enumeration, local segment tempo, and anchor normalization.
+- Route timeline markers, click scheduling, working-chart cue timing/current-chord highlighting, bar-based loop boundaries, Harmony loop overlays, and count-in through that module.
+- Keep `practiceState.chordChart` grid-first; moving a downbeat changes derived playback seconds, not chord bar/beat data.
+
+Execution sequence:
+1. Implement the pure tempo-map model, inverse mapping, normalization, persistence, and focused unit/backend tests.
+2. Generate and serve real/mock waveform envelopes with duration and payload-size coverage.
+3. Build the gated zoomable editor and direct bar-line drag/nudge/remove flow using pointer events and keyboard-accessible controls.
+4. Replace constant-tempo calculations in every timing consumer before declaring the vertical slice complete.
+5. Make mapped tempo contextual and constrain tempo edits to the selected segment semantics above.
+6. Add a generated variable-tempo fixture with known downbeats, plus Playwright coverage for edit-mode gating, zoom, drag, persistence, reload, and unchanged normal-mode safety.
+7. Manually align at least one real recording with drift and listen through click, chord changes, a bar loop, and repeated count-in.
+8. Run `npm test` and `npm run test:gui`, check narrow-screen behavior, measure the waveform payload, and delete all test-created jobs.
+
+Acceptance criteria:
+- Important user-anchored downbeats remain aligned within the practical browser/audio scheduling tolerance used by the POC; target an audible/visual error no worse than about 50-75 ms during manual review.
+- A song with changing tempo no longer accumulates grid drift across anchored spans.
+- Click, chords, timeline, loops, and count-in agree on the same mapping before and after reload.
+- Old jobs without `practiceState.tempoMap` retain their current constant-tempo behavior.
+- Edit controls cannot move bar lines outside `Edit timing` mode.
+- Mock mode remains dependency-light and demonstrates the editor flow.
+
+Status: Next implementation task. Product behavior and architecture have been reviewed; runtime implementation has not started.
+
+### 16. Phase 2J: Joint Analyzer/Working-Chart Calibration
 
 Goal: Improve chord usefulness through a deliberate try/fail/learn/adjust loop without allowing automatic analysis to overwrite user work.
 
@@ -229,13 +292,35 @@ Constraints:
 - Do not automatically train on or overwrite user edits.
 - Do not change chord-change frequency, bass heuristics, smoothing, or vocabulary before the shared baseline has been reviewed.
 
-Status: Next human checkpoint. Awaiting the joint calibration session.
+Status: Human checkpoint after Phase 3G.1 establishes a trustworthy timing foundation.
 
-### 16. Phase 5D: Compact Practice Shell and Touch Accessibility
+### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
+
+Goal: Make long-song bars readable during ordinary practice without expanding the timing editor's first implementation scope.
+
+Entry condition:
+- Phase 3G.1 has passed real-song manual timing review.
+- Normal playback zoom/follow still appears valuable after using the waveform editor; edit-mode zoom itself is not conditional.
+
+Deliverables:
+- Expose the same timeline viewport's zoom and `Fit` controls in normal playback.
+- Add optional `Follow` that keeps the playhead around 35-40% into the viewport while timeline content scrolls underneath it.
+- Turn Follow off when the user manually pans so the interface does not fight direct navigation.
+- Preserve stable behavior near the beginning/end, while paused, during seeks, at non-1x playback speeds, and across loop jumps.
+- Keep Edit timing follow off by default and preserve the user's ordinary playback preference separately.
+
+Verification:
+- Focused Playwright coverage for zoom anchoring, manual-pan cancellation, follow scrolling, seeking, loop jumps, and reload.
+- Viewport checks around 1180 px, 820 px, and 390 px with no horizontal page overflow.
+- Manual playback review on a long song before enabling Follow by default; default to off unless evidence supports otherwise.
+
+Status: Planned after the Phase 2J checkpoint, or as the next independent task if that human calibration session is waiting for input.
+
+### 18. Phase 5D: Compact Practice Shell and Touch Accessibility
 
 Goal: Reduce interface friction before adding more advanced section/chord gestures.
 
-#### 16.1 Library, App Shell, and Selected-Song Header
+#### 18.1 Library, App Shell, and Selected-Song Header
 
 Deliverables:
 - Fix persisted thumbnails so actual images render and all artwork is square.
@@ -246,7 +331,7 @@ Deliverables:
 - Remove duplicate selected-song eyebrow, duration/key/BPM metadata, and the visible `Learning status` label where the values already communicate their meaning.
 - Simplify the empty state and remove obsolete explanatory copy/card treatment.
 
-#### 16.2 Transport, Keyboard, Loop, and Mobile Harmony
+#### 18.2 Transport, Keyboard, Loop, and Mobile Harmony
 
 Deliverables:
 - Keep transport controls available while scrolling, using a sticky/fixed treatment validated on desktop and mobile.
@@ -261,9 +346,9 @@ Verification:
 - Check approximately 1180 px, 820 px, and 390 px widths with no horizontal overflow.
 - Delete test-created jobs.
 
-Status: Planned after the Phase 2J checkpoint, or as the next independent task if calibration is waiting for user input.
+Status: Planned after the timing-map and normal-timeline work.
 
-### 17. Phase 5B.4: Section Resize Handles and Color Coding
+### 19. Phase 5B.4: Section Resize Handles and Color Coding
 
 Goal: Let users reshape and scan sections directly in the Harmony grid.
 
@@ -280,7 +365,7 @@ Verification:
 
 Status: Planned after Phase 5D.
 
-### 18. Phase 5B.5: Chord Multi-Selection
+### 20. Phase 5B.5: Chord Multi-Selection
 
 Goal: Establish one selection model for chord copy/paste and loop commands.
 
@@ -296,7 +381,7 @@ Verification:
 
 Status: Planned after section resize/color.
 
-### 19. Phase 5B.6: Chord Copy/Paste and Loop From Selection
+### 21. Phase 5B.6: Chord Copy/Paste and Loop From Selection
 
 Goal: Use selected chord ranges for repeated harmony and focused practice.
 
@@ -316,9 +401,9 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Prepare the Phase 2J calibration set with the user. If that human checkpoint cannot start yet, begin Phase 5D.1 as the next independent implementation task.
+Implement Phase 3G.1 as one vertical timing-correction slice: persisted tempo-map anchors, source waveform, edit-only zoom/scrub, draggable bar lines, contextual segment tempo, and one shared mapping for every playback consumer.
 
-Do not start Phase 5B.4–5B.6 before the compact shell/touch pass unless user testing demonstrates that section resizing or chord copy/paste has greater immediate learning value.
+Do not tune chord heuristics in Phase 2J until Phase 3G.1 has established the calibration set's timing foundation. Do not start normal-playback zoom/follow until the edit-mode timing flow works on a real drifting recording.
 
 ## Parked Work
 
