@@ -295,6 +295,23 @@ Constraints:
 
 Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; the user reported that the corrected timing worked excellently. Corrected-timing chord reanalysis is implemented and produced 279 cues using the user's authoritative C-major key, while backing up 95 prior working events. Listening/comparison of this dense output is next.
 
+### 16A. Cold-Start Metronome Initialization
+
+Completed: 2026-07-17
+
+Outcome:
+- The first playback after a browser/server cold start waits for the Web Audio clock to resume before starting stems or scheduling the grid click.
+- Metronome enable and Play share one in-flight audio-context activation instead of racing two resume attempts.
+- A suspended clock cannot consume beat schedule keys, so a temporarily unavailable click remains eligible for the next scheduler pass.
+
+Verification:
+- Added deterministic Playwright coverage with a deliberately pending `AudioContext.resume()`.
+- `npm test`: 28 passing, 1 skipped optional local calibration.
+- `npm run test:gui`: all 28 tests passing.
+- Test-created jobs removed; intentional local songs retained.
+
+Status: Complete.
+
 ### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
 
 Goal: Make long-song bars readable during ordinary practice without expanding the timing editor's first implementation scope.

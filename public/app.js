@@ -162,6 +162,7 @@ let countInTimer = null;
 let isCountingIn = false;
 let countInTargetTime = 0;
 let audioContext = null;
+let audioContextActivation = null;
 let scheduledMetronomeBeats = new Set();
 let scheduledMetronomeNodes = [];
 let currentJob = null;
@@ -2520,21 +2521,34 @@ function ensureAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
   audioContext ||= new AudioContextClass();
-  if (audioContext.state === "suspended") {
-    const resumePromise = audioContext.resume?.();
-    if (resumePromise?.catch) {
-      resumePromise.catch(console.error);
-    }
-  }
   return audioContext;
+}
+
+async function activateAudioContext() {
+  const context = ensureAudioContext();
+  if (!context || context.state !== "suspended" || typeof context.resume !== "function") {
+    return context;
+  }
+
+  if (!audioContextActivation) {
+    audioContextActivation = Promise.resolve(context.resume())
+      .catch((error) => {
+        console.error(error);
+      })
+      .finally(() => {
+        audioContextActivation = null;
+      });
+  }
+  await audioContextActivation;
+  return context;
 }
 
 function playMetronomeClick(delaySeconds, accented) {
   const context = ensureAudioContext();
-  if (!context) return;
+  if (!context || context.state === "suspended") return false;
 
   const volume = Number(metronomeVolume) || 0;
-  if (volume <= 0) return;
+  if (volume <= 0) return false;
 
   const startAt = context.currentTime + Math.max(0, delaySeconds);
   const duration = accented ? 0.065 : 0.045;
@@ -2552,6 +2566,7 @@ function playMetronomeClick(delaySeconds, accented) {
   oscillator.onended = () => {
     scheduledMetronomeNodes = scheduledMetronomeNodes.filter((node) => node.oscillator !== oscillator);
   };
+  return true;
 }
 
 function cancelLoopCountIn() {
@@ -2614,8 +2629,9 @@ function scheduleLoopCountInClicks(config) {
   }
 }
 
-function beginLoopCountIn(countIn) {
+async function beginLoopCountIn(countIn) {
   if (!countIn) return false;
+  await activateAudioContext();
   for (const player of stemPlayers) {
     player.audio.pause();
   }
@@ -2666,11 +2682,12 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
     const key = `${beatIndex}:${Math.round(beatTime * 1000)}`;
     if (scheduledMetronomeBeats.has(key)) continue;
 
-    scheduledMetronomeBeats.add(key);
     const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
     const accented = beatWithinBar === 0;
     const delaySeconds = (beatTime - currentTime) / Math.max(0.1, playbackRate);
-    playMetronomeClick(delaySeconds, accented);
+    if (playMetronomeClick(delaySeconds, accented)) {
+      scheduledMetronomeBeats.add(key);
+    }
   }
 }
 
@@ -2801,7 +2818,7 @@ function tickTransport() {
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
     const countIn = countInConfig(start, { loopOnly: true });
     if (countIn) {
-      beginLoopCountIn(countIn);
+      beginLoopCountIn(countIn).catch(console.error);
       return;
     }
     setTransportTime(start);
@@ -2850,6 +2867,10 @@ function pauseAll({ persist = true } = {}) {
 async function startStemPlaybackAt(seconds) {
   if (!stemPlayers.length) return;
 
+  if (metronomeEnabled) {
+    await activateAudioContext();
+  }
+
   const current = boundTransportTime(seconds);
   anchorTransport(current);
   for (const player of stemPlayers) {
@@ -2882,7 +2903,7 @@ async function playAll() {
   const target = startAtBarOne?.checked && current < minimumStart ? minimumStart : current;
   const countIn = countInConfig(target);
   if (countIn) {
-    beginLoopCountIn(countIn);
+    await beginLoopCountIn(countIn);
   } else {
     await startStemPlaybackAt(target);
   }
@@ -3707,6 +3728,9 @@ stemMixer.addEventListener("click", (event) => {
       if (!metronomeEnabled) {
         metronomeSolo = false;
       }
+    }
+    if (metronomeEnabled) {
+      activateAudioContext().catch(console.error);
     }
     resetMetronomeSchedule();
     updateStemAudibility();

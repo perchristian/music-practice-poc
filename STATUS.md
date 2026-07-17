@@ -88,6 +88,8 @@ Corrected-timing key handling was tightened on 2026-07-17 after review showed th
 
 Changelog process established on 2026-07-17. A new root `CHANGELOG.md` backfills notable app and developer-facing changes from the Git history and the verified outcomes in `TASKS.md`/`STATUS.md`, grouped into dated POC milestones for 2026-07-05, 2026-07-06, 2026-07-07, 2026-07-08, and 2026-07-17. `AGENTS.md` now requires completed implementation iterations to add concise `Added`, `Changed`, `Fixed`, or `Removed` entries under `Unreleased` in the same focused commit; planning-only and routine internal changes are excluded unless they materially affect development. `README.md` links the changelog and clarifies the roles of the main project documents. Documentation-only change; no runtime tests or jobs were needed. No agents were delegated and no model switch or skill was used.
 
+Cold-start metronome initialization was fixed on 2026-07-17. Playback and count-in now await the browser audio context's transition out of `suspended` before anchoring transport or scheduling clicks, concurrent activation attempts share one promise, and beats are marked as scheduled only after a click was actually accepted by the running audio clock. A Playwright regression test holds `AudioContext.resume()` pending and verifies that neither stem playback nor the first downbeat starts early. `node --check public/app.js`, `git diff --check`, `npm test` (28 passing/1 skipped), and all 28 Playwright tests passed. The GUI suite removed its test-created jobs; the remaining local songs are intentional user/calibration data. No agents were delegated and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:

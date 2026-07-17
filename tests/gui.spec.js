@@ -540,6 +540,86 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   expect(clicks[0]).toMatchObject({ time: 10.5, frequency: 1320 });
 });
 
+test("first playback waits for the metronome audio clock to resume", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__mediaPlayCalls = 0;
+    window.__metronomeClicks = [];
+    let resolveResume;
+
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 16;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      window.__mediaPlayCalls += 1;
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {};
+
+    class SuspendedAudioContext {
+      constructor() {
+        this.currentTime = 30;
+        this.destination = {};
+        this.state = "suspended";
+      }
+
+      createOscillator() {
+        const oscillator = {
+          type: "sine",
+          frequency: { value: 0 },
+          connect() {},
+          start(time) {
+            window.__metronomeClicks.push({ time, frequency: oscillator.frequency.value });
+          },
+          stop() {}
+        };
+        return oscillator;
+      }
+
+      createGain() {
+        return {
+          gain: {
+            setValueAtTime() {},
+            exponentialRampToValueAtTime() {}
+          },
+          connect() {}
+        };
+      }
+
+      resume() {
+        return new Promise((resolve) => {
+          resolveResume = () => {
+            this.state = "running";
+            resolve();
+          };
+          window.__resolveAudioContextResume = resolveResume;
+        });
+      }
+    }
+
+    window.AudioContext = SuspendedAudioContext;
+    window.webkitAudioContext = SuspendedAudioContext;
+  });
+
+  await page.goto("/?demo=processed");
+  await expect(page.getByTestId("practice-view")).toBeVisible();
+  await page.getByTestId("metronome-mute").click();
+  await page.getByRole("button", { name: "Play" }).click();
+
+  await expect.poll(() => page.evaluate(() => typeof window.__resolveAudioContextResume)).toBe("function");
+  expect(await page.evaluate(() => window.__mediaPlayCalls)).toBe(0);
+  expect(await page.evaluate(() => window.__metronomeClicks)).toEqual([]);
+
+  await page.evaluate(() => window.__resolveAudioContextResume());
+  await expect.poll(() => page.evaluate(() => window.__mediaPlayCalls)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.__metronomeClicks.length)).toBeGreaterThan(0);
+  expect((await page.evaluate(() => window.__metronomeClicks))[0]).toMatchObject({
+    time: 30,
+    frequency: 1320
+  });
+});
+
 test("count-in works without a loop and repeats after a loop jump", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];
