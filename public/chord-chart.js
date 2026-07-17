@@ -87,7 +87,8 @@ export function normalizedHarmonyView(state = null) {
   const chordDisplay = supportedChordDisplays.includes(source.chordDisplay) ? source.chordDisplay : "both";
   return {
     barsPerRow: supportedBarsPerRow.includes(barsPerRow) ? barsPerRow : 2,
-    chordDisplay
+    chordDisplay,
+    sectionInfoVisible: source.sectionInfoVisible !== false
   };
 }
 

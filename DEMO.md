@@ -141,7 +141,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 21. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header.
 22. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
 23. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
-24. Add a section in Harmony by entering start and end bars. Symbol and label are optional; leave both blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, then use its `Edit` and `x` controls to rename or remove it.
+24. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
 25. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
 26. Reload the page, reopen the song from the unified song list, and confirm those practice settings, section labels, Harmony view settings, and chord edits return.
 27. Rename the selected song from the selected-song header more menu.

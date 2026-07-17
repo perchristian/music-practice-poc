@@ -213,25 +213,46 @@
                   </div>
                 </div>
                 <div class="section-controls" id="sectionControls" data-testid="section-controls">
-                  <label>
-                    <span>Start</span>
-                    <input id="sectionStartInput" data-testid="section-start" type="number" min="1" step="1" value="1">
+                  <label class="section-info-toggle">
+                    <input id="sectionInfoToggle" data-testid="section-info-toggle" type="checkbox" checked>
+                    <span>Section info</span>
                   </label>
-                  <label>
-                    <span>End</span>
-                    <input id="sectionEndInput" data-testid="section-end" type="number" min="1" step="1" value="4">
-                  </label>
-                  <label>
-                    <span>Symbol</span>
-                    <input id="sectionSymbolInput" data-testid="section-symbol" type="text" value="A" maxlength="12">
-                  </label>
-                  <label>
-                    <span>Label</span>
-                    <input id="sectionLabelInput" data-testid="section-label" type="text" value="Verse" maxlength="40">
-                  </label>
-                  <button id="addSectionButton" data-testid="add-section-button" type="button">Add section</button>
+                  <button id="createSectionButton" data-testid="create-section-button" type="button" hidden>Create section</button>
+                  <span class="section-selection-summary" id="sectionSelectionSummary" data-testid="section-selection-summary" aria-live="polite"></span>
                 </div>
                 <div class="chord-list" id="chordList"></div>
+                <dialog class="section-edit-dialog" id="sectionCreateDialog" data-testid="section-create-dialog">
+                  <form method="dialog" class="section-edit-form" id="sectionCreateForm">
+                    <div class="section-heading compact">
+                      <h2>Create section</h2>
+                    </div>
+                    <div class="section-edit-grid">
+                      <label>
+                        <span>Symbol</span>
+                        <input id="sectionCreateSymbolInput" data-testid="section-create-symbol" type="text" maxlength="12">
+                      </label>
+                      <label>
+                        <span>Label</span>
+                        <input id="sectionCreateLabelInput" data-testid="section-create-label" type="text" maxlength="40">
+                      </label>
+                      <label>
+                        <span>Color</span>
+                        <select id="sectionCreateColorInput" data-testid="section-create-color">
+                          <option value="">Auto</option>
+                          <option value="blue">Blue</option>
+                          <option value="green">Green</option>
+                          <option value="amber">Amber</option>
+                          <option value="rose">Rose</option>
+                        </select>
+                      </label>
+                    </div>
+                    <p class="form-error" id="sectionCreateError" data-testid="section-create-error" hidden></p>
+                    <div class="dialog-actions">
+                      <button type="button" class="secondary-button" id="sectionCreateCancel" data-testid="section-create-cancel">Cancel</button>
+                      <button type="submit" id="sectionCreateSave" data-testid="section-create-save">Save</button>
+                    </div>
+                  </form>
+                </dialog>
                 <dialog class="section-edit-dialog" id="sectionEditDialog" data-testid="section-edit-dialog">
                   <form method="dialog" class="section-edit-form" id="sectionEditForm">
                     <div class="section-heading compact">

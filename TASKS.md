@@ -1063,12 +1063,23 @@ Deliverables:
 - Selection must respect the no-overlap rule from Phase 5B.1.
 
 Verification:
-- Playwright coverage selects bars 5-8, creates `A Verse`, reloads, and confirms persistence.
+- Playwright coverage selects bars 1-4, creates `A Verse`, reloads, and confirms persistence.
 - Coverage confirms no `Create section` action appears before selection.
 - Coverage confirms an already-sectioned range cannot receive a second overlapping section.
+- Coverage confirms chord cards keep matching height when a row has both sectioned and unsectioned bars.
 - Run `npm test`.
 - Run focused GUI coverage.
 - Delete test-created songs/jobs.
+
+Result:
+- Implemented on 2026-07-08.
+- The old always-visible numeric section creation form is replaced by bar selection in the Harmony grid plus a `Create section` dialog for symbol, label, and optional color.
+- Section info can be shown/hidden from Harmony, and that display preference persists in `practiceState.harmonyView.sectionInfoVisible`.
+- Empty bars show a subtle section `+` affordance while section info is visible.
+- Overlapping selected ranges disable section creation, preserving the Phase 5B.1 no-overlap contract.
+- The row layout now reserves a consistent section-info lane so chord cards do not grow taller when a bar has no section.
+
+Status: Complete on 2026-07-08. `npm test`, focused Playwright coverage for `flat section|section ranges|section creation`, and full `npm run test:gui` with 23 tests pass.
 
 ### Phase 5B.4: Section Resize Handles and Color Coding
 

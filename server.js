@@ -1372,7 +1372,8 @@ async function createJobRecord({
       sections: [],
       harmonyView: {
         barsPerRow: 2,
-        chordDisplay: "both"
+        chordDisplay: "both",
+        sectionInfoVisible: true
       },
       stemStates: {}
     },
@@ -1438,7 +1439,8 @@ function normalizeHarmonyView(value) {
   const chordDisplay = supportedChordDisplays.has(value?.chordDisplay) ? value.chordDisplay : "both";
   return {
     barsPerRow: supportedBarsPerRow.has(barsPerRow) ? barsPerRow : 2,
-    chordDisplay
+    chordDisplay,
+    sectionInfoVisible: value?.sectionInfoVisible !== false
   };
 }
 

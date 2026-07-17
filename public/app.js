@@ -87,11 +87,17 @@ const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
 const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
 const barsPerRowSelect = document.querySelector("#barsPerRowSelect");
-const sectionStartInput = document.querySelector("#sectionStartInput");
-const sectionEndInput = document.querySelector("#sectionEndInput");
-const sectionSymbolInput = document.querySelector("#sectionSymbolInput");
-const sectionLabelInput = document.querySelector("#sectionLabelInput");
-const addSectionButton = document.querySelector("#addSectionButton");
+const sectionInfoToggle = document.querySelector("#sectionInfoToggle");
+const createSectionButton = document.querySelector("#createSectionButton");
+const sectionSelectionSummary = document.querySelector("#sectionSelectionSummary");
+const sectionCreateDialog = document.querySelector("#sectionCreateDialog");
+const sectionCreateForm = document.querySelector("#sectionCreateForm");
+const sectionCreateSymbolInput = document.querySelector("#sectionCreateSymbolInput");
+const sectionCreateLabelInput = document.querySelector("#sectionCreateLabelInput");
+const sectionCreateColorInput = document.querySelector("#sectionCreateColorInput");
+const sectionCreateError = document.querySelector("#sectionCreateError");
+const sectionCreateCancel = document.querySelector("#sectionCreateCancel");
+const sectionCreateSave = document.querySelector("#sectionCreateSave");
 const sectionEditDialog = document.querySelector("#sectionEditDialog");
 const sectionEditForm = document.querySelector("#sectionEditForm");
 const sectionEditSymbolInput = document.querySelector("#sectionEditSymbolInput");
@@ -134,7 +140,9 @@ let gridOverrides = {};
 let keyOverride = null;
 let chordChart = null;
 let sections = [];
-let harmonyView = { barsPerRow: 2, chordDisplay: "both" };
+let harmonyView = { barsPerRow: 2, chordDisplay: "both", sectionInfoVisible: true };
+let selectedSectionRange = null;
+let pendingSectionCreateRange = null;
 let chordResizeState = null;
 let loopDragState = null;
 let metronomeEnabled = false;
@@ -665,23 +673,142 @@ function normalizedSections(state = null) {
   return normalizeSections(state);
 }
 
-function clampSectionInputs() {
-  const startBar = Math.max(1, Math.round(Number(sectionStartInput?.value) || 1));
-  const endBar = Math.max(startBar, Math.round(Number(sectionEndInput?.value) || startBar));
-  if (sectionStartInput) sectionStartInput.value = String(startBar);
-  if (sectionEndInput) sectionEndInput.value = String(endBar);
-  return { startBar, endBar };
+function normalizedSectionRange(startBar, endBar = startBar) {
+  const safeStart = Math.max(1, Math.round(Number(startBar) || 1));
+  const safeEnd = Math.max(1, Math.round(Number(endBar) || safeStart));
+  return {
+    startBar: Math.min(safeStart, safeEnd),
+    endBar: Math.max(safeStart, safeEnd)
+  };
 }
 
-function clearSectionControlError() {
-  sectionStartInput?.setCustomValidity("");
-  sectionEndInput?.setCustomValidity("");
+function sectionRangeLabel(range) {
+  if (!range) return "";
+  return range.startBar === range.endBar ? `Bar ${range.startBar}` : `Bars ${range.startBar}-${range.endBar}`;
 }
 
-function showSectionControlError(message) {
-  if (!sectionStartInput) return;
-  sectionStartInput.setCustomValidity(message);
-  sectionStartInput.reportValidity();
+function sectionRangeOverlaps(startBar, endBar) {
+  return sections.some((section) => startBar <= section.endBar && section.startBar <= endBar);
+}
+
+function selectedSectionRangeIsCreatable(range = selectedSectionRange) {
+  return Boolean(range) && !sectionRangeOverlaps(range.startBar, range.endBar);
+}
+
+function updateSectionSelectionControls() {
+  const range = selectedSectionRange;
+  const hasRange = Boolean(range);
+  const hasOverlap = hasRange && !selectedSectionRangeIsCreatable(range);
+
+  if (createSectionButton) {
+    createSectionButton.hidden = !hasRange || !harmonyView.sectionInfoVisible;
+    createSectionButton.disabled = hasOverlap;
+  }
+  if (sectionSelectionSummary) {
+    sectionSelectionSummary.textContent = hasRange
+      ? `${sectionRangeLabel(range)}${hasOverlap ? " already has section info" : " selected"}`
+      : "";
+  }
+}
+
+function setSelectedSectionRange(startBar, endBar = startBar, anchorBar = startBar, options = {}) {
+  const range = normalizedSectionRange(startBar, endBar);
+  selectedSectionRange = {
+    ...range,
+    anchorBar: Math.max(1, Math.round(Number(anchorBar) || range.startBar))
+  };
+  updateSectionSelectionControls();
+  if (options.render !== false) {
+    renderMetadata(currentAnalyzedMetadata);
+  }
+}
+
+function clearSelectedSectionRange(options = {}) {
+  selectedSectionRange = null;
+  updateSectionSelectionControls();
+  if (options.render !== false) {
+    renderMetadata(currentAnalyzedMetadata);
+  }
+}
+
+function selectSectionBar(bar, extend = false) {
+  if (!Number.isFinite(bar) || bar < 1) return;
+  if (extend && selectedSectionRange?.anchorBar) {
+    setSelectedSectionRange(selectedSectionRange.anchorBar, bar, selectedSectionRange.anchorBar);
+    return;
+  }
+  setSelectedSectionRange(bar, bar, bar);
+}
+
+function sectionCreateDialogSupported() {
+  return typeof sectionCreateDialog?.showModal === "function";
+}
+
+function setSectionCreateError(message = "") {
+  if (sectionCreateError) {
+    sectionCreateError.textContent = message;
+    sectionCreateError.hidden = !message;
+  }
+  sectionCreateSave?.setCustomValidity(message);
+}
+
+function openSectionCreateDialog(range) {
+  const nextRange = normalizedSectionRange(range?.startBar, range?.endBar);
+  if (sectionRangeOverlaps(nextRange.startBar, nextRange.endBar)) {
+    updateSectionSelectionControls();
+    return;
+  }
+
+  pendingSectionCreateRange = nextRange;
+  setSectionCreateError("");
+  if (sectionCreateSymbolInput) sectionCreateSymbolInput.value = "";
+  if (sectionCreateLabelInput) sectionCreateLabelInput.value = "";
+  if (sectionCreateColorInput) sectionCreateColorInput.value = "";
+
+  if (sectionCreateDialogSupported()) {
+    sectionCreateDialog.showModal();
+  } else {
+    sectionCreateDialog?.removeAttribute("hidden");
+    sectionCreateSymbolInput?.focus();
+  }
+}
+
+function closeSectionCreateDialog() {
+  pendingSectionCreateRange = null;
+  setSectionCreateError("");
+  if (sectionCreateDialog?.open) {
+    sectionCreateDialog.close();
+  } else {
+    sectionCreateDialog?.setAttribute("hidden", "");
+  }
+}
+
+function createSectionFromDialog() {
+  if (!pendingSectionCreateRange) return;
+  setSectionCreateError("");
+  const colorKey = String(sectionCreateColorInput?.value || "").trim().slice(0, 24);
+  const candidate = {
+    id: createSectionId(),
+    label: String(sectionCreateLabelInput?.value || "").trim().slice(0, 40),
+    symbol: String(sectionCreateSymbolInput?.value || "").trim().slice(0, 12),
+    startBar: pendingSectionCreateRange.startBar,
+    endBar: pendingSectionCreateRange.endBar,
+    source: "user"
+  };
+  if (colorKey) {
+    candidate.colorKey = colorKey;
+  }
+
+  const result = addSectionToList(sections, candidate);
+  if (!result.ok) {
+    setSectionCreateError(result.error === "overlap" ? "Section overlaps an existing section." : "Section could not be saved.");
+    sectionCreateSave?.reportValidity();
+    return;
+  }
+
+  commitSections(result.sections);
+  closeSectionCreateDialog();
+  clearSelectedSectionRange();
 }
 
 function commitSections(nextSections) {
@@ -691,29 +818,6 @@ function commitSections(nextSections) {
   }
   renderMetadata(currentAnalyzedMetadata);
   queuePracticeStatePersist();
-}
-
-function addSectionFromControls() {
-  clearSectionControlError();
-  const { startBar, endBar } = clampSectionInputs();
-  const label = String(sectionLabelInput?.value || "").trim().slice(0, 40);
-  const symbol = String(sectionSymbolInput?.value || "").trim().slice(0, 12);
-
-  const result = addSectionToList(sections, {
-    id: createSectionId(),
-    label,
-    symbol,
-    startBar,
-    endBar,
-    source: "user"
-  });
-  if (!result.ok) {
-    if (result.error === "overlap") {
-      showSectionControlError("Section overlaps an existing section.");
-    }
-    return;
-  }
-  commitSections(result.sections);
 }
 
 let editingSectionId = null;
@@ -869,6 +973,10 @@ function applySavedPracticeState(job) {
   if (barsPerRowSelect) {
     barsPerRowSelect.value = String(harmonyView.barsPerRow);
   }
+  if (sectionInfoToggle) {
+    sectionInfoToggle.checked = harmonyView.sectionInfoVisible;
+  }
+  clearSelectedSectionRange({ render: false });
   playbackRate = Number(state.playbackRate) || 1;
   loopStart.dataset.loopMode = "seconds";
   loopEnd.dataset.loopMode = "seconds";
@@ -1094,6 +1202,10 @@ function updateHarmonyViewControls() {
   if (barsPerRowSelect && barsPerRowSelect.value !== String(harmonyView.barsPerRow)) {
     barsPerRowSelect.value = String(harmonyView.barsPerRow);
   }
+  if (sectionInfoToggle && sectionInfoToggle.checked !== harmonyView.sectionInfoVisible) {
+    sectionInfoToggle.checked = harmonyView.sectionInfoVisible;
+  }
+  updateSectionSelectionControls();
 }
 
 function activeLoopBeatRange(grid) {
@@ -1177,8 +1289,9 @@ function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) 
   const rowEndBar = bars[bars.length - 1] || rowStartBar;
   row.dataset.rowStartBar = String(rowStartBar);
   row.dataset.rowEndBar = String(rowEndBar);
+  row.classList.toggle("section-info-visible", harmonyView.sectionInfoVisible);
 
-  const sectionBands = renderSectionBandsForRow(rowStartBar, rowEndBar);
+  const sectionBands = harmonyView.sectionInfoVisible ? renderSectionBandsForRow(rowStartBar, rowEndBar) : [];
   row.classList.toggle("has-section-row", sectionBands.length > 0);
 
   const segments = bars.map((bar, index) => {
@@ -1235,6 +1348,9 @@ function renderSectionBand(section, chunk) {
   const band = document.createElement("div");
   band.className = "section-band";
   band.dataset.sectionId = section.id;
+  if (section.colorKey) {
+    band.dataset.sectionColor = section.colorKey;
+  }
   band.dataset.rangeStart = String(chunk.startBar);
   band.dataset.rangeEnd = String(chunk.endBar);
   band.dataset.testid = `section-band-${chunk.startBar}`;
@@ -1295,7 +1411,11 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   segment.style.setProperty("--beats-per-bar", String(beatsPerBar));
   segment.style.setProperty("--beat-width", `${100 / beatsPerBar}%`);
   const activeSection = sectionForBar(bar);
-  segment.classList.toggle("has-section", Boolean(activeSection));
+  const selectedForSection = Boolean(selectedSectionRange && bar >= selectedSectionRange.startBar && bar <= selectedSectionRange.endBar);
+  segment.classList.toggle("has-section", harmonyView.sectionInfoVisible && Boolean(activeSection));
+  segment.classList.toggle("section-selected", harmonyView.sectionInfoVisible && selectedForSection);
+  segment.classList.toggle("section-selection-start", harmonyView.sectionInfoVisible && selectedSectionRange?.startBar === bar);
+  segment.classList.toggle("section-selection-end", harmonyView.sectionInfoVisible && selectedSectionRange?.endBar === bar);
   if (activeSection) {
     segment.dataset.sectionId = activeSection.id;
   }
@@ -1337,8 +1457,25 @@ function renderChordBarSegment(bar, entries, grid, beatsPerBar) {
   });
 
   segment.classList.toggle("loop-active", Boolean(loopRange));
-  segment.append(barNumber, ...addButtons, ...cards);
+  segment.append(barNumber);
+  if (harmonyView.sectionInfoVisible && !activeSection) {
+    segment.append(renderSectionAddButton(bar));
+  }
+  segment.append(...addButtons, ...cards);
   return segment;
+}
+
+function renderSectionAddButton(bar) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "section-add-bar";
+  button.dataset.sectionAction = "create-at-bar";
+  button.dataset.bar = String(bar);
+  button.dataset.testid = `section-add-bar-${bar}`;
+  button.setAttribute("aria-label", `Create section at bar ${bar}`);
+  button.setAttribute("title", "Create section");
+  button.textContent = "+";
+  return button;
 }
 
 function renderChordLoopRegion(chunk, loopBars) {
@@ -2991,13 +3128,13 @@ barsPerRowSelect?.addEventListener("change", () => {
   applyHarmonyView({ barsPerRow: Number(barsPerRowSelect.value) });
 });
 
-addSectionButton?.addEventListener("click", addSectionFromControls);
+sectionInfoToggle?.addEventListener("change", () => {
+  applyHarmonyView({ sectionInfoVisible: sectionInfoToggle.checked });
+});
 
-[sectionStartInput, sectionEndInput].forEach((input) => {
-  input?.addEventListener("change", () => {
-    clearSectionControlError();
-    clampSectionInputs();
-  });
+createSectionButton?.addEventListener("click", () => {
+  if (!selectedSectionRangeIsCreatable()) return;
+  openSectionCreateDialog(selectedSectionRange);
 });
 
 chordList?.addEventListener("click", (event) => {
@@ -3008,12 +3145,26 @@ chordList?.addEventListener("click", (event) => {
       openSectionEditDialog(sectionButton.dataset.sectionId);
     } else if (sectionButton.dataset.sectionAction === "remove") {
       removeSection(sectionButton.dataset.sectionId);
+    } else if (sectionButton.dataset.sectionAction === "create-at-bar") {
+      const bar = Number(sectionButton.dataset.bar);
+      const clickedSelectedRange = selectedSectionRange && bar >= selectedSectionRange.startBar && bar <= selectedSectionRange.endBar
+        ? selectedSectionRange
+        : normalizedSectionRange(bar);
+      const range = selectedSectionRangeIsCreatable(clickedSelectedRange) ? clickedSelectedRange : normalizedSectionRange(bar);
+      setSelectedSectionRange(range.startBar, range.endBar, range.startBar, { render: false });
+      openSectionCreateDialog(range);
     }
     return;
   }
 
   const button = event.target.closest("button[data-chord-action]");
-  if (!button) return;
+  if (!button) {
+    const segment = event.target.closest(".chord-bar-segment");
+    if (segment && !event.target.closest(".chord-card, input")) {
+      selectSectionBar(Number(segment.dataset.bar), event.shiftKey);
+    }
+    return;
+  }
 
   if (button.dataset.chordAction === "add-at-cell") {
     addChordAtCell(Number(button.dataset.bar), Number(button.dataset.beat));
@@ -3053,6 +3204,19 @@ sectionEditForm?.addEventListener("submit", (event) => {
 });
 [sectionEditSymbolInput, sectionEditLabelInput, sectionEditStartInput, sectionEditEndInput].forEach((input) => {
   input?.addEventListener("input", () => setSectionEditError(""));
+});
+
+sectionCreateCancel?.addEventListener("click", closeSectionCreateDialog);
+sectionCreateDialog?.addEventListener("cancel", () => {
+  pendingSectionCreateRange = null;
+  setSectionCreateError("");
+});
+sectionCreateForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  createSectionFromDialog();
+});
+[sectionCreateSymbolInput, sectionCreateLabelInput, sectionCreateColorInput].forEach((input) => {
+  input?.addEventListener("input", () => setSectionCreateError(""));
 });
 
 chordList?.addEventListener("dragstart", (event) => {

@@ -258,7 +258,8 @@ describe("mock backend", () => {
     ]);
     assert.deepEqual(updatedJob.practiceState.harmonyView, {
       barsPerRow: 4,
-      chordDisplay: "roman"
+      chordDisplay: "roman",
+      sectionInfoVisible: true
     });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);

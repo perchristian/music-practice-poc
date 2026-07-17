@@ -16,6 +16,7 @@ test.afterEach(async ({ request }) => {
     "editable-chords-",
     "flat-sections-",
     "section-ranges-",
+    "section-selection-",
     "resize-chords-",
     "delete-last-chord-",
     "loop-bars-"
@@ -140,6 +141,26 @@ async function beginLoopHandleDragToBar(page, action, fromBar, toBar) {
 async function dragLoopHandleToBar(page, action, fromBar, toBar) {
   const finishDrag = await beginLoopHandleDragToBar(page, action, fromBar, toBar);
   await finishDrag();
+}
+
+async function selectSectionBars(page, startBar, endBar = startBar) {
+  await page.locator(`.chord-bar-segment[data-bar="${startBar}"]`).click({ position: { x: 8, y: 8 } });
+  if (endBar !== startBar) {
+    await page.locator(`.chord-bar-segment[data-bar="${endBar}"]`).click({ position: { x: 8, y: 8 }, modifiers: ["Shift"] });
+  }
+}
+
+async function createSectionFromBars(page, startBar, endBar, { symbol = "", label = "", color = "" } = {}) {
+  await selectSectionBars(page, startBar, endBar);
+  await page.getByTestId("create-section-button").click();
+  await expect(page.getByTestId("section-create-dialog")).toBeVisible();
+  await page.getByTestId("section-create-symbol").fill(symbol);
+  await page.getByTestId("section-create-label").fill(label);
+  if (color) {
+    await page.getByTestId("section-create-color").selectOption(color);
+  }
+  await page.getByTestId("section-create-save").click();
+  await expect(page.getByTestId("section-create-dialog")).not.toBeVisible();
 }
 
 test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
@@ -1033,7 +1054,8 @@ test("editable chord chart persists user overrides without replacing analyzer me
       chartDurationDiv: 12,
       harmonyView: {
         barsPerRow: 4,
-        chordDisplay: "both"
+        chordDisplay: "both",
+        sectionInfoVisible: true
       },
       legacyEditsPresent: false
     });
@@ -1073,7 +1095,8 @@ test("editable chord chart persists user overrides without replacing analyzer me
       downbeatOffsetSeconds: 2,
       harmonyView: {
         barsPerRow: 4,
-        chordDisplay: "both"
+        chordDisplay: "both",
+        sectionInfoVisible: true
       }
     });
 
@@ -1094,11 +1117,8 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
   await page.getByTestId("bars-per-row-select").selectOption("4");
-  await page.getByTestId("section-start").fill("1");
-  await page.getByTestId("section-end").fill("4");
-  await page.getByTestId("section-symbol").fill("A");
-  await page.getByTestId("section-label").fill("Verse");
-  await page.getByTestId("add-section-button").click();
+  await expect(page.getByTestId("create-section-button")).toBeHidden();
+  await createSectionFromBars(page, 1, 4, { symbol: "A", label: "Verse" });
 
   await expect(page.getByTestId("section-band-1")).toContainText("A Verse");
   await expect(page.locator(".section-band")).toHaveCount(1);
@@ -1144,6 +1164,12 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("section-band-1")).toContainText("I Intro");
 
+  await page.getByTestId("section-info-toggle").uncheck();
+  await expect(page.locator(".section-band")).toHaveCount(0);
+  await expect(page.getByTestId("section-add-bar-5")).toHaveCount(0);
+  await page.getByTestId("section-info-toggle").check();
+  await expect(page.getByTestId("section-band-1")).toContainText("I Intro");
+
   await page.getByTestId("section-remove-1").click();
   await expect(page.locator(".section-band")).toHaveCount(0);
 
@@ -1157,11 +1183,7 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
     })
     .toEqual([]);
 
-  await page.getByTestId("section-start").fill("2");
-  await page.getByTestId("section-end").fill("3");
-  await page.getByTestId("section-symbol").fill("");
-  await page.getByTestId("section-label").fill("");
-  await page.getByTestId("add-section-button").click();
+  await createSectionFromBars(page, 2, 3);
   await expect(page.getByTestId("section-band-2")).toHaveCount(1);
   await expect(page.getByTestId("section-band-2")).toHaveAttribute("aria-label", "Section bars 2-3");
   await expect(page.locator(".section-band-label")).toHaveCount(0);
@@ -1203,17 +1225,11 @@ test("section ranges reject overlap and render one label across bars-per-row lay
 
   await page.reload();
   await page.getByTestId(`song-row-${jobId}`).click();
-  await page.getByTestId("section-start").fill("1");
-  await page.getByTestId("section-end").fill("4");
-  await page.getByTestId("section-symbol").fill("A");
-  await page.getByTestId("section-label").fill("Verse");
-  await page.getByTestId("add-section-button").click();
+  await createSectionFromBars(page, 1, 4, { symbol: "A", label: "Verse" });
 
-  await page.getByTestId("section-start").fill("4");
-  await page.getByTestId("section-end").fill("6");
-  await page.getByTestId("section-symbol").fill("B");
-  await page.getByTestId("section-label").fill("Overlap");
-  await page.getByTestId("add-section-button").click();
+  await selectSectionBars(page, 3, 4);
+  await expect(page.getByTestId("create-section-button")).toBeDisabled();
+  await expect(page.getByTestId("section-selection-summary")).toContainText("already has section info");
 
   await expect
     .poll(async () => {
@@ -1237,6 +1253,47 @@ test("section ranges reject overlap and render one label across bars-per-row lay
   await page.getByTestId("section-edit-label").fill("Chorus");
   await page.getByTestId("section-edit-save").click();
   await expect(page.getByTestId("section-band-1")).toContainText("C Chorus");
+});
+
+test("section creation starts from selected bars and keeps chord card height stable", async ({ page }) => {
+  await page.goto("/");
+  const filename = `section-selection-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await page.getByTestId("bars-per-row-select").selectOption("4");
+  await expect(page.getByTestId("create-section-button")).toBeHidden();
+  await expect(page.getByTestId("section-add-bar-1")).toBeVisible();
+
+  await selectSectionBars(page, 1, 3);
+  await expect(page.getByTestId("create-section-button")).toBeVisible();
+  await expect(page.getByTestId("section-selection-summary")).toContainText("Bars 1-3 selected");
+  await page.getByTestId("create-section-button").click();
+  await expect(page.getByTestId("section-create-dialog")).toBeVisible();
+  await expect(page.getByTestId("section-create-dialog").getByTestId("section-edit-start")).toHaveCount(0);
+  await page.getByTestId("section-create-symbol").fill("I");
+  await page.getByTestId("section-create-label").fill("Intro");
+  await page.getByTestId("section-create-color").selectOption("green");
+  await page.getByTestId("section-create-save").click();
+
+  await expect(page.getByTestId("section-band-1")).toContainText("I Intro");
+  await expect(page.getByTestId("section-band-1")).toHaveAttribute("data-section-color", "green");
+  await expect(page.getByTestId("section-add-bar-4")).toBeVisible();
+
+  const cardHeights = await page.evaluate(() => {
+    const bar1Card = document.querySelector('.chord-bar-segment[data-bar="1"] .chord-card');
+    const bar4Card = document.querySelector('.chord-bar-segment[data-bar="4"] .chord-card');
+    return [bar1Card, bar4Card].map((element) => element?.getBoundingClientRect().height || 0);
+  });
+  expect(Math.abs(cardHeights[0] - cardHeights[1])).toBeLessThanOrEqual(1);
+
+  await page.getByTestId("section-add-bar-4").click();
+  await expect(page.getByTestId("section-create-dialog")).toBeVisible();
+  await page.getByTestId("section-create-symbol").fill("O");
+  await page.getByTestId("section-create-label").fill("Outro");
+  await page.getByTestId("section-create-save").click();
+  await expect(page.getByTestId("section-band-4")).toContainText("O Outro");
 });
 
 test("chord cards can be resized to expose beat cells for inserting chords", async ({ page }) => {
