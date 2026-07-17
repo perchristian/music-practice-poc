@@ -229,8 +229,8 @@ Data contract:
 User journey:
 1. The normal timeline remains safe and non-editable.
 2. `Edit timing` opens a distinct editor with a larger source waveform, horizontal pan, edit-only zoom, playback/scrubbing, and the existing bar lines over the waveform.
-3. Dragging a bar line to an audible/visible downbeat creates or updates its anchor. Manually anchored lines gain a restrained handle/state only in edit mode; they are not represented by a second competing marker system.
-4. Selecting an anchored line exposes precise time and small nudge controls plus `Remove correction`; Bar 1 can move but remains the required seed anchor once a tempo map exists.
+3. Clicking a bar line locks it at its calculated position; dragging creates or updates the same anchor at a new audible/visible downbeat. Manually anchored lines gain a restrained handle/state only in edit mode; they are not represented by a second competing marker system.
+4. A correction picker plus previous/next actions navigates every explicit anchor. The selected correction exposes precise time, icon-only nudge controls, and removal; Bar 1 is edited here and remains the required seed once a tempo map exists.
 5. Every change previews click, chord, loop, and marker alignment immediately and persists through the existing serialized practice-state save path. `Done` exits edit mode; no broad history editor is required for the first pass.
 
 Waveform contract:
@@ -242,7 +242,7 @@ Waveform contract:
 
 Tempo-control semantics:
 - Without a tempo map, the current BPM, `/2`, and `x2` behavior remains the base-grid correction flow.
-- With a tempo map, the visible value becomes the average local tempo of the segment containing the playhead; in edit mode, the selected segment takes precedence.
+- With a tempo map, the visible value becomes the average local tempo of the segment containing the playhead and updates during scrubbing and playback. The selected correction still determines which segment a typed BPM edit changes.
 - Editing a mapped segment tempo keeps its left anchor fixed and moves only its right anchor. Later explicit anchors keep their audio times, so important later downbeats are not cascaded; the following segment's calculated tempo may consequently change.
 - If no right anchor exists, create the next bar downbeat as the right anchor.
 - `/2` and `x2` must not silently rewrite an existing map; require an explicit reset/reinterpret action with confirmation if that capability is retained.
@@ -270,7 +270,7 @@ Acceptance criteria:
 - Edit controls cannot move bar lines outside `Edit timing` mode.
 - Mock mode remains dependency-light and demonstrates the editor flow.
 
-Status: Implemented and complete for automated verification on 2026-07-17. Pure timing tests cover changing segment tempos and inverse mapping; backend tests cover waveform assets plus validated persistence; Playwright covers edit-mode gating, zoom, drag, contextual BPM, chord/loop alignment, reload, and 390 px layout. Human listening/alignment on a real drifting recording remains the completion gate before Phase 2J.
+Status: Implemented and complete for automated verification on 2026-07-17. A product-feedback follow-up added click-to-lock downbeats, correction-list navigation, unified Bar 1 editing, distinct playhead styling, playhead/pointer-centered zoom with pinch support, live contextual BPM, optional Bar 1 playback start, and count-in independent of looping. Pure timing tests cover changing segment tempos and inverse mapping; backend tests cover waveform assets plus validated persistence; Playwright covers edit-mode gating, zoom, click/drag correction, contextual BPM transitions, chord/loop alignment, independent and repeated count-in, reload, and 390 px layout. Human listening/alignment on a real drifting recording remains the completion gate before Phase 2J.
 
 ### 16. Phase 2J: Joint Analyzer/Working-Chart Calibration
 

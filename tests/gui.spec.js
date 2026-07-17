@@ -167,6 +167,16 @@ async function dragTimelineBarToSeconds(page, bar, seconds, duration = 16) {
   await page.mouse.up();
 }
 
+async function setBarOneStart(page, seconds, { done = true } = {}) {
+  if (!(await page.getByTestId("timing-editor-controls").isVisible())) {
+    await page.getByTestId("edit-timing").click();
+  }
+  await page.getByTestId("timing-correction-select").selectOption("1");
+  await page.getByTestId("timing-anchor-time").fill(String(seconds));
+  await page.getByTestId("timing-anchor-time").press("Enter");
+  if (done) await page.getByTestId("timing-done").click();
+}
+
 async function createSectionFromBars(page, startBar, endBar, { symbol = "", label = "", color = "" } = {}) {
   await selectSectionBars(page, startBar, endBar);
   await page.getByTestId("create-section-button").click();
@@ -511,11 +521,9 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   await expect(page.getByTestId("grid-timeline")).not.toHaveClass(/empty/);
   await expect(page.locator(".grid-marker.downbeat")).toHaveCount(5);
   await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0");
-  await expect(page.getByTestId("bar-start-input")).toHaveValue("0");
   await expect(page.getByTestId("meter-select")).toHaveValue("4/4");
 
-  await page.getByTestId("bar-start-input").fill("0.5");
-  await page.getByTestId("bar-start-input").press("Enter");
+  await setBarOneStart(page, 0.5);
   await page.getByTestId("meter-select").selectOption("3/4");
   await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0.5");
   await expect(page.locator(".grid-marker.downbeat")).toHaveCount(6);
@@ -532,7 +540,7 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   expect(clicks[0]).toMatchObject({ time: 10.5, frequency: 1320 });
 });
 
-test("loop count-in clicks before starting stem playback", async ({ page }) => {
+test("count-in works without a loop and repeats after a loop jump", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];
     window.__metronomeClicks = [];
@@ -616,11 +624,8 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("240");
   await page.getByTestId("tempo-input").press("Enter");
-  await page.getByTestId("bar-start-input").fill("0.5");
-  await page.getByTestId("bar-start-input").press("Enter");
-  await page.getByTestId("loop-enabled").check();
-  await page.getByTestId("loop-start").fill("1");
-  await page.getByTestId("loop-end").fill("1");
+  await setBarOneStart(page, 0.5);
+  await page.getByTestId("start-at-bar-one").check();
   await page.getByTestId("count-in-bars").selectOption("1");
 
   await page.getByRole("button", { name: "Play" }).click();
@@ -639,6 +644,10 @@ test("loop count-in clicks before starting stem playback", async ({ page }) => {
 
   const playCalls = await page.evaluate(() => window.__playCalls);
   expect(playCalls.every((call) => call.currentTime === 0.5)).toBe(true);
+
+  await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("loop-start").fill("1");
+  await page.getByTestId("loop-end").fill("1");
 
   await expect
     .poll(async () => page.evaluate(() => window.__metronomeClicks.length), { timeout: 4_000 })
@@ -941,16 +950,31 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
 
   await page.getByTestId("edit-timing").click();
   await expect(page.getByTestId("timing-editor-controls")).toBeVisible();
+  await setPlaybackPosition(page, 8);
   await page.getByTestId("timing-zoom").fill("2");
   await expect
     .poll(async () => page.locator("#timelineTrack").evaluate((element) => element.clientWidth))
     .toBeGreaterThan(await page.getByTestId("timeline-viewport").evaluate((element) => element.clientWidth));
+  await expect
+    .poll(async () => page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
 
   await dragTimelineBarToSeconds(page, 2, 6);
   await expect(page.locator('.grid-marker.downbeat[data-bar="1"]')).toHaveClass(/anchored/);
   await expect(page.locator('.grid-marker.downbeat[data-bar="2"]')).toHaveClass(/anchored/);
   await expect(page.getByTestId("timing-anchor-controls")).toBeVisible();
   await expect(page.getByTestId("tempo-display")).toHaveText("40 BPM");
+
+  await page.locator('.grid-marker.downbeat[data-bar="3"]').click();
+  await expect(page.locator('.grid-marker.downbeat[data-bar="3"]')).toHaveClass(/anchored/);
+  await expect(page.getByTestId("timing-correction-select").locator("option")).toHaveCount(3);
+  await expect(page.getByTestId("timing-correction-select")).toHaveValue("3");
+  await page.getByTestId("timing-anchor-time").fill("10");
+  await page.getByTestId("timing-anchor-time").press("Enter");
+  await page.getByTestId("timing-previous-anchor").click();
+  await expect(page.getByTestId("timing-correction-select")).toHaveValue("2");
+  await page.getByTestId("timing-next-anchor").click();
+  await expect(page.getByTestId("timing-correction-select")).toHaveValue("3");
 
   await expect
     .poll(async () => page.evaluate(async (id) => {
@@ -961,13 +985,16 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
       version: 1,
       anchors: [
         { bar: 1, timeSeconds: 0 },
-        { bar: 2, timeSeconds: 6 }
+        { bar: 2, timeSeconds: 6 },
+        { bar: 3, timeSeconds: 10 }
       ]
     });
 
   await setPlaybackPosition(page, 5);
+  await expect(page.getByTestId("tempo-display")).toHaveText("40 BPM");
   await expect(page.getByTestId("chord-card-0")).toHaveClass(/active/);
   await setPlaybackPosition(page, 6.1);
+  await expect(page.getByTestId("tempo-display")).toHaveText("60 BPM");
   await expect(page.getByTestId("chord-card-1")).toHaveClass(/active/);
 
   await page.getByTestId("loop-enabled").check();
@@ -981,7 +1008,7 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
       const state = (await response.json()).practiceState;
       return { loopStart: state.loopStart, loopEnd: state.loopEnd };
     }, jobId))
-    .toEqual({ loopStart: 6, loopEnd: 12 });
+    .toEqual({ loopStart: 6, loopEnd: 10 });
 
   await page.getByTestId("timing-done").click();
   await expect(page.getByTestId("timing-editor-controls")).not.toBeVisible();
@@ -1072,8 +1099,7 @@ test("harmony chord beat labels stay musical through manual grid tempo and bar s
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
 
-  await page.getByTestId("bar-start-input").fill("2");
-  await page.getByTestId("bar-start-input").press("Enter");
+  await setBarOneStart(page, 2);
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
@@ -1151,8 +1177,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 
-  await page.getByTestId("bar-start-input").fill("2");
-  await page.getByTestId("bar-start-input").press("Enter");
+  await setBarOneStart(page, 2);
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "2");
 
@@ -1610,6 +1635,7 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("loop-start").fill("2");
   await page.getByTestId("loop-end").fill("2");
   await page.getByTestId("count-in-bars").selectOption("1");
+  await page.getByTestId("start-at-bar-one").check();
   await page.getByTestId("metronome-mute").click();
   await page.getByTestId("metronome-volume").evaluate((slider) => {
     slider.value = "0.65";
@@ -1618,8 +1644,7 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("metronome-solo").click();
   await page.getByTestId("key-select").selectOption("D:major");
   await page.getByTestId("tempo-double").click();
-  await page.getByTestId("bar-start-input").fill("-0.25");
-  await page.getByTestId("bar-start-input").press("Enter");
+  await setBarOneStart(page, -0.25);
   await page.getByTestId("meter-select").selectOption("6/8");
   await setPlaybackPosition(page, 3.2);
   await page.getByTestId("stem-mute-piano").click();
@@ -1685,12 +1710,15 @@ test("processed song library reopens songs and persists practice state", async (
   await expect(page.getByTestId("loop-end")).toHaveValue("2");
   await expect(page.getByTestId("loop-enabled")).toBeChecked();
   await expect(page.getByTestId("count-in-bars")).toHaveValue("1");
+  await expect(page.getByTestId("start-at-bar-one")).toBeChecked();
   await expect(page.getByTestId("metronome-mute")).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByTestId("metronome-volume")).toHaveValue("0.65");
   await expect(page.getByTestId("metronome-solo")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("key-select")).toHaveValue("D:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("120 BPM");
-  await expect(page.getByTestId("bar-start-input")).toHaveValue("-0.25");
+  await page.getByTestId("edit-timing").click();
+  await expect(page.getByTestId("timing-anchor-time")).toHaveValue("-0.250");
+  await page.getByTestId("timing-done").click();
   await expect(page.getByTestId("meter-select")).toHaveValue("6/8");
   await expect(page.locator("#scrubber")).toHaveValue("3.2");
   await expect(page.getByTestId("stem-row-piano")).toHaveClass(/muted/);

@@ -11,15 +11,20 @@ The project currently uses date-based development milestones rather than numbere
 - Added this curated changelog and made changelog maintenance part of the completion criteria for future implementation iterations.
 - Added a gated waveform timing editor where users can zoom, scrub, and drag existing bar lines into persisted downbeat anchors.
 - Added compact real/mock waveform result assets and a shared variable-tempo mapping module.
+- Added a navigable timing-correction list, click-to-lock downbeats, pinch/pointer-centered zoom, optional Bar 1 playback start, and count-in that can be used without a loop.
 
 ### Changed
 
 - Displayed BPM now follows the active tempo-map segment, and segment edits move only its next anchored downbeat.
 - Timeline markers, metronome clicks, chord timing, loops, Harmony overlays, and count-in now use the same invertible musical-time map.
+- Bar 1 timing now uses the same correction editor as every other anchor; nudge actions are compact icon buttons and the playhead is visually distinct from downbeats.
+- Count-in defaults to off for new jobs and remains available before both ordinary playback and every loop pass.
 
 ### Fixed
 
 - Fixed cumulative click and chord-chart drift on recordings that require more than one tempo segment.
+- Fixed contextual BPM lagging behind playhead scrubbing or segment transitions during playback.
+- Fixed zoom using the viewport midpoint instead of the playhead, mouse position, or pinch center.
 
 ## 2026-07-17 — Reliability and Full-Song Coverage
 

@@ -1427,7 +1427,8 @@ async function createJobRecord({
       loopStart: 0,
       loopEnd: 4,
       loopEnabled: false,
-      countInBars: 1,
+      countInBars: 0,
+      startAtBarOne: false,
       lastPosition: 0,
       metronomeEnabled: false,
       metronomeVolume: 0.45,
@@ -1569,7 +1570,8 @@ function ensurePracticeState(job) {
     loopStart: clampNumber(Number(job.practiceState?.loopStart), 0, 0, 60 * 60),
     loopEnd: clampNumber(Number(job.practiceState?.loopEnd), 4, 0, 60 * 60),
     loopEnabled: Boolean(job.practiceState?.loopEnabled),
-    countInBars: [0, 1].includes(Number(job.practiceState?.countInBars)) ? Number(job.practiceState.countInBars) : 1,
+    countInBars: [0, 1].includes(Number(job.practiceState?.countInBars)) ? Number(job.practiceState.countInBars) : 0,
+    startAtBarOne: Boolean(job.practiceState?.startAtBarOne),
     lastPosition: clampNumber(Number(job.practiceState?.lastPosition), 0, 0, 60 * 60),
     metronomeEnabled: Boolean(job.practiceState?.metronomeEnabled),
     metronomeVolume: clampNumber(Number(job.practiceState?.metronomeVolume), 0.45, 0, 1),
@@ -2326,6 +2328,9 @@ async function handleUpdatePracticeState(req, id, res) {
   }
   if (typeof payload.countInBars === "number") {
     practiceState.countInBars = [0, 1].includes(payload.countInBars) ? payload.countInBars : practiceState.countInBars;
+  }
+  if (typeof payload.startAtBarOne === "boolean") {
+    practiceState.startAtBarOne = payload.startAtBarOne;
   }
   if (typeof payload.lastPosition === "number") {
     practiceState.lastPosition = clampNumber(payload.lastPosition, practiceState.lastPosition, 0, 60 * 60);

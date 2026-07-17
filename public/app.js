@@ -88,6 +88,10 @@ const timingFitButton = document.querySelector("#timingFitButton");
 const timingDoneButton = document.querySelector("#timingDoneButton");
 const timingAnchorControls = document.querySelector("#timingAnchorControls");
 const timingAnchorLabel = document.querySelector("#timingAnchorLabel");
+const timingCorrectionSelect = document.querySelector("#timingCorrectionSelect");
+const timingPreviousAnchor = document.querySelector("#timingPreviousAnchor");
+const timingNextAnchor = document.querySelector("#timingNextAnchor");
+const timingAnchorTime = document.querySelector("#timingAnchorTime");
 const timingNudgeLeft = document.querySelector("#timingNudgeLeft");
 const timingNudgeRight = document.querySelector("#timingNudgeRight");
 const timingRemoveAnchor = document.querySelector("#timingRemoveAnchor");
@@ -99,6 +103,7 @@ const loopEndLabel = document.querySelector("#loopEndLabel");
 const loopEnabled = document.querySelector("#loopEnabled");
 const loopSettings = document.querySelector("#loopSettings");
 const countInBars = document.querySelector("#countInBars");
+const startAtBarOne = document.querySelector("#startAtBarOne");
 const timeReadout = document.querySelector("#timeReadout");
 const keySelect = document.querySelector("#keySelect");
 const tempoControl = document.querySelector("#tempoControl");
@@ -107,7 +112,6 @@ const tempoDisplay = document.querySelector("#tempoDisplay");
 const tempoInput = document.querySelector("#tempoInput");
 const tempoDouble = document.querySelector("#tempoDouble");
 const gridCorrection = document.querySelector("#gridCorrection");
-const barStartInput = document.querySelector("#barStartInput");
 const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
 const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
@@ -181,6 +185,9 @@ let timingZoomFactor = 1;
 let selectedTimingAnchorBar = null;
 let timingDragState = null;
 let suppressTimelineClick = false;
+let timelineHoverClientX = null;
+const timingTouchPointers = new Map();
+let timingPinchState = null;
 let persistTimer = null;
 let pendingPracticeStatePersist = null;
 let practicePersistVersion = 0;
@@ -963,6 +970,7 @@ function practiceStatePayload() {
     loopEnd: loopInputSeconds(loopEnd),
     loopEnabled: loopEnabled.checked,
     countInBars: Number(countInBars?.value) || 0,
+    startAtBarOne: Boolean(startAtBarOne?.checked),
     lastPosition: transportTime(),
     metronomeEnabled,
     metronomeVolume,
@@ -1081,7 +1089,10 @@ function applySavedPracticeState(job) {
   loopEnabled.checked = Boolean(state.loopEnabled);
   updateLoopSettingsVisibility();
   if (countInBars) {
-    countInBars.value = String(Number(state.countInBars ?? 1));
+    countInBars.value = String(Number(state.countInBars ?? 0));
+  }
+  if (startAtBarOne) {
+    startAtBarOne.checked = Boolean(state.startAtBarOne);
   }
   metronomeEnabled = Boolean(state.metronomeEnabled);
   metronomeVolume = Number(state.metronomeVolume ?? 0.45);
@@ -1894,13 +1905,8 @@ function updateTempoControl() {
   if (!tempoControl || !tempoDisplay || !currentMetadata) return;
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  const selectedSegment = timingEditMode && grid ? activeTempoAnchorSegment() : null;
-  const selectedSegmentBpm = selectedSegment?.right
-    ? ((selectedSegment.right.bar - selectedSegment.left.bar) * grid.beatsPerBar * 60) /
-      (selectedSegment.right.timeSeconds - selectedSegment.left.timeSeconds)
-    : null;
   const contextualBpm = tempoMap && grid
-    ? selectedSegmentBpm || localTempoAtSeconds(grid, transportTime())
+    ? localTempoAtSeconds(grid, transportTime())
     : null;
   const displayBpm = roundedBpm(contextualBpm) || roundedBpm(currentMetadata.beatGrid?.bpm);
   const label = displayBpm ? `${displayBpm} BPM` : "";
@@ -2011,17 +2017,9 @@ function applyKeyOverride(nextKey) {
 function updateGridCorrectionControls() {
   if (!gridCorrection || !currentAnalyzedMetadata || !currentMetadata) return;
 
-  const analyzedDefaults = metadataGridDefaults(currentAnalyzedMetadata);
   const effectiveGrid = normalizedBeatGrid(currentMetadata, transportDuration());
   gridCorrection.hidden = !effectiveGrid;
   if (!effectiveGrid) return;
-
-  const baseDownbeat = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
-    ? gridOverrides.downbeatOffsetSeconds
-    : analyzedDefaults.downbeatOffsetSeconds;
-  if (barStartInput && document.activeElement !== barStartInput) {
-    barStartInput.value = String(roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0);
-  }
 
   if (meterSelect && document.activeElement !== meterSelect) {
     meterSelect.value = timeSignatureValue(effectiveGrid);
@@ -2029,40 +2027,6 @@ function updateGridCorrectionControls() {
   if (meterSelect) {
     meterSelect.disabled = Boolean(tempoMap);
     meterSelect.title = tempoMap ? "Remove timing corrections before changing time signature." : "";
-  }
-}
-
-function applyBarStartFromInput() {
-  const seconds = roundedSeconds(barStartInput?.value, minBarStartSeconds, maxBarStartSeconds);
-  if (seconds === null) return;
-  if (tempoMap) {
-    const nextMap = tempoMapWithAnchor(tempoMap, { bar: 1, timeSeconds: seconds });
-    if (nextMap) {
-      gridOverrides = normalizedGridOverrides({ gridOverrides: { ...gridOverrides, downbeatOffsetSeconds: seconds } });
-      commitTempoMap(nextMap, 1);
-    }
-    return;
-  }
-  applyGridOverrides({ downbeatOffsetSeconds: seconds });
-}
-
-function nudgeGridValue(target, delta) {
-  const step = Number(delta);
-  if (!Number.isFinite(step)) return;
-
-  if (target === "bar-start") {
-    const defaults = metadataGridDefaults(currentAnalyzedMetadata);
-    const current = hasGridOverride(gridOverrides, "downbeatOffsetSeconds")
-      ? gridOverrides.downbeatOffsetSeconds
-      : defaults.downbeatOffsetSeconds;
-    const next = roundedSeconds(current + step, minBarStartSeconds, maxBarStartSeconds);
-    if (next !== null) {
-      if (tempoMap) {
-        placeTimingAnchor(1, next);
-      } else {
-        applyGridOverrides({ downbeatOffsetSeconds: next });
-      }
-    }
   }
 }
 
@@ -2144,19 +2108,36 @@ function drawWaveform() {
   }
 }
 
-function updateTimelineTrackSize({ preserveCenter = true } = {}) {
+function updateTimelineTrackSize({ anchorRatio = null, viewportX = null } = {}) {
   if (!timelineTrack || !timelineViewport) return;
   const previousWidth = timelineTrack.clientWidth || timelineViewport.clientWidth;
-  const previousCenter = timelineViewport.scrollLeft + timelineViewport.clientWidth / 2;
-  const centerRatio = previousWidth > 0 ? previousCenter / previousWidth : 0;
+  const resolvedViewportX = Number.isFinite(viewportX) ? viewportX : timelineViewport.clientWidth / 2;
+  const resolvedAnchorRatio = Number.isFinite(anchorRatio)
+    ? Math.min(1, Math.max(0, anchorRatio))
+    : previousWidth > 0
+      ? (timelineViewport.scrollLeft + resolvedViewportX) / previousWidth
+      : 0;
   timelineTrack.style.width = timingEditMode ? `${Math.max(1, timingZoomFactor) * 100}%` : "100%";
   requestAnimationFrame(() => {
-    if (preserveCenter && timingEditMode) {
-      timelineViewport.scrollLeft = Math.max(0, centerRatio * timelineTrack.clientWidth - timelineViewport.clientWidth / 2);
+    if (timingEditMode) {
+      timelineViewport.scrollLeft = Math.max(0, resolvedAnchorRatio * timelineTrack.clientWidth - resolvedViewportX);
     }
     drawWaveform();
     if (currentMetadata) renderGridTimeline(currentMetadata);
   });
+}
+
+function setTimingZoom(nextZoom, { clientX = timelineHoverClientX } = {}) {
+  if (!timingEditMode || !timelineViewport || !timelineTrack) return;
+  const rect = timelineViewport.getBoundingClientRect();
+  const pointerIsOverWaveform = Number.isFinite(clientX) && clientX >= rect.left && clientX <= rect.right;
+  const viewportX = pointerIsOverWaveform ? clientX - rect.left : timelineViewport.clientWidth / 2;
+  const anchorRatio = pointerIsOverWaveform
+    ? (timelineViewport.scrollLeft + viewportX) / Math.max(1, timelineTrack.clientWidth)
+    : timelinePercent(transportTime()) / 100;
+  timingZoomFactor = Math.min(24, Math.max(1, Number(nextZoom) || 1));
+  if (timingZoom) timingZoom.value = String(Math.round(timingZoomFactor));
+  updateTimelineTrackSize({ anchorRatio, viewportX });
 }
 
 function setTimingEditMode(enabled) {
@@ -2169,7 +2150,7 @@ function setTimingEditMode(enabled) {
     if (timingZoom) timingZoom.value = "1";
     if (timelineViewport) timelineViewport.scrollLeft = 0;
   }
-  updateTimelineTrackSize({ preserveCenter: timingEditMode });
+  updateTimelineTrackSize({ anchorRatio: timelinePercent(transportTime()) / 100 });
   updateTimingAnchorControls();
 }
 
@@ -2183,10 +2164,18 @@ function timingViewportState() {
 }
 
 function selectedTimingAnchor() {
-  return tempoMap?.anchors.find((anchor) => anchor.bar === selectedTimingAnchorBar) || null;
+  const mapped = tempoMap?.anchors.find((anchor) => anchor.bar === selectedTimingAnchorBar);
+  if (mapped) return mapped;
+  if (selectedTimingAnchorBar === 1 && currentMetadata) {
+    const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+    const timeSeconds = grid ? musicalPositionToSeconds(grid, { bar: 1, beat: 1 }) : null;
+    return Number.isFinite(timeSeconds) ? { bar: 1, timeSeconds } : null;
+  }
+  return null;
 }
 
 function updateTimingAnchorControls() {
+  if (timingEditMode && selectedTimingAnchorBar === null) selectedTimingAnchorBar = 1;
   const anchor = selectedTimingAnchor();
   const visible = timingEditMode && Boolean(anchor);
   if (timingAnchorControls) timingAnchorControls.hidden = !visible;
@@ -2195,13 +2184,50 @@ function updateTimingAnchorControls() {
     return;
   }
   if (timingAnchorLabel) {
-    timingAnchorLabel.textContent = `Bar ${anchor.bar} · ${anchor.timeSeconds.toFixed(3)}s`;
+    timingAnchorLabel.textContent = `Bar ${anchor.bar}`;
   }
+  if (timingAnchorTime && document.activeElement !== timingAnchorTime) {
+    timingAnchorTime.value = anchor.timeSeconds.toFixed(3);
+  }
+  const corrections = [anchor.bar === 1 ? anchor : selectedTimingAnchor()].filter(Boolean);
+  for (const candidate of tempoMap?.anchors || []) {
+    if (!corrections.some((entry) => entry.bar === candidate.bar)) corrections.push(candidate);
+  }
+  corrections.sort((left, right) => left.bar - right.bar);
+  if (timingCorrectionSelect) {
+    timingCorrectionSelect.replaceChildren(...corrections.map((correction) => {
+      const option = document.createElement("option");
+      option.value = String(correction.bar);
+      option.textContent = `Bar ${correction.bar} · ${correction.timeSeconds.toFixed(3)}s`;
+      return option;
+    }));
+    timingCorrectionSelect.value = String(anchor.bar);
+  }
+  const selectedIndex = corrections.findIndex((correction) => correction.bar === anchor.bar);
+  if (timingPreviousAnchor) timingPreviousAnchor.disabled = selectedIndex <= 0;
+  if (timingNextAnchor) timingNextAnchor.disabled = selectedIndex < 0 || selectedIndex >= corrections.length - 1;
   if (timingRemoveAnchor) {
-    timingRemoveAnchor.disabled = false;
-    timingRemoveAnchor.textContent = anchor.bar === 1 ? "Reset tempo map" : "Remove correction";
+    timingRemoveAnchor.disabled = !tempoMap;
+    timingRemoveAnchor.textContent = anchor.bar === 1 ? "Reset corrections" : "Remove correction";
   }
   updateTempoControl();
+}
+
+function selectTimingCorrection(bar) {
+  const nextBar = Number(bar);
+  if (!Number.isInteger(nextBar)) return;
+  selectedTimingAnchorBar = nextBar;
+  renderGridTimeline(currentMetadata);
+  updateTimingAnchorControls();
+  const marker = gridTimeline?.querySelector(`.grid-marker.downbeat[data-bar="${nextBar}"]`);
+  marker?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+}
+
+function moveTimingCorrectionSelection(delta) {
+  const bars = [1, ...(tempoMap?.anchors || []).map((anchor) => anchor.bar).filter((bar) => bar !== 1)]
+    .sort((left, right) => left - right);
+  const index = bars.indexOf(selectedTimingAnchorBar);
+  selectTimingCorrection(bars[Math.min(bars.length - 1, Math.max(0, index + delta))]);
 }
 
 function baseTempoMapForEditing(grid) {
@@ -2216,6 +2242,12 @@ function baseTempoMapForEditing(grid) {
 function placeTimingAnchor(bar, timeSeconds) {
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   if (!grid) return false;
+  if (bar === 1 && !tempoMap) {
+    selectedTimingAnchorBar = 1;
+    applyGridOverrides({ downbeatOffsetSeconds: timeSeconds });
+    updateTimingAnchorControls();
+    return true;
+  }
   const startingMap = baseTempoMapForEditing(grid);
   const nextMap = tempoMapWithAnchor(startingMap, { bar, timeSeconds });
   if (!nextMap) return false;
@@ -2292,9 +2324,7 @@ function finishTimingMarkerDrag(event, cancelled = false) {
       renderGridTimeline(currentMetadata);
     }
   } else {
-    selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === state.bar) ? state.bar : null;
-    renderGridTimeline(currentMetadata);
-    updateTimingAnchorControls();
+    placeTimingAnchor(state.bar, Number(state.marker.dataset.time));
   }
 }
 
@@ -2458,14 +2488,17 @@ function cancelLoopCountIn() {
   isCountingIn = false;
 }
 
-function loopCountInConfig() {
-  if (!loopEnabled.checked || !currentMetadata) return null;
+function countInConfig(targetTime = null, { loopOnly = false } = {}) {
+  if ((loopOnly && !loopEnabled.checked) || !currentMetadata) return null;
   const bars = Number(countInBars?.value) || 0;
   if (bars <= 0) return null;
 
-  const start = loopInputSeconds(loopStart);
-  const end = loopInputSeconds(loopEnd);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  const start = Number.isFinite(targetTime) ? targetTime : loopInputSeconds(loopStart);
+  if (!Number.isFinite(start)) return null;
+  if (loopOnly) {
+    const end = loopInputSeconds(loopEnd);
+    if (!Number.isFinite(end) || end <= start) return null;
+  }
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   if (!grid) return null;
@@ -2487,6 +2520,13 @@ function loopCountInConfig() {
     beatsPerBar: grid.beatsPerBar,
     targetBeatIndex
   };
+}
+
+function playbackStartSeconds() {
+  if (!startAtBarOne?.checked || !currentMetadata) return 0;
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const barOne = grid ? musicalPositionToSeconds(grid, { bar: 1, beat: 1 }) : 0;
+  return boundTransportTime(Math.max(0, Number(barOne) || 0));
 }
 
 function scheduleLoopCountInClicks(config) {
@@ -2685,7 +2725,7 @@ function tickTransport() {
   let current = transportTime();
 
   if (loopEnabled.checked && Number.isFinite(start) && Number.isFinite(end) && end > start && current >= end) {
-    const countIn = loopCountInConfig();
+    const countIn = countInConfig(start, { loopOnly: true });
     if (countIn) {
       beginLoopCountIn(countIn);
       return;
@@ -2702,7 +2742,7 @@ function tickTransport() {
   const duration = transportDuration();
   if (Number.isFinite(duration) && duration > 0 && current >= duration) {
     pauseAll();
-    setTransportTime(0);
+    setTransportTime(playbackStartSeconds());
     return;
   }
 
@@ -2763,11 +2803,14 @@ async function startStemPlaybackAt(seconds) {
 async function playAll() {
   if (!stemPlayers.length) return;
 
-  const countIn = loopCountInConfig();
+  const minimumStart = playbackStartSeconds();
+  const current = transportTime();
+  const target = startAtBarOne?.checked && current < minimumStart ? minimumStart : current;
+  const countIn = countInConfig(target);
   if (countIn) {
     beginLoopCountIn(countIn);
   } else {
-    await startStemPlaybackAt(transportTime());
+    await startStemPlaybackAt(target);
   }
 }
 
@@ -3467,13 +3510,16 @@ playButton.addEventListener("click", () => {
 });
 
 backToStartButton?.addEventListener("click", () => {
-  setTransportTime(0);
+  setTransportTime(playbackStartSeconds());
 });
 
 scrubber.addEventListener("input", () => {
   isSeeking = true;
-  timeReadout.textContent = `${formatTime(Number(scrubber.value))} / ${formatDuration(transportDuration())}`;
+  const previewTime = Number(scrubber.value);
+  anchorTransport(previewTime);
+  timeReadout.textContent = `${formatTime(previewTime)} / ${formatDuration(transportDuration())}`;
   renderTimelineIndicators();
+  if (tempoMap) updateTempoControl();
 });
 
 scrubber.addEventListener("change", () => {
@@ -3487,15 +3533,28 @@ timingFitButton?.addEventListener("click", () => {
   timingZoomFactor = 1;
   if (timingZoom) timingZoom.value = "1";
   if (timelineViewport) timelineViewport.scrollLeft = 0;
-  updateTimelineTrackSize({ preserveCenter: false });
+  updateTimelineTrackSize({ anchorRatio: 0, viewportX: 0 });
 });
 timingZoom?.addEventListener("input", () => {
-  timingZoomFactor = Math.max(1, Number(timingZoom.value) || 1);
-  updateTimelineTrackSize();
+  setTimingZoom(Number(timingZoom.value));
 });
 timingNudgeLeft?.addEventListener("click", () => nudgeSelectedTimingAnchor(-0.01));
 timingNudgeRight?.addEventListener("click", () => nudgeSelectedTimingAnchor(0.01));
 timingRemoveAnchor?.addEventListener("click", removeSelectedTimingAnchor);
+timingCorrectionSelect?.addEventListener("change", () => selectTimingCorrection(timingCorrectionSelect.value));
+timingPreviousAnchor?.addEventListener("click", () => moveTimingCorrectionSelection(-1));
+timingNextAnchor?.addEventListener("click", () => moveTimingCorrectionSelection(1));
+timingAnchorTime?.addEventListener("change", () => {
+  const seconds = roundedSeconds(timingAnchorTime.value, minBarStartSeconds, 60 * 60);
+  if (seconds !== null) placeTimingAnchor(selectedTimingAnchorBar, seconds);
+});
+timingAnchorTime?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    timingAnchorTime.dispatchEvent(new Event("change", { bubbles: true }));
+    timingAnchorTime.blur();
+  }
+});
 
 gridTimeline?.addEventListener("pointerdown", (event) => {
   const marker = event.target.closest(".grid-marker.downbeat");
@@ -3513,10 +3572,48 @@ gridTimeline?.addEventListener("keydown", (event) => {
   if (!timingEditMode || !marker || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
   const bar = Number(marker.dataset.bar);
-  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === bar) ? bar : null;
-  renderGridTimeline(currentMetadata);
-  updateTimingAnchorControls();
+  placeTimingAnchor(bar, Number(marker.dataset.time));
 });
+
+timelineViewport?.addEventListener("pointerenter", (event) => {
+  timelineHoverClientX = event.clientX;
+});
+timelineViewport?.addEventListener("pointerleave", () => {
+  timelineHoverClientX = null;
+});
+timelineViewport?.addEventListener("pointermove", (event) => {
+  timelineHoverClientX = event.clientX;
+  if (event.pointerType !== "touch" || !timingTouchPointers.has(event.pointerId)) return;
+  timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (timingTouchPointers.size < 2 || !timingPinchState) return;
+  const [first, second] = [...timingTouchPointers.values()];
+  const distance = Math.hypot(second.x - first.x, second.y - first.y);
+  const centerX = (first.x + second.x) / 2;
+  event.preventDefault();
+  setTimingZoom(timingPinchState.zoom * distance / Math.max(1, timingPinchState.distance), { clientX: centerX });
+});
+timelineViewport?.addEventListener("pointerdown", (event) => {
+  if (!timingEditMode || event.pointerType !== "touch") return;
+  timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (timingTouchPointers.size === 2) {
+    const [first, second] = [...timingTouchPointers.values()];
+    timingPinchState = {
+      distance: Math.hypot(second.x - first.x, second.y - first.y),
+      zoom: timingZoomFactor
+    };
+  }
+});
+function finishTimingTouch(event) {
+  timingTouchPointers.delete(event.pointerId);
+  if (timingTouchPointers.size < 2) timingPinchState = null;
+}
+timelineViewport?.addEventListener("pointerup", finishTimingTouch);
+timelineViewport?.addEventListener("pointercancel", finishTimingTouch);
+timelineViewport?.addEventListener("wheel", (event) => {
+  if (!timingEditMode || (!event.ctrlKey && !event.metaKey)) return;
+  event.preventDefault();
+  setTimingZoom(timingZoomFactor * Math.exp(-event.deltaY * 0.01), { clientX: event.clientX });
+}, { passive: false });
 
 window.addEventListener("resize", () => {
   drawWaveform();
@@ -3606,23 +3703,7 @@ tempoInput?.addEventListener("blur", () => {
   closeTempoInput(true);
 });
 
-barStartInput?.addEventListener("change", applyBarStartFromInput);
-barStartInput?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    applyBarStartFromInput();
-    barStartInput.blur();
-  }
-});
-
-gridCorrection?.addEventListener("click", (event) => {
-  const nudgeButton = event.target.closest("button[data-grid-nudge]");
-  if (nudgeButton) {
-    const [target, delta] = nudgeButton.dataset.gridNudge.split(":");
-    nudgeGridValue(target, delta);
-    return;
-  }
-});
+startAtBarOne?.addEventListener("change", () => queuePracticeStatePersist());
 
 meterSelect?.addEventListener("change", () => {
   const signature = parseTimeSignature(meterSelect.value);

@@ -34,7 +34,7 @@ When Real mode is selected, the service status should show the active separator.
 
 No Demucs, Basic Pitch, FFmpeg, GPU, or heavy ML dependency is required for mock mode.
 
-For real screen-recording tests, prefer clips with a short pause before the first downbeat. Current manual testing shows grid and chord alignment is easier to inspect when the first beat starts after the clip begins; clips where the first beat happens just before the recording starts require negative `Bar 1 start` correction and are more fragile for demos.
+For real screen-recording tests, prefer clips with a short pause before the first downbeat. Current manual testing shows grid and chord alignment is easier to inspect when the first beat starts after the clip begins; clips where the first beat happens just before the recording starts require a negative Bar 1 time in `Edit timing` and are more fragile for demos.
 
 Real mode requires FFmpeg for extraction. On macOS with Homebrew, it is commonly available at `/opt/homebrew/bin/ffmpeg`. If FFmpeg is not on `PATH`, set:
 
@@ -137,11 +137,11 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
 19. Select `Edit timing`. Confirm the timeline grows into a waveform editor and the normal timeline could not be edited before entering this mode.
-20. Increase `Zoom`, horizontally scroll to a known downbeat, and drag its existing numbered bar line onto the visible audio event. Use the ±0.01-second controls for fine adjustment if needed.
-21. Confirm the moved bar line becomes an adjusted marker, the displayed BPM reflects that segment, and click/chord timing updates immediately. Add another correction later in the song if the click drifts again.
-22. Select `Done`, reload, reopen the song, and confirm the timing corrections return. Re-enter the editor and use `Reset tempo map` from Bar 1 only when intentionally returning to the constant-tempo grid.
+20. Increase `Zoom` or pinch over the waveform. Confirm zoom stays centered on the playhead, or on the pointer/pinch center when interacting over the waveform. Horizontally scroll to a known downbeat.
+21. Click a numbered bar line to lock it without moving it, or drag it onto the visible audio event. Use the arrow-icon nudges or exact Time field for fine adjustment. Use the Corrections list or previous/next buttons to revisit anchors, including Bar 1.
+22. Confirm the anchored line is visually distinct from the red playhead, the displayed BPM changes as the playhead crosses segment boundaries, and click/chord timing updates immediately. Select `Done`, reload, reopen the song, and confirm corrections return; use `Reset corrections` from Bar 1 only when intentionally returning to the constant-tempo grid.
 23. Adjust click volume from the mixer row; downbeat accent is always on for now.
-24. Enable Loop, then change loop start/end and count-in. When the song has a beat grid, loop start/end are whole bars, so `1` means all of Bar 1. With count-in enabled, confirm clicks happen before the loop audio starts and before each repeated loop pass, including after timing corrections.
+24. Set count-in to `1 bar` without enabling Loop and confirm it prepares ordinary playback. Optionally enable `Start at Bar 1` to skip incomplete pre-roll. Then enable Loop and change its start/end; `1` means all of Bar 1. Confirm count-in repeats before each loop pass, including after timing corrections.
 25. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header. Time signature and `/2`/`x2` are intentionally disabled while a tempo map exists.
 26. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
 27. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
@@ -168,9 +168,9 @@ npm run generate:test-media
 7. Confirm Harmony shows compact bar sections with small bar numbers, beat-cell separators, and chord blocks when the analysis can estimate a grid.
 8. Unmute the `Grid click` mixer row and listen for whether the click aligns with the real recording. Treat misalignment as expected calibration input, not necessarily an analysis failure.
 9. If the click is half-time or double-time, use `/2` or `x2`; if it is close but still wrong, click the BPM value and type the corrected tempo.
-10. Adjust `Bar 1 start` in 0.01-second steps while listening to the click. Negative values are allowed when the recording starts just after the first downbeat. Switch the time-signature dropdown if the downbeat accents are wrong.
-11. If the click later drifts, enter `Edit timing`, zoom to a recognizable downbeat, and drag that numbered bar line onto the waveform event. Repeat only at important later drift/tempo-change points.
-12. Enable Loop, set start/end as whole bars, enable 1-bar count-in, and confirm loop playback starts at the corrected mapped bar boundary and uses mapped count-in timing again on repeated passes.
+10. Enter `Edit timing`, select Bar 1 in Corrections, and adjust its exact time or arrow nudges while listening to the click. Negative values are allowed when recording starts just after the downbeat. Switch time signature if accents are wrong.
+11. If the click later drifts, zoom to a recognizable downbeat and click its numbered bar line to lock the preceding span, then drag or nudge the next incorrect line onto the waveform event. Repeat only at important later drift/tempo-change points.
+12. Enable optional `Start at Bar 1`, set count-in independently, then enable Loop and set start/end as whole bars. Confirm loop playback starts at the corrected boundary and mapped count-in repeats on each pass.
 13. Confirm beat markers and chord highlighting update immediately after timing correction while Harmony remains expressed in musical bars/beats rather than visible seconds.
 14. Edit at least one chord label, add one section label, resize one chord, reload, reopen the song, and confirm BPM/grid seed, timing anchors, key, loop bars, sections, and chord chart persist.
 15. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
@@ -252,7 +252,7 @@ These files are generated in-repo, are not commercial recordings, and do not inc
 - Real mode uses Demucs by default for drums, bass, guitar, piano, vocals, and other stems, but quality is still only validated on a small number of local examples.
 - Real transcription is not implemented yet.
 - Chord editing is a lightweight chart editor. It preserves user text and recalculates roman numerals best-effort, but it is not a full music-notation parser.
-- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 start, time signature, key, and chord labels can be corrected manually; the chord editor is still a compact POC editor, not full music notation.
+- Real-mode harmonic analysis is a first-pass beat-aware chroma heuristic. It can estimate the wrong tempo, meter, downbeat, key, or chord quality on dense, noisy, or weakly harmonic recordings. Tempo, Bar 1 time, time signature, key, and chord labels can be corrected manually; the chord editor is still a compact POC editor, not full music notation.
 - Variable timing uses constant tempo inside each span between sparse downbeat anchors. Expressive accelerando/ritardando may need several anchors; smooth curves, per-beat warping, mid-song meter changes, and automatic transient snapping are not implemented.
 - Melody extraction is not implemented yet.
 - The processed-song library is local-only and single-user; there is no cloud sync or authentication.

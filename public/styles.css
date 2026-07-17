@@ -710,6 +710,30 @@ audio {
   font-size: 0.84rem;
 }
 
+.timing-correction-picker,
+.timing-anchor-time,
+.count-in-control {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.timing-correction-picker select,
+.timing-anchor-time input,
+.count-in-control select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 5px 8px;
+}
+
+.timing-anchor-time input {
+  width: 92px;
+  font-variant-numeric: tabular-nums;
+}
+
 .timing-editor-controls input[type="range"] {
   width: min(180px, 38vw);
 }
@@ -831,9 +855,23 @@ audio {
   top: 0;
   bottom: 0;
   z-index: 3;
-  width: 2px;
-  background: var(--warm);
-  transform: translateX(-1px);
+  width: 3px;
+  background: #dc2626;
+  transform: translateX(-1.5px);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+}
+
+.timeline-playhead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-top: 9px solid #dc2626;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  transform: translateX(-50%);
 }
 
 .loop-marker {
@@ -989,7 +1027,7 @@ audio {
 .loop-grid {
   display: grid;
   flex: 1 1 360px;
-  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  grid-template-columns: repeat(2, minmax(92px, 1fr));
   gap: 10px;
   align-items: end;
   min-width: 0;
@@ -1102,7 +1140,7 @@ audio {
 
 .grid-correction {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(138px, auto);
+  grid-template-columns: minmax(138px, 220px);
   gap: 12px;
   align-items: end;
   margin: 14px 0 12px;

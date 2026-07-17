@@ -152,12 +152,33 @@
                     </div>
                   </div>
                   <div class="timing-anchor-controls" id="timingAnchorControls" data-testid="timing-anchor-controls" hidden>
+                    <label class="timing-correction-picker">
+                      <span>Corrections</span>
+                      <select id="timingCorrectionSelect" data-testid="timing-correction-select" aria-label="Timing corrections"></select>
+                    </label>
+                    <button type="button" class="secondary-button compact-button icon-only" id="timingPreviousAnchor" data-testid="timing-previous-anchor" aria-label="Previous timing correction">‹</button>
+                    <button type="button" class="secondary-button compact-button icon-only" id="timingNextAnchor" data-testid="timing-next-anchor" aria-label="Next timing correction">›</button>
                     <strong id="timingAnchorLabel">Bar</strong>
-                    <button type="button" class="secondary-button compact-button" id="timingNudgeLeft" data-testid="timing-nudge-left" aria-label="Move selected downbeat 0.01 seconds earlier">−0.01s</button>
-                    <button type="button" class="secondary-button compact-button" id="timingNudgeRight" data-testid="timing-nudge-right" aria-label="Move selected downbeat 0.01 seconds later">+0.01s</button>
+                    <label class="timing-anchor-time">
+                      <span>Time</span>
+                      <input id="timingAnchorTime" data-testid="timing-anchor-time" type="number" min="-60" step="0.001" inputmode="decimal" aria-label="Selected downbeat time in seconds">
+                    </label>
+                    <button type="button" class="secondary-button compact-button icon-only" id="timingNudgeLeft" data-testid="timing-nudge-left" aria-label="Move selected downbeat slightly earlier">←</button>
+                    <button type="button" class="secondary-button compact-button icon-only" id="timingNudgeRight" data-testid="timing-nudge-right" aria-label="Move selected downbeat slightly later">→</button>
                     <button type="button" class="secondary-button compact-button" id="timingRemoveAnchor" data-testid="timing-remove-anchor">Remove correction</button>
                   </div>
                   <div class="timeline-tools">
+                    <label class="toggle">
+                      <input id="startAtBarOne" data-testid="start-at-bar-one" type="checkbox">
+                      <span>Start at Bar 1</span>
+                    </label>
+                    <label class="count-in-control">
+                      <span>Count in</span>
+                      <select id="countInBars" data-testid="count-in-bars">
+                        <option value="0" selected>Off</option>
+                        <option value="1">1 bar</option>
+                      </select>
+                    </label>
                     <label class="toggle">
                       <input id="loopEnabled" data-testid="loop-enabled" type="checkbox">
                       <span>Loop</span>
@@ -171,26 +192,11 @@
                         <span id="loopEndLabel">End bar</span>
                         <input id="loopEnd" data-testid="loop-end" type="number" min="1" step="1" value="5">
                       </label>
-                      <label>
-                        <span>Count in</span>
-                        <select id="countInBars" data-testid="count-in-bars">
-                          <option value="0">Off</option>
-                          <option value="1" selected>1 bar</option>
-                        </select>
-                      </label>
                     </div>
                   </div>
                 </div>
 
                 <div class="grid-correction" id="gridCorrection" hidden>
-                  <label>
-                    <span>Bar 1 start</span>
-                    <div class="nudge-field">
-                      <button type="button" data-grid-nudge="bar-start:-0.01" data-testid="bar-start-minus" aria-label="Move bar 1 start earlier">-</button>
-                      <input id="barStartInput" data-testid="bar-start-input" type="number" min="-60" step="0.01" inputmode="decimal" aria-label="Bar 1 start seconds">
-                      <button type="button" data-grid-nudge="bar-start:0.01" data-testid="bar-start-plus" aria-label="Move bar 1 start later">+</button>
-                    </div>
-                  </label>
                   <div>
                     <span>Time signature</span>
                     <select id="meterSelect" data-testid="meter-select" aria-label="Time signature">
