@@ -46,11 +46,11 @@ Phase 2A spike frame:
   - job metadata records FFmpeg availability, command path or missing-command state, processing timing, source filename/type/size, output filename/size when present, and known limitations
   - `PIPELINE_MODE=mock` behavior and existing mock tests remain unchanged
 
-A process task for on-demand context overhead auditing is documented in `TASKS.md`. Context-overhead logging is off by default and should only be enabled after an explicit human request.
+A possible on-demand context overhead audit is parked in `IDEAS.md`. Context-overhead logging remains off and should only be promoted into the execution plan after an explicit human request or repeated evidence of context loss.
 
-Open Knowledge Format context assessment added on 2026-07-08 in `research/open-knowledge-format-context-assessment.md`. Recommendation: consider OKF-style Markdown frontmatter only for project-context bundles and Codex handoff, not for runtime song/job/practice-state storage. `TASKS.md` now includes a deferred OKF-style context bundle spike. No agents were delegated, no model switch was used, and no runtime jobs or songs were created.
+Open Knowledge Format context assessment added on 2026-07-08 in `research/open-knowledge-format-context-assessment.md`. Recommendation: consider OKF-style Markdown frontmatter only for project-context bundles and Codex handoff, not for runtime song/job/practice-state storage. The unscheduled context-bundle spike is parked in `IDEAS.md`. No agents were delegated, no model switch was used, and no runtime jobs or songs were created.
 
-UI system note added on 2026-07-08: a small internal design system pass is now planned in `TASKS.md`. The current recommendation is to keep the static HTML/CSS/vanilla JS frontend and standardize existing primitives before adding any broad component library. `ARCHITECTURE.md` documents the frontend UI-system direction, and `DECISIONS.md` records Decision 24 to defer React/shadcn/Radix, Ionic, Material, Tailwind, and broad web-component adoption for the current POC phase. Web Awesome can be reconsidered later for specific repeated primitives if the internal pass shows real maintenance cost.
+UI system note added on 2026-07-08: the recommendation remains to keep the static HTML/CSS/vanilla JS frontend. Concrete shell and touch improvements now have a defined Phase 5D position in `TASKS.md`; the broader design-system abstraction pass is parked in `IDEAS.md` until repeated maintenance cost justifies it. `ARCHITECTURE.md` documents the frontend direction, and `DECISIONS.md` records Decision 24 to defer React/shadcn/Radix, Ionic, Material, Tailwind, and broad web-component adoption for the current POC phase.
 
 Section-structure research note added on 2026-07-08: repeated song parts such as verse/chorus/bridge are now captured as a planned research/prototype task in `TASKS.md`, with the detailed plan in `research/section-structure-prototype-plan.md`. The recommended order is Flat Sections, Assisted Sections, then only later Linked Sections with local overrides if simpler approaches are insufficient. No agents were delegated for this planning step; use one lead agent until the shared scenario and evaluation criteria are stable, and record any later multi-agent delegation or model switch here.
 
@@ -71,6 +71,8 @@ Phase 5C.1 implemented on 2026-07-17. Practice-state persistence now snapshots b
 Phase 5C.2 implemented on 2026-07-17. `GET /api/jobs` lists every valid persisted `job.json`, while `/api/library` remains completed-only. On page load the browser reconstructs queued, processing, and failed entries, resumes polling active backend work, preserves backend error messages, and offers deletion for failed jobs. Backend coverage verifies active and failed list entries; focused Playwright coverage reloads during mock processing, waits for recovered polling to complete, reloads a deliberately failed real upload, shows its error, and deletes it. No agents were delegated and no model switch or skill was used.
 
 Phase 2I implemented on 2026-07-17 without changing musical chord-decision logic. The PCM reader now covers the full recording while reducing source/stem audio to an approximately 8 kHz mono analysis representation, removing the previous 120-second ceiling with bounded sample-array growth. The frontend/backend working-chart safety cap is 4096 events instead of 128. A 125-second fixture verifies chord cues beyond 120 seconds; frontend and backend tests preserve 160 events; all existing tempo, meter, multi-change, inversion, and local calibration expectations remain unchanged. `TASKS.md` and `ARCHITECTURE.md` now explicitly separate immutable analyzer suggestions from the user's authoritative working chart and defer optional extra-suggestion, comparison, `Back to analysis`, and heuristic-learning behavior to a joint calibration loop. No agents were delegated and no model switch or skill was used.
+
+Roadmap documentation reorganized on 2026-07-17. `TASKS.md` is now a concise chronological execution plan: completed work is ordered by implementation date, and planned work is numbered in intended execution order. Phase IDs are retained as subsystem lineage even when they are not numerically increasing. The next human checkpoint is Phase 2J analyzer/working-chart calibration; Phase 5D is the next independent implementation task, followed by Phase 5B.4-5B.6. Conditional and unscheduled work moved to `IDEAS.md` with promotion triggers, including advanced chord vocabulary, lyrics/melody, chord preview, transposition, saved loops, extra practice targets, Assisted/Linked Sections, broad design-system work, native iOS, waveform correction, and context experiments. Documentation-only change; no runtime tests or jobs were needed. No agents were delegated and no model switch or skill was used.
 
 ## Current Architecture
 
@@ -310,11 +312,9 @@ Local web POC:
 
 ## Next Recommended Task
 
-Manually test the Phase 4A single-loop workflow on a real long song: set Bar 1 start, choose bar-based loop start/end, enable count-in, drag the loop handles in Harmony across rows, listen to grid click through repeated loop passes, and inspect whether the simplified timeline is readable enough.
+Prepare the Phase 2J calibration set with the user and compare immutable analyzer suggestions with the user's working chart before changing chord heuristics.
 
-Alternative next product task: implement chord preview and an optional generated chord-instrument stem, starting with a small browser-compatible synthesis spike before deciding whether Apple DLSMusicDevice is only relevant for a later native/iOS path.
-
-Optional process task: enable the on-demand context overhead audit only when explicitly requested.
+If that human checkpoint cannot start yet, begin Phase 5D.1 library/app-shell/header cleanup as the next independent implementation task. Phase 5B.4-5B.6 follow the compact shell and touch-accessibility pass.
 
 ## Skills Used
 
