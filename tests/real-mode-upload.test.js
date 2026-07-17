@@ -178,6 +178,26 @@ async function analyzeGeneratedHarmony(filename) {
   );
 }
 
+function silentPcm16Wav(durationSeconds, sampleRate = 1000) {
+  const frameCount = Math.round(durationSeconds * sampleRate);
+  const dataBytes = frameCount * 2;
+  const buffer = Buffer.alloc(44 + dataBytes);
+  buffer.write("RIFF", 0, "ascii");
+  buffer.writeUInt32LE(36 + dataBytes, 4);
+  buffer.write("WAVE", 8, "ascii");
+  buffer.write("fmt ", 12, "ascii");
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36, "ascii");
+  buffer.writeUInt32LE(dataBytes, 40);
+  return buffer;
+}
+
 describe("real-mode upload contract with missing FFmpeg", () => {
   before(async () => {
     testDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-backend-"));
@@ -517,6 +537,23 @@ describe("generated harmonic-analysis fixtures", () => {
     assert.equal(metadata.beatGrid.beatsPerBar, 4);
     assert.ok(Math.abs(metadata.beatGrid.bpm - 100) <= 8, JSON.stringify(metadata.beatGrid));
     assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "F", "G", "C"]);
+  });
+
+  it("analyzes chord segments beyond the former 120 second boundary", async () => {
+    const fixtureDir = await mkdtemp(join(tmpdir(), "piano-poc-full-song-analysis-"));
+    const sourcePath = join(fixtureDir, "source-audio.wav");
+    try {
+      await writeFile(sourcePath, silentPcm16Wav(125));
+      const metadata = await analyzeHarmonyFromAudio(
+        { path: sourcePath, durationSeconds: 125, filename: "source-audio.wav" },
+        { outputs: [] }
+      );
+
+      assert.equal(metadata.durationSeconds, 125);
+      assert.ok(metadata.chords.at(-1).end > 120, JSON.stringify(metadata.chords.at(-1)));
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
   });
 });
 

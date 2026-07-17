@@ -55,6 +55,25 @@ describe("chord chart transforms", () => {
     });
   });
 
+  it("retains full-song working charts with more than 128 chord events", () => {
+    const chart = normalizedChordChart({
+      chordChart: {
+        version: 1,
+        divisionsPerQuarter: 4,
+        chords: Array.from({ length: 160 }, (_, index) => ({
+          id: `long-${index + 1}`,
+          bar: index + 1,
+          offsetDiv: 0,
+          durationDiv: 16,
+          raw: index % 2 ? "F" : "C"
+        }))
+      }
+    });
+
+    assert.equal(chart.chords.length, 160);
+    assert.equal(chart.chords.at(-1).bar, 160);
+  });
+
   it("seeds analyzer chords only when no user chart exists", () => {
     const chart = seedChordChart({
       chordChart: null,

@@ -336,6 +336,28 @@ describe("mock backend", () => {
       chords: []
     });
 
+    const longChartResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chordChart: {
+          version: 1,
+          divisionsPerQuarter: 4,
+          chords: Array.from({ length: 160 }, (_, index) => ({
+            id: `long-${index + 1}`,
+            bar: index + 1,
+            offsetDiv: 0,
+            durationDiv: 16,
+            raw: index % 2 ? "F" : "C"
+          }))
+        }
+      })
+    });
+    assert.equal(longChartResponse.status, 200);
+    const longChartJob = await longChartResponse.json();
+    assert.equal(longChartJob.practiceState.chordChart.chords.length, 160);
+    assert.equal(longChartJob.practiceState.chordChart.chords.at(-1).bar, 160);
+
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);
 

@@ -32,13 +32,12 @@ const MAX_UPLOAD_REQUEST_BYTES = MAX_UPLOAD_BYTES + MAX_UPLOAD_REQUEST_OVERHEAD_
 const MOCK_DURATION_SECONDS = 16;
 const DEFAULT_BEATS_PER_BAR = 4;
 const METER_CANDIDATES = [4, 3];
-const ANALYSIS_MAX_SECONDS = 120;
 const ANALYSIS_SAMPLE_RATE = 8000;
 const MIN_BAR_START_SECONDS = -60;
 const MAX_BAR_START_SECONDS = 60 * 60;
 const CHORD_CHART_VERSION = 1;
 const DEFAULT_CHORD_DIVISIONS_PER_QUARTER = 4;
-const MAX_CHORD_CHART_CHORDS = 128;
+const MAX_CHORD_CHART_CHORDS = 4096;
 const MAX_CHORD_CHART_BARS = 10000;
 const MAX_CHORD_CHART_DIVISIONS = 4096;
 const MAX_SECTION_COUNT = 64;
@@ -257,24 +256,27 @@ function readPcm16Wav(buffer) {
 
   const frameCount = Math.floor(dataBytes / (channels * 2));
   const durationSeconds = frameCount / sampleRate;
-  const maxFrames = Math.min(frameCount, Math.floor(ANALYSIS_MAX_SECONDS * sampleRate));
-  const samples = new Float32Array(maxFrames);
+  const frameStride = Math.max(1, Math.floor(sampleRate / ANALYSIS_SAMPLE_RATE));
+  const analysisSampleRate = sampleRate / frameStride;
+  const sampleCount = Math.ceil(frameCount / frameStride);
+  const samples = new Float32Array(sampleCount);
 
-  for (let frame = 0; frame < maxFrames; frame += 1) {
+  for (let sample = 0; sample < sampleCount; sample += 1) {
     let sum = 0;
+    const frame = Math.min(frameCount - 1, sample * frameStride);
     const frameOffset = dataStart + frame * channels * 2;
     for (let channel = 0; channel < channels; channel += 1) {
       sum += buffer.readInt16LE(frameOffset + channel * 2) / 32768;
     }
-    samples[frame] = sum / channels;
+    samples[sample] = sum / channels;
   }
 
   return {
-    sampleRate,
+    sampleRate: analysisSampleRate,
     channels,
     durationSeconds,
     samples,
-    analyzedDurationSeconds: samples.length / sampleRate
+    analyzedDurationSeconds: durationSeconds
   };
 }
 

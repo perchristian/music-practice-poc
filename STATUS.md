@@ -70,6 +70,8 @@ Phase 5C.1 implemented on 2026-07-17. Practice-state persistence now snapshots b
 
 Phase 5C.2 implemented on 2026-07-17. `GET /api/jobs` lists every valid persisted `job.json`, while `/api/library` remains completed-only. On page load the browser reconstructs queued, processing, and failed entries, resumes polling active backend work, preserves backend error messages, and offers deletion for failed jobs. Backend coverage verifies active and failed list entries; focused Playwright coverage reloads during mock processing, waits for recovered polling to complete, reloads a deliberately failed real upload, shows its error, and deletes it. No agents were delegated and no model switch or skill was used.
 
+Phase 2I implemented on 2026-07-17 without changing musical chord-decision logic. The PCM reader now covers the full recording while reducing source/stem audio to an approximately 8 kHz mono analysis representation, removing the previous 120-second ceiling with bounded sample-array growth. The frontend/backend working-chart safety cap is 4096 events instead of 128. A 125-second fixture verifies chord cues beyond 120 seconds; frontend and backend tests preserve 160 events; all existing tempo, meter, multi-change, inversion, and local calibration expectations remain unchanged. `TASKS.md` and `ARCHITECTURE.md` now explicitly separate immutable analyzer suggestions from the user's authoritative working chart and defer optional extra-suggestion, comparison, `Back to analysis`, and heuristic-learning behavior to a joint calibration loop. No agents were delegated and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:

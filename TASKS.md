@@ -1214,7 +1214,12 @@ Verification:
 - Frontend and backend normalization retain more than 128 valid working-chart events.
 - Existing harmonic known-answer fixtures still pass unchanged.
 
-Status: Planned for the current analysis-integrity pass.
+Result:
+- Implemented on 2026-07-17. PCM is read across the full file and reduced to an approximately 8 kHz mono analysis representation instead of retaining full-rate sample arrays per source/stem.
+- The frontend and backend defensive working-chart limit is now 4096 events rather than 128.
+- No chord scoring, smoothing, bass evidence, vocabulary, or change-frequency behavior was modified.
+
+Status: Complete on 2026-07-17. A 125-second fixture emits cues after 120 seconds, 160-event working charts survive frontend/backend normalization, and all existing harmonic fixtures still pass.
 
 ## Phase 2J: Analyzer Suggestions and User Working Chart
 
@@ -1244,6 +1249,6 @@ Status: Deliberately deferred until a joint try/fail/learn/adjust calibration se
 
 ## Next Task
 
-Complete Phase 5C.1, then Phase 5C.2, then Phase 2I. Stop before Phase 2J chord-logic changes and prepare the current analyzer output plus user working chart for a joint calibration session.
+Stop before Phase 2J chord-logic changes. Prepare a small real-song calibration set and review the immutable analyzer suggestions beside the user's working chart in a joint try/fail/learn/adjust session before changing musical heuristics.
 
 After this reliability pass, prioritize the compact always-available transport/header/mobile improvements from product review before Phase 5B.4-5B.6 unless user testing shows section resizing or chord copy/paste has higher learning value.
