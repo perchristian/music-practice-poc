@@ -198,10 +198,26 @@ Do not automatically commit ambiguous, broken, or experimental changes. If chang
 Each completed iteration should normally end with:
 
 1. relevant verification
-2. documentation updates
-3. a focused git commit
+2. a `CHANGELOG.md` update when the iteration changes user-visible behavior, developer setup, APIs, persisted data, or other noteworthy capabilities
+3. other documentation updates
+4. a focused git commit
 
 Avoid accumulating multiple unrelated tasks in one dirty worktree.
+
+### Changelog maintenance
+
+`CHANGELOG.md` is the curated, audience-facing history of what was added, changed, fixed, or removed. It is not a copy of `TASKS.md`, `STATUS.md`, or the Git log.
+
+For every completed implementation iteration:
+
+- add concise entries under `Unreleased` in the same focused commit as the implementation
+- describe user-visible or developer-visible outcomes rather than internal coding steps
+- use `Added`, `Changed`, `Fixed`, and `Removed` headings as applicable
+- use `TASKS.md`, `STATUS.md`, commit messages, and the actual diff as source material, but verify the final wording against implemented behavior
+- do not include planned or incomplete work
+- do not add entries for routine formatting, planning-only edits, or internal refactors unless they materially affect setup, APIs, compatibility, performance, or future development
+
+When a coherent demo or user-test checkpoint is declared, move the relevant `Unreleased` entries into a dated milestone section. Numbered semantic versions are not required during the POC unless releases begin to use them.
 
 ---
 
@@ -620,6 +636,7 @@ Pause development and request review whenever:
 The final deliverable should contain:
 
 - working prototype
+- updated changelog
 - updated documentation
 - demo guide
 - known limitations

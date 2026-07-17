@@ -50,6 +50,13 @@ TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm
 
 See `DEMO.md` for the current demo flow and known limitations.
 
+Project documentation:
+
+- [CHANGELOG.md](CHANGELOG.md) — notable additions, improvements, and fixes over time
+- [TASKS.md](TASKS.md) — completed work and the chronological execution plan
+- [IDEAS.md](IDEAS.md) — conditional or unscheduled product ideas
+- [STATUS.md](STATUS.md) — current technical status and verification evidence
+
 ## Verify
 
 ```bash
