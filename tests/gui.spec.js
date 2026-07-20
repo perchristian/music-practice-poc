@@ -445,6 +445,7 @@ test("processed demo shortcut opens practice view without selecting a file", asy
 test("beat grid timeline and metronome click follow the analyzed grid", async ({ page }) => {
   await page.addInitScript(() => {
     window.__metronomeClicks = [];
+    window.__metronomeStops = 0;
     const currentTimes = new WeakMap();
     const pausedStates = new WeakMap();
 
@@ -492,7 +493,9 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
               frequency: oscillator.frequency.value
             });
           },
-          stop() {}
+          stop() {
+            window.__metronomeStops += 1;
+          }
         };
         return oscillator;
       }
@@ -538,6 +541,16 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
     .toBeGreaterThan(0);
   const clicks = await page.evaluate(() => window.__metronomeClicks);
   expect(clicks[0]).toMatchObject({ time: 10.5, frequency: 1320 });
+
+  await page.getByTestId("back-to-start").click();
+  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+  await expect(page.locator("#scrubber")).toHaveValue("0");
+  expect(await page.evaluate(() => [...document.querySelectorAll("audio")].every((audio) => audio.paused))).toBe(true);
+  expect(await page.evaluate(() => window.__metronomeStops)).toBeGreaterThan(0);
+
+  const clickCountAfterReset = await page.evaluate(() => window.__metronomeClicks.length);
+  await page.waitForTimeout(550);
+  expect(await page.evaluate(() => window.__metronomeClicks.length)).toBe(clickCountAfterReset);
 });
 
 test("first playback waits for the metronome audio clock to resume", async ({ page }) => {

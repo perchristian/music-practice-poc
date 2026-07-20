@@ -29,6 +29,7 @@ The project currently uses date-based development milestones rather than numbere
 - Fixed contextual BPM lagging behind playhead scrubbing or segment transitions during playback.
 - Fixed zoom using the viewport midpoint instead of the playhead, mouse position, or pinch center.
 - Fixed the first metronome playback after a cold start scheduling clicks before the browser audio clock had resumed, which could misplace the downbeat and make the opening clicks stumble.
+- Fixed Back to start leaving playback and the metronome running after returning the playhead to the beginning.
 
 ## 2026-07-17 — Reliability and Full-Song Coverage
 

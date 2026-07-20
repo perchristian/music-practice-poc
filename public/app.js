@@ -3605,6 +3605,7 @@ playButton.addEventListener("click", () => {
 });
 
 backToStartButton?.addEventListener("click", () => {
+  pauseAll({ persist: false });
   setTransportTime(playbackStartSeconds());
 });
 

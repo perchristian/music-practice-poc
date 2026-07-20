@@ -90,6 +90,8 @@ Changelog process established on 2026-07-17. A new root `CHANGELOG.md` backfills
 
 Cold-start metronome initialization was fixed on 2026-07-17. Playback and count-in now await the browser audio context's transition out of `suspended` before anchoring transport or scheduling clicks, concurrent activation attempts share one promise, and beats are marked as scheduled only after a click was actually accepted by the running audio clock. A Playwright regression test holds `AudioContext.resume()` pending and verifies that neither stem playback nor the first downbeat starts early. `node --check public/app.js`, `git diff --check`, `npm test` (28 passing/1 skipped), and all 28 Playwright tests passed. The GUI suite removed its test-created jobs; the remaining local songs are intentional user/calibration data. No agents were delegated and no model switch or skill was used.
 
+Back-to-start metronome reset was fixed on 2026-07-17. Activating Back to start now stops active stem playback and count-in, cancels scheduled metronome audio, resets the play button, and returns the transport to its configured start instead of letting the scheduler continue from the reset playhead. Playwright coverage verifies that media is paused, queued clicks are stopped, and no new clicks are scheduled after reset. `node --check public/app.js`, `node --check tests/gui.spec.js`, `git diff --check`, `npm test` (28 passing/1 skipped), and the focused Playwright regression test passed. The focused GUI test used only the built-in processed demo and created no persisted song/job. No agents were delegated and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
