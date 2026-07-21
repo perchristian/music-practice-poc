@@ -92,6 +92,8 @@ Cold-start metronome initialization was fixed on 2026-07-17. Playback and count-
 
 Back-to-start metronome reset was fixed on 2026-07-17. Activating Back to start now stops active stem playback and count-in, cancels scheduled metronome audio, resets the play button, and returns the transport to its configured start instead of letting the scheduler continue from the reset playhead. Playwright coverage verifies that media is paused, queued clicks are stopped, and no new clicks are scheduled after reset. `node --check public/app.js`, `node --check tests/gui.spec.js`, `git diff --check`, `npm test` (28 passing/1 skipped), and the focused Playwright regression test passed. The focused GUI test used only the built-in processed demo and created no persisted song/job. No agents were delegated and no model switch or skill was used.
 
+Phase 2J dataset research completed on 2026-07-21. `research/chord-analysis-benchmark-strategy.md` replaces ad-hoc song uploads and manually invented chord timelines as the primary calibration method with a top-down benchmark. The newly public RWC-P v2 corpus is recommended as the main real-pop benchmark because its 100 WAV recordings now pair with curated beat and chord annotations under CC BY-NC 4.0. The first run should lock a complexity-stratified 12-song pilot, compare reference-timed and end-to-end analysis, and report standard duration-weighted chord metrics plus boundary errors, cue density, OOV duration, and runtime. Tiny AAM and GuitarSet are retained as targeted diagnostic fallbacks; Chordino becomes the external control after two non-generalizing local changes. No dataset media was downloaded, no runtime job/song was created, no agent was delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -326,13 +328,11 @@ Local web POC:
 
 ## In Progress
 
-- No implementation task is currently in progress.
+- Phase 2J analyzer calibration is in progress; the benchmark strategy is complete and the benchmark harness is next.
 
 ## Next Recommended Task
 
-Run the Phase 3G.1 human checkpoint on a real recording with audible tempo drift. Align important downbeats, then listen through click, chord changes, a bar loop, and repeated count-in before deciding whether sparse linear interpolation is sufficient.
-
-If the checkpoint passes, continue with Phase 2J analyzer/working-chart calibration. If human review is waiting, Phase 3G.2 normal-playback zoom/follow is the next independent implementation task.
+Implement the Phase 2J dataset benchmark harness, lock a 12-song RWC-P pilot into 8 development and 4 holdout songs, and run reference-timed plus end-to-end baselines before changing chord heuristics. See `research/chord-analysis-benchmark-strategy.md`.
 
 ## Skills Used
 

@@ -281,19 +281,23 @@ Current data contract:
 - `practiceState.chordChart` is the user's authoritative working chart after it is created.
 
 Execution sequence:
-1. Choose a small repeatable set of real songs and expected chord timelines together with the user.
-2. Re-run chord analysis against corrected timing without mutating the original analyzer result; replace the working chart only after confirmation and keep a backup.
-3. Inspect analyzer suggestions beside user corrections.
-4. Classify false extra changes, missing changes, wrong roots, and wrong qualities.
-5. Decide how raw/dense candidates and a conservative default presentation should be represented separately.
-6. Prototype optional insertion of extra analyzer suggestions, comparison against user edits, and an explicit `Back to analysis` action with confirmation or undo.
-7. Adjust one musical heuristic at a time and retain only improvements that generalize across the calibration set.
+1. Build the dataset-backed benchmark described in `research/chord-analysis-benchmark-strategy.md`, using RWC-P v2 as the primary real-pop corpus without checking audio into Git.
+2. Lock a 12-song complexity-stratified pilot before analyzer changes: 8 development songs and 4 untouched holdout songs.
+3. Run the current analyzer with both RWC reference timing and analyzer-estimated timing; report Root/MajMin/Triads/MIREX WCSR, boundary precision/recall, cue density, OOV duration, and runtime.
+4. Automatically classify false extra changes, missing changes, wrong roots, wrong qualities, and the largest per-track regressions.
+5. If realistic mixes fail, backtrack only the weakest cases through Tiny AAM mix/stem ablations or GuitarSet instead of building a long simple-to-complex manual ladder.
+6. Adjust one musical heuristic at a time and retain only improvements that generalize from development to holdout.
+7. After two failed local improvements against the same error class, compare Chordino through the same evaluator before further custom tuning.
+8. Decide how raw/dense candidates and a conservative default presentation should be represented separately.
+9. Prototype optional insertion of extra analyzer suggestions, comparison against user edits, and an explicit `Back to analysis` action with confirmation or undo.
 
 Constraints:
 - Do not automatically train on or overwrite user edits.
-- Do not change chord-change frequency, bass heuristics, smoothing, or vocabulary before the shared baseline has been reviewed.
+- Do not change chord-change frequency, bass heuristics, smoothing, or vocabulary before the fixed dataset baseline has been reviewed.
+- Keep evaluation dependencies and corpora outside the dependency-light mock-mode setup.
+- Do not tune on or replace the holdout set after seeing its results.
 
-Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; the user reported that the corrected timing worked excellently. Corrected-timing chord reanalysis is implemented and produced 279 cues using the user's authoritative C-major key, while backing up 95 prior working events. Listening/comparison of this dense output is next.
+Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. Research on 2026-07-21 replaced song-by-song manual transcription as the main calibration method with a top-down dataset benchmark. RWC-P v2 is the recommended primary corpus; Tiny AAM and GuitarSet are diagnostic fallbacks. The benchmark harness and fixed pilot manifest are next.
 
 ### 16A. Cold-Start Metronome Initialization
 
@@ -419,7 +423,7 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Run corrected-timing chord reanalysis on the calibrated `TeAmo.mov` job, then compare the new chord suggestions against the recording and classify false extra changes, missing changes, wrong roots, and wrong qualities before changing heuristics.
+Implement the Phase 2J chord benchmark harness and its dependency-free contract tests, then lock and run a 12-song RWC-P pilot with separate oracle-timing and end-to-end reports before changing any chord heuristic.
 
 ## Parked Work
 
