@@ -8,6 +8,10 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a dataset-backed chord benchmark that runs the application analyzer directly on a locked 8-development/4-holdout RWC-P v2 pilot without creating library jobs.
+- Added separate oracle-timing and estimated-timing runs with standard duration-weighted chord scores, boundary errors, cue density, OOV duration, runtime, and compact failure diagnostics.
+- Added an optional pinned evaluation environment and checksum-verified extraction of only the selected pilot WAV files; benchmark media and detailed results remain outside Git.
+- Added the first locked eight-track development baseline, showing separate harmonic and timing performance while leaving the four-track holdout uninspected.
 - Added this curated changelog and made changelog maintenance part of the completion criteria for future implementation iterations.
 - Added a gated waveform timing editor where users can zoom, scrub, and drag existing bar lines into persisted downbeat anchors.
 - Added compact real/mock waveform result assets and a shared variable-tempo mapping module.

@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "benchmark": "RWC Popular Music Database v2 chord pilot",
+  "dataset": {
+    "record": "https://zenodo.org/records/18656623",
+    "audioArchive": "RWC-P.zip",
+    "audioMd5": "960a11a2d7fb603ad0dae8428f53d4f0",
+    "license": "CC BY-NC 4.0",
+    "annotations": "https://github.com/rwc-music/rwc-annotations",
+    "annotationCommit": "0a1a6c31dbe73a7f5d44f7caef8cd0999402a4c2"
+  },
+  "selection": {
+    "method": "Weighted standardized chord-density, vocabulary, entropy, tempo, duration, and instrumentation features; three equal complexity strata with four deterministic quantile samples each.",
+    "policy": "Eight development tracks and four untouched holdout tracks. Do not tune against holdout results."
+  },
+  "tracks": [
+    {
+      "trackId": "RWC_P056",
+      "title": "I've got a mail",
+      "artist": "Masashi Hashimoto",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 9,
+        "changesPerMinute": 20.752,
+        "complexDurationRatio": 0.1902,
+        "oovDurationRatio": 0.1649,
+        "labelEntropy": 2.3086,
+        "tempo": 74,
+        "durationSeconds": 320.929,
+        "instrumentCount": 2,
+        "score": -5.0515
+      }
+    },
+    {
+      "trackId": "RWC_P026",
+      "title": "aozora sanpo michi",
+      "artist": "Tomoko Nitta",
+      "split": "holdout",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 8,
+        "changesPerMinute": 43.313,
+        "complexDurationRatio": 0.0943,
+        "oovDurationRatio": 0,
+        "labelEntropy": 2.2962,
+        "tempo": 158,
+        "durationSeconds": 205.019,
+        "instrumentCount": 2,
+        "score": -3.7948
+      }
+    },
+    {
+      "trackId": "RWC_P005",
+      "title": "Koino Ver.2.4",
+      "artist": "Eves",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 25,
+        "changesPerMinute": 32.909,
+        "complexDurationRatio": 0.1457,
+        "oovDurationRatio": 0.0987,
+        "labelEntropy": 2.9814,
+        "tempo": 135,
+        "durationSeconds": 226.079,
+        "instrumentCount": 1,
+        "score": -2.6618
+      }
+    },
+    {
+      "trackId": "RWC_P022",
+      "title": "Koi ni ochiru jikan ni kansuru kousatsu",
+      "artist": "Kazuo Nishi",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 26,
+        "changesPerMinute": 36.146,
+        "complexDurationRatio": 0.0744,
+        "oovDurationRatio": 0.0361,
+        "labelEntropy": 3.9106,
+        "tempo": 135,
+        "durationSeconds": 207.489,
+        "instrumentCount": 1,
+        "score": -1.7943
+      }
+    },
+    {
+      "trackId": "RWC_P050",
+      "title": "Mrs. Maril",
+      "artist": "Rin",
+      "split": "holdout",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 20,
+        "changesPerMinute": 39.096,
+        "complexDurationRatio": 0.2014,
+        "oovDurationRatio": 0.1134,
+        "labelEntropy": 3.3722,
+        "tempo": 114,
+        "durationSeconds": 193.372,
+        "instrumentCount": 2,
+        "score": -1.4083
+      }
+    },
+    {
+      "trackId": "RWC_P079",
+      "title": "Together",
+      "artist": "Tomomi Ogata",
+      "split": "development",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 30,
+        "changesPerMinute": 26.357,
+        "complexDurationRatio": 0.5239,
+        "oovDurationRatio": 0.1019,
+        "labelEntropy": 4.3226,
+        "tempo": 92,
+        "durationSeconds": 266.347,
+        "instrumentCount": 0,
+        "score": -0.446
+      }
+    },
+    {
+      "trackId": "RWC_P047",
+      "title": "Deaetakara",
+      "artist": "Satoshi Kumasaka",
+      "split": "development",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 17,
+        "changesPerMinute": 41.11,
+        "complexDurationRatio": 0.253,
+        "oovDurationRatio": 0.1666,
+        "labelEntropy": 3.2431,
+        "tempo": 94,
+        "durationSeconds": 208.709,
+        "instrumentCount": 5,
+        "score": 0.2853
+      }
+    },
+    {
+      "trackId": "RWC_P070",
+      "title": "Miageta sora wa",
+      "artist": "Tamako Matsuzaka",
+      "split": "holdout",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 19,
+        "changesPerMinute": 34.084,
+        "complexDurationRatio": 0.4017,
+        "oovDurationRatio": 0.2842,
+        "labelEntropy": 3.4532,
+        "tempo": 104,
+        "durationSeconds": 244.69,
+        "instrumentCount": 4,
+        "score": 1.0108
+      }
+    },
+    {
+      "trackId": "RWC_P087",
+      "title": "I think of you",
+      "artist": "Jeff Manning",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 40,
+        "changesPerMinute": 30.287,
+        "complexDurationRatio": 0.4361,
+        "oovDurationRatio": 0.3087,
+        "labelEntropy": 4.233,
+        "tempo": 90,
+        "durationSeconds": 289.232,
+        "instrumentCount": 1,
+        "score": 2.1065
+      }
+    },
+    {
+      "trackId": "RWC_P090",
+      "title": "Don't Say Good bye",
+      "artist": "Shinya Iguchi",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 30,
+        "changesPerMinute": 28.088,
+        "complexDurationRatio": 0.5776,
+        "oovDurationRatio": 0.3247,
+        "labelEntropy": 4.3376,
+        "tempo": 127,
+        "durationSeconds": 277.701,
+        "instrumentCount": 2,
+        "score": 2.6497
+      }
+    },
+    {
+      "trackId": "RWC_P063",
+      "title": "Power of mind",
+      "artist": "Reiko Sato",
+      "split": "holdout",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 26,
+        "changesPerMinute": 43.619,
+        "complexDurationRatio": 0.5459,
+        "oovDurationRatio": 0.2357,
+        "labelEntropy": 4.0591,
+        "tempo": 126,
+        "durationSeconds": 248.972,
+        "instrumentCount": 3,
+        "score": 3.4552
+      }
+    },
+    {
+      "trackId": "RWC_P068",
+      "title": "Nichiyoubi",
+      "artist": "Makiko Hattori",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 44,
+        "changesPerMinute": 31.62,
+        "complexDurationRatio": 0.8039,
+        "oovDurationRatio": 0.2708,
+        "labelEntropy": 4.7774,
+        "tempo": 92,
+        "durationSeconds": 292.222,
+        "instrumentCount": 3,
+        "score": 5.4593
+      }
+    }
+  ]
+}

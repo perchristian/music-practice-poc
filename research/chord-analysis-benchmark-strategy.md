@@ -308,23 +308,33 @@ akkordheuristikk.
 
 Foreslått leveranse:
 
-1. `scripts/benchmark-chords.mjs` kjører den allerede eksporterte
+1. `scripts/benchmark-chords.js` kjører den allerede eksporterte
    `analyzeHarmonyFromAudio` direkte, uten å opprette library jobs.
 2. Et lite RWC-adapterlag leser metadata, beats og `start;end;chord`.
 3. Et eksternt Python eval-miljø, for eksempel `requirements-eval.txt`, pinner
    `mir_eval`; dette må aldri bli en mock-mode dependency.
 4. Et versjonskontrollert manifest låser development/holdout og datasetversjon,
    men inneholder ikke audio.
-5. Runneren støtter `--timing oracle|estimated` og `--limit`.
+5. Runneren støtter `--timing oracle|estimated|both`,
+   `--split development|holdout|all`, `--track` og `--limit`. Development er
+   standardvalget slik at holdout ikke åpnes ved et uhell.
 6. Resultater skrives til en ignorert artefaktkatalog, mens en liten aggregert
    baseline kan sjekkes inn som dokumentasjon.
 7. Testene verifiserer labelnormalisering og Port 0 uten å laste ned RWC.
+8. `scripts/extract-rwc-pilot.js` verifiserer arkivets MD5 og trekker bare ut
+   de 12 låste WAV-filene, ikke hele korpuset.
 
 Media bør konverteres til samme PCM16-WAV-kontrakt som real mode. Etter at
 RWC-baseline er stabil kan 3–4 holdoutspor også kjøres gjennom en deterministisk
 AAC/MOV-transkoding for å måle codec-delen av screen-recording gapet. Det er
 fortsatt ikke en erstatning for noen få ekte iOS-opptak, men gjør den manuelle
 delen langt mindre.
+
+Implementasjonsmerknad: RWC-P-akkordannotasjonene går vanligvis omtrent to
+sekunder forbi den frigitte v2-WAV-filen. Adapteren bruker derfor den offisielle
+metadata-lengden, validerer den mot dekodet WAV og lar `mir_eval` klippe det
+siste annotasjonsintervallet ved lydgrensen. Oppsett og konkrete kommandoer ligger i
+`benchmarks/README.md`.
 
 ## Anbefalt beslutning
 

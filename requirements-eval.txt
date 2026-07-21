@@ -1,0 +1,2 @@
+# Optional, benchmark-only dependency. Not required for mock or real application mode.
+mir_eval==0.8.2

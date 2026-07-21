@@ -584,3 +584,26 @@ High that sparse waveform-aligned downbeats solve the identified drift more dire
 
 Date:
 2026-07-17
+
+## Decision 26
+
+Decision:
+Use a small direct RWC-P v2 adapter and a separate pinned `mir_eval` environment for Phase 2J chord evaluation, while keeping all corpus audio and detailed run artifacts outside Git and outside application jobs.
+
+Reason:
+The product needs reproducible evidence against real mixed music before changing more chord heuristics. RWC-P v2 pairs 100 released WAV recordings with curated beat and chord timelines, and the application's analyzer is already exported as a direct function. A narrow adapter can therefore test the actual implementation without adding dataset frameworks or benchmark state to the product runtime. Standard `mir_eval` metrics make results comparable, while an optional environment preserves dependency-light mock mode.
+
+Alternatives considered:
+- Continue uploading arbitrary songs and writing guessed reference chords manually. This has low setup cost but weak, inconsistent ground truth and high repeated human/token cost.
+- Add `mirdata` or a general dataset framework. This offers broader corpus abstractions but adds dependencies and adaptation work that the single fixed POC benchmark does not need.
+- Implement all chord metrics locally in JavaScript. This keeps one language but creates avoidable metric-definition and comparability risk.
+- Put evaluation dependencies into real mode. This simplifies setup commands but couples product processing to research-only NumPy/SciPy dependencies.
+
+Tradeoffs:
+The one-time RWC-P archive download is about 4.1 GB and its CC BY-NC license prevents bundling it as product/demo media. The custom adapter understands only the official semicolon-CSV layout, and `mir_eval` needs a separate Python environment. In return, normal app setup remains unchanged, the locked pilot is cheap to rerun locally without model tokens, and oracle timing isolates harmonic errors from beat-tracking errors.
+
+Confidence:
+High for the benchmark boundary and dependency isolation; medium for how well RWC-P predicts compressed iOS screen-recording behavior until the later codec/domain checks run.
+
+Date:
+2026-07-21

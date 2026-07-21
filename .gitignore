@@ -1,10 +1,15 @@
 node_modules/
+__pycache__/
 data/
 test-results/
 test-media/
 .cache/
+.benchmark-data/
+benchmark-results/
+.venv-eval/
 .venv-real/
 .DS_Store
 research/*
 !research/section-structure-prototype-plan.md
 !research/open-knowledge-format-context-assessment.md
+!research/chord-analysis-benchmark-strategy.md

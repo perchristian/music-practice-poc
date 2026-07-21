@@ -94,6 +94,10 @@ Back-to-start metronome reset was fixed on 2026-07-17. Activating Back to start 
 
 Phase 2J dataset research completed on 2026-07-21. `research/chord-analysis-benchmark-strategy.md` replaces ad-hoc song uploads and manually invented chord timelines as the primary calibration method with a top-down benchmark. The newly public RWC-P v2 corpus is recommended as the main real-pop benchmark because its 100 WAV recordings now pair with curated beat and chord annotations under CC BY-NC 4.0. The first run should lock a complexity-stratified 12-song pilot, compare reference-timed and end-to-end analysis, and report standard duration-weighted chord metrics plus boundary errors, cue density, OOV duration, and runtime. Tiny AAM and GuitarSet are retained as targeted diagnostic fallbacks; Chordino becomes the external control after two non-generalizing local changes. No dataset media was downloaded, no runtime job/song was created, no agent was delegated, and no model switch or skill was used.
 
+Phase 2J benchmark harness implemented on 2026-07-21. `scripts/benchmark-chords.js` invokes the exported application analyzer directly without creating library jobs, supports protected development/holdout splits plus oracle/estimated timing, and delegates standard Root/MajMin/Triads/MIREX scoring to pinned `mir_eval==0.8.2` in the optional `.venv-eval`. The evaluator also reports boundary errors, cue density, OOV duration, runtime, error-category duration, largest error spans, and weakest tracks. `scripts/extract-rwc-pilot.js` verifies the 4.1 GB archive checksum and extracts only selected audio. `benchmarks/rwc-popular-pilot.json` locks 8 development and 4 holdout tracks over low/medium/high complexity against annotation commit `0a1a6c31dbe73a7f5d44f7caef8cd0999402a4c2`. Contract tests cover exact-label self-score, semitone root failure, segment split invariance, official annotation shape, filename/duration guards, and archive selection without requiring benchmark media. Full `npm test` passed with 35 passing and 1 optional local calibration skipped. The RWC media remains ignored and outside the app library. No agent was delegated, model switched, or skill used.
+
+The initial Phase 2J development baseline completed on 2026-07-21 without inspecting the holdout. Over eight tracks selected from standardized chord density, entropy, vocabulary, tempo, duration, and instrumentation features, oracle timing scored 71.7% Root, 58.6% MajMin, 55.7% Triads, and 58.4% MIREX; analyzer-estimated timing scored 66.0%, 53.7%, 50.8%, and 54.6%. At 250 ms, boundary F1 was 53.1% oracle and 44.1% estimated. More importantly for the 279-cue problem, reference density was 30.2 changes/min versus 69.7 oracle and 57.2 estimated; adjacent equal labels are merged for that comparison. Oracle improves MajMin by 4.9 points, proving timing matters, but remains too weak to make timing the only target. Runtime is already about 0.01 real time. The committed aggregate is in `benchmarks/rwc-popular-development-baseline.md`; detailed JSON/Markdown stays ignored. The next experiment is one conservative temporal sequence/smoothing layer, not another small template tweak. No application jobs were created and the three existing intentional local jobs were unchanged.
+
 ## Current Architecture
 
 Local web POC:
@@ -328,11 +332,11 @@ Local web POC:
 
 ## In Progress
 
-- Phase 2J analyzer calibration is in progress; the benchmark strategy is complete and the benchmark harness is next.
+- Phase 2J analyzer calibration is in progress; the harness, fixed pilot, and two development baselines are complete. Holdout is still protected.
 
 ## Next Recommended Task
 
-Implement the Phase 2J dataset benchmark harness, lock a 12-song RWC-P pilot into 8 development and 4 holdout songs, and run reference-timed plus end-to-end baselines before changing chord heuristics. See `research/chord-analysis-benchmark-strategy.md`.
+Implement one conservative temporal sequence/smoothing experiment and compare it with the locked Phase 2J development baseline. Use the decision gates in `benchmarks/rwc-popular-development-baseline.md`; keep holdout protected until the regression checkpoint.
 
 ## Skills Used
 
