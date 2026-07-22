@@ -45,8 +45,13 @@ Heavy real-pipeline dependencies are optional and separate from mock mode:
 ```bash
 python3 -m venv .venv-real
 .venv-real/bin/python -m pip install -r requirements-real.txt
-TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
+TORCH_HOME=.cache/torch PIPELINE_MODE=real npm start
 ```
+
+The server invokes Demucs as `.venv-real/bin/python -m demucs`, so moving the
+repository does not depend on the virtual environment's absolute-path entrypoint.
+Set `DEMUCS_PYTHON` to use another Python interpreter, or `DEMUCS_PATH` to invoke
+a specific Demucs executable directly.
 
 See `DEMO.md` for the current demo flow and known limitations.
 

@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { resolveDemucsInvocation } from "./demucs-command.js";
 import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
 import { absoluteBeatToSeconds, normalizeTempoMap } from "./public/tempo-map.js";
 
@@ -16,7 +17,7 @@ let activePipelineMode = startupPipelineMode;
 const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
 const REAL_SEPARATOR = process.env.REAL_SEPARATOR === "ffmpeg-spectral" ? "ffmpeg-spectral" : "demucs";
 const DEMUCS_MODEL = process.env.DEMUCS_MODEL || "htdemucs_6s";
-const DEMUCS_PATH = process.env.DEMUCS_PATH || join(__dirname, ".venv-real", "bin", "demucs");
+const DEMUCS_INVOCATION = resolveDemucsInvocation({ repoRoot: __dirname });
 const DEMUCS_TORCH_HOME = process.env.TORCH_HOME || join(__dirname, ".cache", "torch");
 const FFMPEG_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
 const DEMUCS_SEPARATOR_NAME = `demucs-${DEMUCS_MODEL}`;
@@ -1892,7 +1893,7 @@ async function ffmpegVersionLine() {
 }
 
 async function demucsVersionLine() {
-  const result = await runProcess(DEMUCS_PATH, ["--version"], {
+  const result = await runProcess(DEMUCS_INVOCATION.command, [...DEMUCS_INVOCATION.argumentPrefix, "--version"], {
     env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME }
   });
   if (!result.ok) return null;
@@ -2047,6 +2048,7 @@ async function separateWithDemucs(job, extracted) {
   await mkdir(demucsOutputDir, { recursive: true });
 
   const args = [
+    ...DEMUCS_INVOCATION.argumentPrefix,
     "-n",
     DEMUCS_MODEL,
     "--out",
@@ -2057,7 +2059,7 @@ async function separateWithDemucs(job, extracted) {
   const progressSaves = [];
   const [version, result] = await Promise.all([
     demucsVersionLine(),
-    runProcess(DEMUCS_PATH, args, {
+    runProcess(DEMUCS_INVOCATION.command, args, {
       env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME },
       onStderr: (text) => {
         progressBuffer = `${progressBuffer}${text}`.slice(-1000);
@@ -2080,13 +2082,13 @@ async function separateWithDemucs(job, extracted) {
   if (!result.ok) {
     const missingCommand = result.error?.code === "ENOENT";
     const message = missingCommand
-      ? `Demucs was not found at "${DEMUCS_PATH}". Install real-mode dependencies or set DEMUCS_PATH, then retry real mode.`
+      ? `Demucs could not start with "${DEMUCS_INVOCATION.displayCommand}". Install real-mode dependencies or set DEMUCS_PATH or DEMUCS_PYTHON, then retry real mode.`
       : "Demucs could not create separated stems.";
     throw Object.assign(new Error(message), {
       separator: {
         name: DEMUCS_SEPARATOR_NAME,
         version,
-        command: DEMUCS_PATH,
+        command: DEMUCS_INVOCATION.displayCommand,
         args,
         model: DEMUCS_MODEL,
         torchHome: DEMUCS_TORCH_HOME,
@@ -2128,7 +2130,7 @@ async function separateWithDemucs(job, extracted) {
   return {
     name: DEMUCS_SEPARATOR_NAME,
     version,
-    command: DEMUCS_PATH,
+    command: DEMUCS_INVOCATION.displayCommand,
     args,
     model: DEMUCS_MODEL,
     torchHome: DEMUCS_TORCH_HOME,

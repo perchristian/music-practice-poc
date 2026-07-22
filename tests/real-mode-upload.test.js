@@ -461,14 +461,19 @@ describe("real-mode Demucs separator contract", () => {
     }
 
     demucsDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-demucs-"));
-    const fakeDemucsPath = join(demucsDataDir, "fake-demucs.mjs");
+    const fakeDemucsPython = join(demucsDataDir, "fake-python.mjs");
     await writeFile(
-      fakeDemucsPath,
+      fakeDemucsPython,
       `#!/usr/bin/env node
 import { copyFile, mkdir } from "node:fs/promises";
 import { join, parse } from "node:path";
 
-const args = process.argv.slice(2);
+const invocation = process.argv.slice(2);
+if (invocation[0] !== "-m" || invocation[1] !== "demucs") {
+  console.error("Expected relocatable python -m demucs invocation");
+  process.exit(2);
+}
+const args = invocation.slice(2);
 if (args.includes("--version")) {
   console.log("fake-demucs 0.0.0");
   process.exit(0);
@@ -488,7 +493,7 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
 }
 `
     );
-    await chmod(fakeDemucsPath, 0o755);
+    await chmod(fakeDemucsPython, 0o755);
 
     demucsServer = spawn(process.execPath, ["server.js"], {
       env: {
@@ -496,7 +501,8 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
         PORT: String(demucsPort),
         PIPELINE_MODE: "real",
         REAL_SEPARATOR: "demucs",
-        DEMUCS_PATH: fakeDemucsPath,
+        DEMUCS_PATH: "",
+        DEMUCS_PYTHON: fakeDemucsPython,
         DEMUCS_MODEL: "fake_model",
         TORCH_HOME: join(demucsDataDir, "torch-cache"),
         DATA_DIR: demucsDataDir
@@ -518,7 +524,7 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     }
   });
 
-  it("creates six Demucs-compatible stems and exposes them as a practice result", async (t) => {
+  it("uses relocatable python module invocation and exposes six practice stems", async (t) => {
     const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
     if (ffmpegCheck.status !== 0) {
       t.skip("FFmpeg is not available; skipping Demucs separator contract smoke.");
@@ -547,6 +553,11 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     assert.equal(completedJob.result.metadata.separator.model, "fake_model");
     assert.equal(completedJob.result.metadata.separator.outputs.length, 6);
     assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
+    assert.equal(
+      completedJob.result.metadata.separator.command,
+      `${join(demucsDataDir, "fake-python.mjs")} -m demucs`
+    );
+    assert.deepEqual(completedJob.result.metadata.separator.args.slice(0, 2), ["-m", "demucs"]);
     assert.equal(completedJob.result.metadata.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");

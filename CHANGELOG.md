@@ -33,6 +33,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Fixed
 
+- Fixed Demucs startup after moving the repository by invoking the module through the relocated virtualenv Python; added dependency-free command-resolution coverage and kept explicit interpreter/entrypoint overrides.
 - Fixed cumulative click and chord-chart drift on recordings that require more than one tempo segment.
 - Fixed contextual BPM lagging behind playhead scrubbing or segment transitions during playback.
 - Fixed zoom using the viewport midpoint instead of the playhead, mouse position, or pinch center.

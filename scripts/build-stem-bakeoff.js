@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveDemucsInvocation } from "../demucs-command.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = join(__dirname, "..");
@@ -13,7 +14,7 @@ const sourceMedia = join(repoRoot, "test-media", "MakeYouFeelMyLovePart2.mov");
 const logicStemsDir = join(repoRoot, "test-media", "stems from logic");
 const suiteId = "make-you-feel-my-love-part2-stem-bakeoff";
 const ffmpegPath = process.env.FFMPEG_PATH || "ffmpeg";
-const demucsCommand = process.env.DEMUCS_PATH || "demucs";
+const demucsInvocation = resolveDemucsInvocation({ repoRoot });
 const runDemucs = process.argv.includes("--demucs") || process.env.BAKEOFF_DEMUCS === "1";
 const sourceAudioCodec = "pcm_s16le";
 
@@ -279,7 +280,14 @@ async function createDemucsSplit() {
   await mkdir(join(target.dir, "stems"), { recursive: true });
   const sourceAudio = await ensureSourceAudio(target.dir);
   const outDir = join(target.dir, "demucs-output");
-  const result = await runProcess(demucsCommand, ["-n", "htdemucs_6s", "--out", outDir, sourceAudio]);
+  const result = await runProcess(demucsInvocation.command, [
+    ...demucsInvocation.argumentPrefix,
+    "-n",
+    "htdemucs_6s",
+    "--out",
+    outDir,
+    sourceAudio
+  ]);
 
   if (!result.ok) {
     throw new Error(`Demucs split failed: ${result.stderr || result.error?.message || result.code}`);

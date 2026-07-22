@@ -316,6 +316,22 @@ Verification:
 
 Status: Complete.
 
+### 16B. Relocatable Demucs Startup
+
+Completed: 2026-07-22
+
+Outcome:
+- Real mode and the stem bakeoff invoke the local Demucs package through `.venv-real/bin/python -m demucs`.
+- Moving the repository no longer breaks processing because of the generated Demucs entrypoint's absolute Python shebang.
+- `DEMUCS_PYTHON` supports a custom interpreter, while `DEMUCS_PATH` remains an explicit direct-entrypoint override.
+
+Verification:
+- Dependency-free unit coverage resolves the virtualenv Python from an arbitrary new repository root.
+- The isolated real-mode contract requires module invocation and produces all six practice stems.
+- `npm test`, syntax checks, local Demucs module startup, and `git diff --check` pass without creating library jobs.
+
+Status: Complete.
+
 ### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
 
 Goal: Make long-song bars readable during ordinary practice without expanding the timing editor's first implementation scope.

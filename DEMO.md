@@ -52,8 +52,13 @@ python3 -m venv .venv-real
 Then run:
 
 ```bash
-TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
+TORCH_HOME=.cache/torch PIPELINE_MODE=real npm start
 ```
+
+The default uses `.venv-real/bin/python -m demucs`, which continues to work when
+the repository is moved even if `.venv-real/bin/demucs` retains its old absolute
+Python path. Use `DEMUCS_PYTHON` for a different interpreter or `DEMUCS_PATH` for
+an explicit Demucs entrypoint.
 
 To use the old lightweight FFmpeg spectral split instead of Demucs:
 
@@ -84,7 +89,7 @@ PIPELINE_MODE=real npm start
 For Demucs real mode, prefer:
 
 ```bash
-TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs PIPELINE_MODE=real npm start
+TORCH_HOME=.cache/torch PIPELINE_MODE=real npm start
 ```
 
 You can also start normally and switch Mock/Real from the topbar before uploading a file.
@@ -204,7 +209,7 @@ npm run bakeoff:stems
 Create or refresh those jobs plus a Demucs `htdemucs_6s` job after installing Demucs in `.venv-real`:
 
 ```bash
-TORCH_HOME=.cache/torch DEMUCS_PATH=.venv-real/bin/demucs npm run bakeoff:stems -- --demucs
+TORCH_HOME=.cache/torch npm run bakeoff:stems -- --demucs
 ```
 
 The script creates processed library entries named:
