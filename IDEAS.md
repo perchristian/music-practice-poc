@@ -89,6 +89,12 @@ Why parked:
 Promotion trigger:
 - Piano user testing succeeds or clearly shows another target is required to validate the same workflow.
 
+### Import separated stems
+The user may have other services that are more advanced at separating than  this tool provides. It could therefore be relevant to enable an import of allready separated stems.
+
+### Supported file formats
+The user need to know the possibilities and limitations to what they can load into the app for separation and analysis. We should therefore audit suported formats, expand if needed, and display supported formats to the user.
+
 ## Song Structure
 
 ### Assisted Section Suggestions
