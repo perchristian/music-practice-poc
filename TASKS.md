@@ -1,5 +1,11 @@
 # TASKS.md
 
+## Next Task
+
+Perform the Phase 3G.3 human timing checkpoint on at least two real screen recordings: one with a late song start and one with a meaningful tempo or meter change. Listen through click, chord changes, a bar loop, and repeated count-in, and record the evidence without tuning from the consumed chord holdout.
+
+After that checkpoint, implement Phase 3G.2 normal-playback timeline zoom and optional follow mode.
+
 ## Purpose
 
 This file is the chronological execution plan for the POC. Completed work appears in implementation order, followed by future work in the order it should be attempted.
@@ -489,12 +495,6 @@ Verification:
 - Full regression tests and test-job cleanup.
 
 Status: Planned after chord multi-selection.
-
-## Next Task
-
-Perform the Phase 3G.3 human timing checkpoint on at least two real screen recordings: one with a late song start and one with a meaningful tempo or meter change. Listen through click, chord changes, a bar loop, and repeated count-in, and record the evidence without tuning from the consumed chord holdout.
-
-After that checkpoint, implement Phase 3G.2 normal-playback timeline zoom and optional follow mode.
 
 ## Parked Work
 
