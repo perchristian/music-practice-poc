@@ -3157,7 +3157,17 @@ async function playAll() {
 
   const minimumStart = playbackStartSeconds();
   const current = transportTime();
-  const target = startAtBarOne?.checked && current < minimumStart ? minimumStart : current;
+  let target = startAtBarOne?.checked && current < minimumStart ? minimumStart : current;
+  const loopStartSeconds = loopInputSeconds(loopStart);
+  const loopEndSeconds = loopInputSeconds(loopEnd);
+  const hasActiveLoop =
+    loopEnabled.checked &&
+    Number.isFinite(loopStartSeconds) &&
+    Number.isFinite(loopEndSeconds) &&
+    loopEndSeconds > loopStartSeconds;
+  if (hasActiveLoop && (target < loopStartSeconds || target >= loopEndSeconds)) {
+    target = loopStartSeconds;
+  }
   const countIn = countInConfig(target);
   if (countIn) {
     await beginLoopCountIn(countIn);

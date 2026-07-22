@@ -746,6 +746,23 @@ test("count-in works without a loop and repeats after a loop jump", async ({ pag
   await expect
     .poll(async () => page.evaluate(() => window.__metronomeClicks.length), { timeout: 4_000 })
     .toBeGreaterThan(4);
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  await page.getByTestId("loop-start").fill("2");
+  await page.getByTestId("loop-end").fill("2");
+  await setPlaybackPosition(page, 8);
+  await page.evaluate(() => {
+    window.__playCalls = [];
+    window.__metronomeClicks = [];
+  });
+
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect
+    .poll(async () => page.evaluate(() => window.__playCalls.length), { timeout: 2_000 })
+    .toBeGreaterThan(0);
+
+  const loopEntryPlayCalls = await page.evaluate(() => window.__playCalls);
+  expect(loopEntryPlayCalls.every((call) => call.currentTime === 1.5)).toBe(true);
 });
 
 test("loop range can be marked and extended from the harmony chord grid", async ({ page }) => {
