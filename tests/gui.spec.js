@@ -634,7 +634,7 @@ test("first playback waits for the metronome audio clock to resume", async ({ pa
   });
 });
 
-test("count-in works without a loop and repeats after a loop jump", async ({ page }) => {
+test("loop playback always enters at its start with optional repeated count-in", async ({ page }) => {
   await page.addInitScript(() => {
     window.__playCalls = [];
     window.__metronomeClicks = [];
@@ -763,6 +763,41 @@ test("count-in works without a loop and repeats after a loop jump", async ({ pag
 
   const loopEntryPlayCalls = await page.evaluate(() => window.__playCalls);
   expect(loopEntryPlayCalls.every((call) => call.currentTime === 1.5)).toBe(true);
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  await page.getByTestId("count-in-bars").selectOption("0");
+  await setPlaybackPosition(page, 2);
+  await page.evaluate(() => {
+    window.__playCalls = [];
+  });
+
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect.poll(async () => page.evaluate(() => window.__playCalls.length)).toBeGreaterThan(0);
+  const directLoopEntryPlayCalls = await page.evaluate(() => window.__playCalls);
+  expect(directLoopEntryPlayCalls.every((call) => call.currentTime === 1.5)).toBe(true);
+
+  await page.getByRole("button", { name: "Pause" }).click();
+  await page.getByTestId("count-in-bars").selectOption("1");
+  await setPlaybackPosition(page, 2);
+  await page.evaluate(() => {
+    window.__playCalls = [];
+    window.__metronomeClicks = [];
+  });
+
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.locator("#scrubber")).toHaveValue("1.5");
+  expect(await page.evaluate(() => window.__playCalls)).toEqual([]);
+  expect(await page.evaluate(() => window.__metronomeClicks)).toEqual([
+    { time: 20, frequency: 1320 },
+    { time: 20.25, frequency: 880 },
+    { time: 20.5, frequency: 880 },
+    { time: 20.75, frequency: 880 }
+  ]);
+  await expect
+    .poll(async () => page.evaluate(() => window.__playCalls.length), { timeout: 2_000 })
+    .toBeGreaterThan(0);
+  const countedLoopEntryPlayCalls = await page.evaluate(() => window.__playCalls);
+  expect(countedLoopEntryPlayCalls.every((call) => call.currentTime === 1.5)).toBe(true);
 });
 
 test("loop range can be marked and extended from the harmony chord grid", async ({ page }) => {

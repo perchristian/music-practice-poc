@@ -3130,6 +3130,8 @@ async function startStemPlaybackAt(seconds) {
 
   const current = boundTransportTime(seconds);
   anchorTransport(current);
+  updateTimeDisplay();
+  highlightCurrentChord();
   for (const player of stemPlayers) {
     player.audio.playbackRate = playbackRate;
   }
@@ -3165,7 +3167,7 @@ async function playAll() {
     Number.isFinite(loopStartSeconds) &&
     Number.isFinite(loopEndSeconds) &&
     loopEndSeconds > loopStartSeconds;
-  if (hasActiveLoop && (target < loopStartSeconds || target >= loopEndSeconds)) {
+  if (hasActiveLoop) {
     target = loopStartSeconds;
   }
   const countIn = countInConfig(target);
