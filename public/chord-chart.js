@@ -154,6 +154,54 @@ export function chordCueToChartEvent(chord, grid, divisionsPerQuarter, idFactory
   };
 }
 
+export function chordChartContainsCue(chart, grid, cue) {
+  const normalized = normalizedChordChart({ chordChart: chart });
+  if (!normalized) return false;
+  const candidate = chordCueToChartEvent(cue, grid, normalized.divisionsPerQuarter);
+  const candidateStart = chartChordTotalDiv(candidate, grid, normalized.divisionsPerQuarter);
+  return normalized.chords.some((chord) =>
+    chartChordTotalDiv(chord, grid, normalized.divisionsPerQuarter) === candidateStart &&
+    chord.raw === candidate.raw &&
+    chord.durationDiv >= candidate.durationDiv
+  );
+}
+
+export function recoverChordCueInChart(chart, grid, cue, idFactory = createChordId) {
+  const normalized = normalizedChordChart({ chordChart: chart }, idFactory);
+  if (!normalized) return chart;
+
+  const chartGrid = fallbackChartGrid(grid);
+  const divisionsPerQuarter = normalized.divisionsPerQuarter;
+  const candidate = chordCueToChartEvent(cue, chartGrid, divisionsPerQuarter, idFactory);
+  const candidateStart = chartChordTotalDiv(candidate, chartGrid, divisionsPerQuarter);
+  const candidateEnd = candidateStart + candidate.durationDiv;
+  const chords = [];
+
+  for (const chord of normalized.chords) {
+    const chordStart = chartChordTotalDiv(chord, chartGrid, divisionsPerQuarter);
+    const chordEnd = chordStart + chord.durationDiv;
+    if (chordEnd <= candidateStart || chordStart >= candidateEnd) {
+      chords.push(chord);
+      continue;
+    }
+
+    if (chordStart < candidateStart) {
+      chords.push({ ...chord, durationDiv: candidateStart - chordStart });
+    }
+    if (chordEnd > candidateEnd) {
+      chords.push({
+        ...chord,
+        id: idFactory(),
+        ...chartPositionFromTotalDiv(candidateEnd, chartGrid, divisionsPerQuarter),
+        durationDiv: chordEnd - candidateEnd
+      });
+    }
+  }
+
+  chords.push(candidate);
+  return normalizeEditedChart(normalized, chords, idFactory);
+}
+
 export function chordChartToCues(chart, grid, key) {
   const normalized = normalizedChordChart({ chordChart: chart });
   if (!normalized) return null;

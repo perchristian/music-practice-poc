@@ -100,6 +100,8 @@ The initial Phase 2J development baseline completed on 2026-07-21 without inspec
 
 The first Phase 2J smoothing checkpoint completed on 2026-07-22. `beat-aware-chroma-v3` replaces only isolated one-beat `A-B-A` chord estimates before the existing within-bar merge; chord templates, timing, key, vocabulary, and stem evidence are unchanged. On development, oracle MajMin rose from 58.6% to 60.8% and estimated-timing MajMin from 53.7% to 55.7%; medians and a majority of tracks improved, while false-extra boundaries at 250 ms fell from 1503 to 1162 oracle and 1321 to 1079 estimated. The protected holdout was opened only after that gate passed. Holdout oracle MajMin improved from 48.1% to 49.0%; estimated MajMin moved from 40.2% to 39.9%, within the locked one-point limit, while false extras fell but missing estimated boundaries increased. The rule is retained as the conservative default, the unsmoothed benchmark remains reproducible with `--smoothing none`, and the now-consumed holdout must not be used for tuning. Aggregate evidence is committed in `benchmarks/rwc-popular-isolated-smoothing-checkpoint.md`; detailed artifacts remain ignored. Focused sequence/benchmark tests passed, `npm test` passed with 38 tests and one optional local calibration skipped, all 28 Playwright tests passed, `git diff --check` passed, and no test-created jobs remained. No application jobs were created by the benchmark, no agents were delegated, and no model switch or skill was used.
 
+Phase 2J raw-candidate recovery implemented on 2026-07-22. Real analysis and corrected-timing reanalysis now persist immutable conservative `chords` plus only the raw one-beat candidates actually changed by smoothing in `suppressedChordSuggestions`, with reason, musical position, label, confidence, and source. Harmony shows an explicit review dialog when recoverable suggestions exist. Adding one creates an ordinary persisted user edit, replaces only its overlapping beat, and preserves the surrounding working chord before and after it; already represented suggestions disappear from the review list. A direct RWC_P005 oracle probe produced 508 raw beats, 379 conservative cues, and 29 suppressed suggestions without creating an application job. The whole-chart `Back to analysis` confirmation and analysis-scoped one-step undo contract is documented as the next slice. Focused chart/browser coverage passed, `npm test` passed with 39 tests and one optional local calibration skipped, all 28 Playwright tests passed, syntax and diff checks passed, and no test-created jobs remained. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -334,11 +336,11 @@ Local web POC:
 
 ## In Progress
 
-- Phase 2J analyzer calibration is in progress; the first conservative smoothing experiment passed development and holdout gates. The holdout is now consumed and fixed.
+- Phase 2J analyzer calibration is in progress; conservative smoothing and explicit recovery of its suppressed one-beat candidates are implemented. Whole-chart reset/undo remains next. The holdout is consumed and fixed.
 
 ## Next Recommended Task
 
-Define the raw-candidate versus conservative-chart contract, then prototype explicit recovery of plausible short analyzer changes without overwriting the user-owned working chart.
+Implement a confirmed `Back to analysis` reset with one-step undo scoped to the same song and unchanged active analysis.
 
 ## Skills Used
 

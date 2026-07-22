@@ -8,6 +8,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a review dialog for chord changes hidden by conservative smoothing; users can restore one beat explicitly without replacing the rest of their working chart.
+- Added a compact immutable `suppressedChordSuggestions` analyzer layer instead of persisting a duplicate of every raw beat estimate.
 - Added a locked development/holdout checkpoint for conservative isolated-beat chord smoothing, including an explicit unsmoothed benchmark control.
 - Added a dataset-backed chord benchmark that runs the application analyzer directly on a locked 8-development/4-holdout RWC-P v2 pilot without creating library jobs.
 - Added separate oracle-timing and estimated-timing runs with standard duration-weighted chord scores, boundary errors, cue density, OOV duration, runtime, and compact failure diagnostics.

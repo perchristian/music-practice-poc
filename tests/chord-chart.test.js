@@ -2,11 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   addChordAtCellToChart,
+  chordChartContainsCue,
   chordChartToCues,
   deleteChordFromChart,
   moveChordToCellInChart,
   normalizedChordChart,
   resizeChordToBeatBoundaryInChart,
+  recoverChordCueInChart,
   seedChordChart,
   updateChordNameInChart
 } from "../public/chord-chart.js";
@@ -112,6 +114,26 @@ describe("chord chart transforms", () => {
         { id: "f", bar: 2, offsetDiv: 0, durationDiv: 16, raw: "F" }
       ]
     );
+  });
+
+  it("recovers a suppressed beat without overwriting the surrounding working chord", () => {
+    const chart = {
+      version: 1,
+      divisionsPerQuarter: 4,
+      chords: [{ id: "whole", bar: 1, offsetDiv: 0, durationDiv: 16, raw: "C", source: "user" }]
+    };
+    const grid = { bpm: 60, beatDurationSeconds: 1, beatsPerBar: 4, beatUnit: 4, downbeatOffsetSeconds: 0 };
+    const cue = { bar: 1, beat: 2, start: 1, end: 2, name: "G" };
+
+    const recovered = recoverChordCueInChart(chart, grid, cue, ids("recover"));
+
+    assert.deepEqual(recovered.chords.map(({ bar, offsetDiv, durationDiv, raw }) => ({ bar, offsetDiv, durationDiv, raw })), [
+      { bar: 1, offsetDiv: 0, durationDiv: 4, raw: "C" },
+      { bar: 1, offsetDiv: 4, durationDiv: 4, raw: "G" },
+      { bar: 1, offsetDiv: 8, durationDiv: 8, raw: "C" }
+    ]);
+    assert.equal(chordChartContainsCue(recovered, grid, cue), true);
+    assert.equal(chordChartContainsCue(chart, grid, cue), false);
   });
 
   it("moves a chord to a beat cell and preserves beat-bounded duration", () => {

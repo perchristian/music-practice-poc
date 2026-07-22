@@ -630,3 +630,26 @@ Medium. The benchmark gate passed, but absolute holdout accuracy remains too low
 
 Date:
 2026-07-22
+
+## Decision 28
+
+Decision:
+Persist only the raw chord candidates changed by conservative smoothing as `suppressedChordSuggestions`, alongside immutable conservative `chords` and the separate user-owned `practiceState.chordChart`.
+
+Reason:
+The accepted smoothing rule improves aggregate usefulness but can hide a real one-beat change. Users need a reversible path without returning the default chart to the noisy beat-by-beat sequence. The useful evidence is the difference introduced by smoothing, not a second complete chord chart. An explicit per-suggestion `Add` action can replace only that beat in the working chart and preserve the surrounding chord on both sides.
+
+Alternatives considered:
+- Persist the full raw beat sequence and the conservative chart. This maximizes later analysis options but duplicates hundreds of cues per song and makes presentation/evidence ownership less clear.
+- Discard suppressed candidates. This keeps metadata smallest but makes the smoothing precision/recall tradeoff irreversible.
+- Add a global raw/conservative view toggle. This is simple to explain technically but risks presenting the noisy layer as another authoritative chart and does not express which changes the user accepted.
+- Automatically merge suppressed candidates into an existing user chart above a confidence threshold. This would overwrite user intent and reuse analyzer confidence as a decision rule without benchmark evidence.
+
+Tradeoffs:
+The compact difference layer stays inspectable and old jobs remain compatible when the field is absent. Recovery is intentionally one suggestion at a time, so songs with many useful short changes may require repeated actions. A recovered suggestion becomes an ordinary independent user chord; it is not linked to analyzer evidence afterward. `Back to analysis` and one-step undo remain a separate next slice because they reset the whole chart and need analysis-scoped backup semantics.
+
+Confidence:
+High for preserving ownership and keeping the POC model small; medium for the review interaction until tested by piano learners on real songs.
+
+Date:
+2026-07-22

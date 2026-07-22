@@ -1047,7 +1047,7 @@ async function analyzeHarmonyFromAudio(
     : aggregateChroma;
   const key = userProvidedAnalysisKey(fixedKey) ||
     adjustKeyWithChordSequence(estimateKey(normalizedAggregate), mergedChordDrafts);
-  const chords = mergedChordDrafts.map((chord) => ({
+  const publicChord = (chord, source) => ({
     start: chord.start,
     end: chord.end,
     bar: chord.bar,
@@ -1055,8 +1055,21 @@ async function analyzeHarmonyFromAudio(
     name: chordName(chord.root, chord.quality),
     roman: romanNumeral(chord.root, chord.quality, key),
     confidence: chord.confidence,
-    source: timingGrid ? "corrected-timing-chroma" : "beat-aligned-chroma"
-  }));
+    source
+  });
+  const chords = mergedChordDrafts.map((chord) => publicChord(
+    chord,
+    timingGrid ? "corrected-timing-chroma" : "beat-aligned-chroma"
+  ));
+  const suppressedChordSuggestions = chordDrafts
+    .filter((chord, index) => !sameChord(chord, sequenceChordDrafts[index]))
+    .map((chord) => ({
+      ...publicChord(
+        chord,
+        timingGrid ? "suppressed-corrected-timing-chroma" : "suppressed-beat-aligned-chroma"
+      ),
+      reason: "isolated-between-matching-neighbors"
+    }));
   const { tonicPitchClass, ...publicKey } = key;
 
   return {
@@ -1065,6 +1078,7 @@ async function analyzeHarmonyFromAudio(
     analysisSource: "source-audio.wav",
     key: publicKey,
     chords,
+    suppressedChordSuggestions,
     melody: [],
     beatGrid,
     analysis: {
@@ -1073,6 +1087,8 @@ async function analyzeHarmonyFromAudio(
       durationMs: Date.now() - startedAt,
       keySource: key.source === "user" ? "user-override" : "estimated",
       sequenceSmoothing,
+      rawChordCueCount: chordDrafts.length,
+      suppressedChordCount: suppressedChordSuggestions.length,
       sources: {
         fullMix: SOURCE_AUDIO_FILENAME,
         stems: separation.outputs?.map((stem) => stem.id) || []
@@ -2560,6 +2576,7 @@ async function handleReanalyzeHarmony(req, id, res) {
     analysisSource: analysis.analysisSource,
     key: analysis.key,
     chords: analysis.chords,
+    suppressedChordSuggestions: analysis.suppressedChordSuggestions,
     analysis: analysis.analysis,
     timing: {
       gridOverrides: { ...(job.practiceState?.gridOverrides || {}) },

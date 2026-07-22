@@ -141,17 +141,18 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 21. Click a numbered bar line to lock it without moving it, or drag it onto the visible audio event. Use the arrow-icon nudges or exact Time field for fine adjustment. Use the Corrections list or previous/next buttons to revisit anchors, including Bar 1.
 22. Confirm the anchored line is visually distinct from the red playhead, the displayed BPM changes as the playhead crosses segment boundaries, and click/chord timing updates immediately. Select `Done`, reload, reopen the song, and confirm corrections return; use `Reset corrections` from Bar 1 only when intentionally returning to the constant-tempo grid.
 23. Select the known key before reanalysis. In Harmony, select `Reanalyse chords`, confirm that the warning names the selected key, and continue. Wait for the status to report how many new chord cues were generated from the corrected timing and which key was used. The previous working chart is retained as a backend backup. The key controls roman numerals but does not forbid borrowed/non-diatonic chord names.
-24. Adjust click volume from the mixer row; downbeat accent is always on for now.
-25. Set count-in to `1 bar` without enabling Loop and confirm it prepares ordinary playback. Optionally enable `Start at Bar 1` to skip incomplete pre-roll. Then enable Loop and change its start/end; `1` means all of Bar 1. Confirm count-in repeats before each loop pass, including after timing corrections.
-26. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header. Time signature and `/2`/`x2` are intentionally disabled while a tempo map exists.
-27. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
-28. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
-29. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
-30. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
-31. Change a practice setting and confirm the selected-song header moves from `Saving...` to `Saved`. Reload the page, reopen the song from the unified song list, and confirm those practice settings, timing anchors, section labels, Harmony view settings, and chord edits return.
-32. Rename the selected song from the selected-song header more menu.
-33. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
-34. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update best-effort for the working chart.
+24. If Harmony shows `Review hidden chords`, open it and audition one of the isolated one-beat changes that conservative smoothing removed. Select `Add` only when it sounds useful; confirm the surrounding working chord remains on both sides and the edit reaches `Saved`.
+25. Adjust click volume from the mixer row; downbeat accent is always on for now.
+26. Set count-in to `1 bar` without enabling Loop and confirm it prepares ordinary playback. Optionally enable `Start at Bar 1` to skip incomplete pre-roll. Then enable Loop and change its start/end; `1` means all of Bar 1. Confirm count-in repeats before each loop pass, including after timing corrections.
+27. Change playback speed, stem volume, grid click settings, tempo correction, time signature, key, and learning status from the selected-song header. Time signature and `/2`/`x2` are intentionally disabled while a tempo map exists.
+28. In the Harmony grid, confirm chords appear as compact blocks with chord names and roman numerals, without per-card bar/beat labels.
+29. Change `Bars / row` and `View` to confirm the chart can show more of the song and can switch between name, roman, or both.
+30. Select a bar range directly in Harmony, then create a section from the selection. Symbol, label, and color are optional; leave the text fields blank to confirm a visual range can be saved without text. Confirm the section appears as a band across the bar range, toggle its information display, then use its `Edit` and `x` controls to change or remove it.
+31. Edit a chord label, drag a chord to another beat, drag a chord's right edge to shorten or lengthen it on beat boundaries, drag the active loop's Harmony handles across bars/rows, click `+` in an empty cell to add a chord, and use the small `x` in a chord corner to delete an extra cue.
+32. Change a practice setting and confirm the selected-song header moves from `Saving...` to `Saved`. Reload the page, reopen the song from the unified song list, and confirm those practice settings, timing anchors, section labels, Harmony view settings, and chord edits return.
+33. Rename the selected song from the selected-song header more menu.
+34. Delete the selected song from the selected-song header more menu and confirm it disappears from the song list and no longer opens.
+35. Inspect detected key, chord names, and roman numerals. Change key and confirm the roman numerals update best-effort for the working chart.
 
 ## Real-Mode Separation Smoke
 

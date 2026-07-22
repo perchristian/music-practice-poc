@@ -228,6 +228,16 @@ The first implementation should use a conservative vocabulary: major/minor triad
 
 The implemented analyzer currently records `harmonySource: "real-audio-analysis-v2"`, `analysisSource`, `beatGrid`, `beatOffsetSeconds`, `downbeatOffsetSeconds`, `downbeatConfidence`, per-cue `bar`, `beat`, `confidence`, the sequence-smoothing mode, and analyzer limitations. It emits beat-aware chord cues, suppresses isolated one-beat disagreements between matching neighbors, and merges repeated labels within a bar while preserving repeated labels across bar boundaries. These cues are immutable analyzer suggestions in `job.result.metadata.chords`; they are evidence/provenance, not the user's source of truth. On first edit the app seeds a separate grid-first `practiceState.chordChart`, and that user working chart becomes authoritative for presentation, playback alignment, bar-based loops, roman numerals, and practice notes.
 
+The analyzer keeps three explicit chord layers:
+
+- `metadata.chords`: the immutable conservative suggestion chart shown by default.
+- `metadata.suppressedChordSuggestions`: only raw one-beat candidates changed by the conservative `A-B-A` smoothing rule, including their original musical position, label, confidence, and suppression reason. The complete dense beat sequence is not duplicated in persisted job metadata.
+- `practiceState.chordChart`: the user's authoritative chart. Adding a suppressed suggestion is an explicit local edit that replaces only the overlapping beat and preserves the surrounding working chord before and after it.
+
+Corrected-timing reanalysis stores the same two immutable analyzer layers inside `metadata.correctedTimingAnalysis`; `effectiveMetadata` selects those together so suggestions cannot be mixed across analyzer timing versions. Already recovered suggestions are hidden by matching their musical position and label against the working chart.
+
+The future `Back to analysis` action must be distinct from adding one suggestion. It should require confirmation whenever a working chart exists, snapshot that exact chart with the active analysis identity and reason, then reset presentation to the current conservative analyzer layer. A one-step `Undo` should restore the snapshot only for the same song and unchanged analysis identity. Running a new corrected-timing reanalysis may create a new backup, but must never silently merge or train on user edits.
+
 Future analyzer work must keep analysis evidence separate from presentation policy. A denser candidate layer may support optional extra chord changes, comparison against user corrections, and an explicit `Back to analysis` action without silently overwriting the working chart. Any restore operation should require confirmation or undo. The exact conservative presentation rule is deferred until the same real-song fixtures and user corrections can be compared in a joint calibration loop.
 
 Chord text should remain user-preserving. The app may parse root, quality, bass note, and extensions for display, roman numerals, and future transposition, but it must keep the original entered label because useful musician notation can be ambiguous. For example, `Csus2`, `C9`, `C7/F`, and `F11` can be different names for similar harmonic evidence depending on context.

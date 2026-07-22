@@ -220,6 +220,7 @@
                     <p class="harmony-analysis-status" id="harmonyAnalysisStatus" data-testid="harmony-analysis-status" aria-live="polite" hidden></p>
                   </div>
                   <div class="harmony-summary">
+                    <button type="button" class="secondary-button compact-button" id="suppressedSuggestionsButton" data-testid="suppressed-suggestions" hidden>Review hidden chords</button>
                     <button type="button" class="secondary-button compact-button" id="reanalyzeHarmonyButton" data-testid="reanalyze-harmony" hidden>Reanalyse chords</button>
                     <label class="key-control">
                       <span>Key</span>
@@ -253,6 +254,20 @@
                   <span class="section-selection-summary" id="sectionSelectionSummary" data-testid="section-selection-summary" aria-live="polite"></span>
                 </div>
                 <div class="chord-list" id="chordList"></div>
+                <dialog class="section-edit-dialog suppressed-suggestions-dialog" id="suppressedSuggestionsDialog" data-testid="suppressed-suggestions-dialog">
+                  <div class="section-edit-form">
+                    <div class="section-heading compact">
+                      <div>
+                        <h2>Hidden chord suggestions</h2>
+                        <p>These one-beat changes were hidden because the chords on both sides matched. Add only the changes that sound useful.</p>
+                      </div>
+                    </div>
+                    <div class="suppressed-suggestions-list" id="suppressedSuggestionsList" data-testid="suppressed-suggestions-list"></div>
+                    <div class="dialog-actions">
+                      <button type="button" class="secondary-button" id="suppressedSuggestionsDone" data-testid="suppressed-suggestions-done">Done</button>
+                    </div>
+                  </div>
+                </dialog>
                 <dialog class="section-edit-dialog" id="sectionCreateDialog" data-testid="section-create-dialog">
                   <form method="dialog" class="section-edit-form" id="sectionCreateForm">
                     <div class="section-heading compact">

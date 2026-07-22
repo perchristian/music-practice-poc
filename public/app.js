@@ -2,6 +2,7 @@ import {
   addChordAtCellToChart,
   adjustChordTimingForGrid,
   chordBeatRange,
+  chordChartContainsCue,
   chordChartToCues,
   chordGridHit,
   clampedInteger,
@@ -16,6 +17,7 @@ import {
   normalizedChordChart,
   normalizedHarmonyView,
   notePitchClasses,
+  recoverChordCueInChart,
   resizeChordToBeatBoundaryInChart,
   romanNumeralForChord,
   seedChordChart as seedChordChartState,
@@ -116,6 +118,10 @@ const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
 const reanalyzeHarmonyButton = document.querySelector("#reanalyzeHarmonyButton");
 const harmonyAnalysisStatus = document.querySelector("#harmonyAnalysisStatus");
+const suppressedSuggestionsButton = document.querySelector("#suppressedSuggestionsButton");
+const suppressedSuggestionsDialog = document.querySelector("#suppressedSuggestionsDialog");
+const suppressedSuggestionsList = document.querySelector("#suppressedSuggestionsList");
+const suppressedSuggestionsDone = document.querySelector("#suppressedSuggestionsDone");
 const chordDisplaySelect = document.querySelector("#chordDisplaySelect");
 const barsPerRowSelect = document.querySelector("#barsPerRowSelect");
 const sectionInfoToggle = document.querySelector("#sectionInfoToggle");
@@ -368,6 +374,7 @@ function effectiveMetadata(metadata) {
       analysisSource: correctedAnalysis.analysisSource,
       key: correctedAnalysis.key,
       chords: correctedAnalysis.chords,
+      suppressedChordSuggestions: correctedAnalysis.suppressedChordSuggestions || [],
       analysis: correctedAnalysis.analysis
     }
     : metadata;
@@ -406,12 +413,19 @@ function effectiveMetadata(metadata) {
     roman: romanNumeralForChord(chord.name, key) || chord.roman || "",
     source: chord.source || "analysis"
   }));
+  const suppressedChordSuggestions = (analysisMetadata.suppressedChordSuggestions || []).map((chord) => ({
+    ...(chord.source === "suppressed-corrected-timing-chroma" || !hasTimingGridOverride
+      ? chord
+      : adjustChordTimingForGrid(chord, defaults, effectiveGrid)),
+    roman: romanNumeralForChord(chord.name, key) || chord.roman || ""
+  }));
 
   if (!bpm && !beatDurationSeconds) {
     return {
       ...analysisMetadata,
       key,
-      chords
+      chords,
+      suppressedChordSuggestions
     };
   }
 
@@ -419,6 +433,7 @@ function effectiveMetadata(metadata) {
     ...analysisMetadata,
     key,
     chords,
+    suppressedChordSuggestions,
     beatGrid: {
       ...(metadata.beatGrid || {}),
       bpm,
@@ -1324,6 +1339,7 @@ function renderMetadata(metadata) {
   updateKeyControl();
   updateHarmonyViewControls();
   updateHarmonyReanalysisControls();
+  updateSuppressedSuggestionControls();
   updateTempoControl();
   updateGridCorrectionControls();
   updateLoopControlMode();
@@ -1347,6 +1363,75 @@ function updateHarmonyReanalysisControls(message = "") {
     : "");
   harmonyAnalysisStatus.textContent = status;
   harmonyAnalysisStatus.hidden = !status;
+}
+
+function recoverableSuppressedSuggestions() {
+  const grid = currentChartGrid();
+  return (currentMetadata?.suppressedChordSuggestions || []).filter(
+    (suggestion) => !chordChartContainsCue(chordChart, grid, suggestion)
+  );
+}
+
+function renderSuppressedSuggestionsDialog() {
+  if (!suppressedSuggestionsList) return;
+  const suggestions = recoverableSuppressedSuggestions();
+  if (!suggestions.length) {
+    const empty = document.createElement("p");
+    empty.className = "harmony-analysis-status";
+    empty.textContent = "All hidden suggestions have been reviewed or added.";
+    suppressedSuggestionsList.replaceChildren(empty);
+    return;
+  }
+
+  suppressedSuggestionsList.replaceChildren(...suggestions.map((suggestion, index) => {
+    const row = document.createElement("div");
+    row.className = "suppressed-suggestion-row";
+
+    const label = document.createElement("span");
+    label.className = "suppressed-suggestion-label";
+    const name = document.createElement("strong");
+    name.textContent = suggestion.roman
+      ? `${suggestion.name} · ${suggestion.roman}`
+      : suggestion.name;
+    const position = document.createElement("span");
+    position.textContent = `Bar ${suggestion.bar}, beat ${formatBeatNumber(suggestion.beat)}`;
+    label.append(name, position);
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "secondary-button compact-button";
+    add.dataset.suppressedSuggestionIndex = String(index);
+    add.dataset.testid = `recover-suppressed-${index}`;
+    add.textContent = "Add";
+    add.setAttribute("aria-label", `Add ${suggestion.name} at bar ${suggestion.bar}, beat ${formatBeatNumber(suggestion.beat)}`);
+
+    row.append(label, add);
+    return row;
+  }));
+}
+
+function updateSuppressedSuggestionControls() {
+  const count = recoverableSuppressedSuggestions().length;
+  if (suppressedSuggestionsButton) {
+    suppressedSuggestionsButton.hidden = count === 0;
+    suppressedSuggestionsButton.textContent = count === 1
+      ? "Review 1 hidden chord"
+      : `Review ${count} hidden chords`;
+  }
+  renderSuppressedSuggestionsDialog();
+}
+
+function openSuppressedSuggestionsDialog() {
+  if (!suppressedSuggestionsDialog) return;
+  renderSuppressedSuggestionsDialog();
+  suppressedSuggestionsDialog.showModal();
+}
+
+function recoverSuppressedSuggestion(index) {
+  const suggestion = recoverableSuppressedSuggestions()[index];
+  if (!suggestion) return;
+  seedChordChart();
+  commitChordChart(recoverChordCueInChart(chordChart, currentChartGrid(), suggestion));
 }
 
 async function reanalyzeHarmonyFromCorrectedTiming() {
@@ -3789,6 +3874,16 @@ tempoDisplay?.addEventListener("click", () => {
 
 reanalyzeHarmonyButton?.addEventListener("click", () => {
   void reanalyzeHarmonyFromCorrectedTiming();
+});
+
+suppressedSuggestionsButton?.addEventListener("click", openSuppressedSuggestionsDialog);
+
+suppressedSuggestionsDone?.addEventListener("click", () => suppressedSuggestionsDialog?.close());
+
+suppressedSuggestionsList?.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-suppressed-suggestion-index]");
+  if (!button) return;
+  recoverSuppressedSuggestion(Number(button.dataset.suppressedSuggestionIndex));
 });
 
 tempoInput?.addEventListener("keydown", (event) => {

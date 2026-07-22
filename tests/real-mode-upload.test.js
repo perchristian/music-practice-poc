@@ -331,6 +331,11 @@ describe("real-mode FFmpeg extraction", () => {
     assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
     assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");
     assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v3");
+    assert.ok(Array.isArray(completedJob.result.metadata.suppressedChordSuggestions));
+    assert.equal(
+      completedJob.result.metadata.analysis.suppressedChordCount,
+      completedJob.result.metadata.suppressedChordSuggestions.length
+    );
     assert.equal(completedJob.result.metadata.analysis.sources.fullMix, "source-audio.wav");
     assert.ok(completedJob.result.metadata.beatGrid.bpm > 0);
     assert.ok(completedJob.result.metadata.beatGrid.bars.length >= 1);
@@ -429,6 +434,7 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(reanalyzedJob.practiceState.chordChartBackup.chordChart.chords[0].raw, "C");
     assert.equal(reanalyzedJob.result.metadata.chords[0].source, "beat-aligned-chroma");
     assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v2");
+    assert.ok(Array.isArray(reanalyzedJob.result.metadata.correctedTimingAnalysis.suppressedChordSuggestions));
     assert.deepEqual(reanalyzedJob.result.metadata.correctedTimingAnalysis.key, {
       tonic: "C",
       mode: "major",

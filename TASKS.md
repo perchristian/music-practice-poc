@@ -297,7 +297,7 @@ Constraints:
 - Keep evaluation dependencies and corpora outside the dependency-light mock-mode setup.
 - Do not tune on or replace the holdout set after seeing its results.
 
-Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. The dataset-backed benchmark, optional isolated `mir_eval` environment, exact-archive extractor, dependency-free contract tests, and fixed 8-development/4-holdout RWC-P manifest are implemented. The first isolated-beat smoothing experiment passed its locked gate: development MajMin improved from 58.6% to 60.8% with oracle timing and 53.7% to 55.7% with analyzer timing, while false-extra boundaries and cue density fell. The opened holdout improved 0.9 points with oracle timing and regressed 0.3 points with analyzer timing, within the one-point limit. The holdout is now consumed and must not be tuned against. Next define how raw candidates and conservative presentation coexist before adding any restore/insert workflow.
+Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. The dataset-backed benchmark and first isolated-beat smoothing experiment passed their locked development/holdout gate. The analyzer now persists the conservative `chords` layer separately from only the raw beats changed by smoothing in `suppressedChordSuggestions`; it does not duplicate the complete dense sequence. Harmony exposes those suggestions through an explicit review dialog, and adding one splits only the overlapping working chord while preserving surrounding beats. The user chart remains authoritative and persists normally. The next Phase 2J slice is a confirmed `Back to analysis` action with analysis-scoped one-step undo; the consumed holdout must not be tuned against.
 
 ### 16A. Cold-Start Metronome Initialization
 
@@ -423,7 +423,7 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Define and prototype the smallest separation between raw analyzer candidates and the conservative default chart. Preserve the user-owned working chart, expose recovery of plausible short changes only through an explicit action, and specify confirmation/undo for `Back to analysis` before implementation expands further.
+Implement `Back to analysis` as a confirmed reset to the active conservative analyzer layer, plus one-step undo that restores the exact prior working chart only while the song and analysis identity remain unchanged. Cover corrected-timing analysis replacement and ordinary analyzer suggestions without adding multi-level history.
 
 ## Parked Work
 

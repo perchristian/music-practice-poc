@@ -1089,8 +1089,24 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
         { bar: 1, beat: 1, start: 0, end: 5, name: "G", roman: "V", source: "corrected-timing-chroma" },
         { bar: 2, beat: 1, start: 5, end: 10, name: "D", roman: "II", source: "corrected-timing-chroma" }
       ],
-      analysis: { name: "beat-aware-chroma-corrected-timing-v2" }
+      suppressedChordSuggestions: [
+        {
+          bar: 1,
+          beat: 2,
+          start: 1.25,
+          end: 2.5,
+          name: "C",
+          roman: "I",
+          source: "suppressed-corrected-timing-chroma",
+          reason: "isolated-between-matching-neighbors"
+        }
+      ],
+      analysis: { name: "beat-aware-chroma-corrected-timing-v2", suppressedChordCount: 1 }
     };
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
+  });
+  await page.route(`**/api/jobs/${jobId}/practice-state`, async (route) => {
+    job.practiceState = { ...job.practiceState, ...route.request().postDataJSON() };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
   });
 
@@ -1107,6 +1123,24 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
   await expect(page.getByTestId("chord-name-1")).toHaveValue("D");
+  await expect(page.getByTestId("suppressed-suggestions")).toHaveText("Review 1 hidden chord");
+
+  await page.getByTestId("suppressed-suggestions").click();
+  await expect(page.getByTestId("suppressed-suggestions-dialog")).toBeVisible();
+  await expect(page.getByTestId("suppressed-suggestions-list")).toContainText("Bar 1, beat 2");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+    .toBe(true);
+  await page.getByTestId("recover-suppressed-0").click();
+
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-1")).toHaveValue("C");
+  await expect(page.getByTestId("chord-name-2")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-3")).toHaveValue("D");
+  await expect(page.getByTestId("suppressed-suggestions")).toBeHidden();
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+  expect(job.practiceState.chordChart.chords.map((chord) => chord.raw)).toEqual(["G", "C", "G", "D"]);
 });
 
 test("waveform timing editor persists variable-tempo downbeats and keeps playback consumers aligned", async ({ page }) => {
