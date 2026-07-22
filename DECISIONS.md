@@ -653,3 +653,46 @@ High for preserving ownership and keeping the POC model small; medium for the re
 
 Date:
 2026-07-22
+
+## Decision 29
+
+Decision:
+Evolve user-corrected timing into one versioned list of bar events and one bar-line interaction. A bar event may carry an explicit downbeat time, an effective time signature, or both; tempo remains derived between timed events. Automatic timing becomes a separate threshold-aware stage before chord segmentation.
+
+Reason:
+Product review identified a single underlying failure chain: an incorrect song start, tempo drift, or unsupported meter change produces wrong beats and bars, which then produces incorrectly placed chord-analysis windows. The current `practiceState.tempoMap` solves manual variable tempo for one constant meter, but users reasonably expect to move a bar and change the meter that begins there through the same visible bar line. Separate tempo and meter markers would expose implementation concepts instead of the musical object the user understands.
+
+The unified event shape is conceptually:
+
+```json
+{
+  "bar": 33,
+  "timeSeconds": 61.42,
+  "timeSignature": {
+    "beatsPerBar": 3,
+    "beatUnit": 4
+  }
+}
+```
+
+Both correction fields are optional. A time-only event inherits the active meter; a meter-only event uses its calculated audio time. Bar 1 establishes the initial effective meter and may also establish the first explicit downbeat. Existing version-1 `{ bar, timeSeconds }` tempo anchors should normalize into the new model so intentional calibration work can survive the transition.
+
+The analyzer must continue to estimate timing before chords, but its current one-tempo/one-meter result is insufficient. The next timing pass should fit stable spans over multiple observations, ignore ordinary human beat variation, and propose a new tempo boundary only after relative phase or tempo deviation crosses a calibrated threshold for a persistent window. Meter-change candidates are limited to plausible downbeats and concrete bars. Analyzer candidates remain immutable provenance and do not silently rewrite user timing.
+
+Alternatives considered:
+- Keep separate `tempoAnchors` and `meterChanges` collections with separate visual markers. Advantages: each algorithm gets a narrow data type. Disadvantages: two controls compete for the same bar line, combined edits become awkward, and users must understand an implementation distinction. Effort is medium, interaction risk is high, and expected demo quality is lower.
+- Copy the full time signature onto every persisted bar. Advantages: every bar is locally self-describing. Disadvantages: repeated state can contradict itself, makes edits noisy, and bloats long-song data. Effort is medium, consistency risk is high, and expected demo quality is unchanged.
+- Add optional meter data only to existing timed anchors. Advantages: smallest schema change. Disadvantages: a legitimate meter-only change would require creating a false timing correction, coupling two independent semantics. Effort is low-to-medium, model risk is medium, and expected interaction quality is acceptable but conceptually brittle.
+- Persist BPM directly on each event. Advantages: easy display and editing. Disadvantages: BPM can conflict with actual anchor times and becomes ambiguous across meter/beat-unit changes. Effort is low, consistency risk is high, and expected timing quality is poor.
+- Retain one global meter and let users approximate meter changes with tempo anchors. Advantages: no meter-aware rewrite. Disadvantages: bar numbers, click accents, chord positions, and loops remain musically wrong after the change. Effort is low, technical risk is low, and expected demo quality is inadequate.
+
+Tradeoffs:
+The unified interaction is simpler for musicians, but the internal timing module becomes more sophisticated. Musical distance must be accumulated through the effective meter of each crossed bar rather than using one global `beatsPerBar`; compound-meter pulse/accent semantics also need an explicit definition. Every timing consumer and timing test must move together. A normalization path adds short-term implementation work, but protects the already useful `TeAmo.mov` calibration map. Threshold-aware automatic timing will still miss some changes or propose false ones, so candidates, confidence, user corrections, and downstream chord results must remain distinct layers.
+
+The narrow analysis-scoped `Back to analysis` one-step undo remains the immediate safety slice because it prevents accidental working-chart loss during reanalysis. The unified timing model follows before additional chord heuristics, normal-timeline polish, or general multi-level undo, reducing the chance of building broad history semantics around a timing model that is about to change.
+
+Confidence:
+High that one bar-line interaction is the correct product model and that timing must precede chord scoring; medium for the exact automatic change thresholds and compound-meter pulse rules until the dedicated fixtures and real recordings are evaluated.
+
+Date:
+2026-07-22

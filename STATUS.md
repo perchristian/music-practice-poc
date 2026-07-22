@@ -104,6 +104,8 @@ Phase 2J raw-candidate recovery implemented on 2026-07-22. Real analysis and cor
 
 Demucs repository-move regression fixed on 2026-07-22. The server and stem-bakeoff script now invoke the default local installation as `.venv-real/bin/python -m demucs` instead of the virtualenv's generated `demucs` entrypoint, whose shebang retained the previous absolute repository path. `DEMUCS_PYTHON` selects another interpreter and `DEMUCS_PATH` remains a direct-entrypoint override. A dependency-free resolver test always covers relocated-path selection, while the real-mode contract requires the same module invocation before producing all six practice stems. `npm test` passed with 41 tests and one optional local calibration skipped; syntax, actual local module startup, and diff checks passed. Tests used isolated temporary job directories and left no test-created library jobs. No agents were delegated, and no model switch or skill was used.
 
+Unified timing-event planning added on 2026-07-22 after product review connected many chord failures to incorrect Bar 1 placement, accumulated tempo drift, and unsupported meter changes. The next major timing iteration will evolve sparse tempo anchors into one versioned list of bar events that can carry downbeat time, effective time signature, or both. Users will continue to edit one existing bar line rather than separate tempo and meter markers; tempo remains derived between timed events. The shared map must become meter-aware, and automatic timing will use persistent threshold crossings rather than following every human beat variation. Timing gets its own known-answer evaluation loop before downstream chord scoring. The narrow analysis-scoped `Back to analysis` undo remains the immediate safety task; unified timing follows before more chord heuristics, normal-timeline polish, or general undo history. Documentation-only planning: no runtime code, tests, jobs, or songs changed; no agents were delegated and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -339,10 +341,13 @@ Local web POC:
 ## In Progress
 
 - Phase 2J analyzer calibration is in progress; conservative smoothing and explicit recovery of its suppressed one-beat candidates are implemented. Whole-chart reset/undo remains next. The holdout is consumed and fixed.
+- Phase 3G.3 unified timing events and threshold-aware timing analysis are planned immediately after that narrow safety slice. One bar-line interaction will own optional downbeat-time and meter corrections; a general undo history remains deferred until the timing model stabilizes.
 
 ## Next Recommended Task
 
 Implement a confirmed `Back to analysis` reset with one-step undo scoped to the same song and unchanged active analysis.
+
+Then implement the documented Phase 3G.3 timing model before additional chord heuristics or broad undo functionality.
 
 ## Skills Used
 

@@ -332,7 +332,60 @@ Verification:
 
 Status: Complete.
 
-### 17. Phase 3G.2: Zoomed Playback Timeline and Follow
+### 17. Phase 3G.3: Unified Bar Timing and Threshold-Aware Analysis
+
+Goal: Make timing a trustworthy first-class analysis stage that handles nonzero song starts, meaningful tempo changes, and bar-boundary time-signature changes without giving users competing tempo and meter controls.
+
+Entry conditions:
+- Complete the narrow Phase 2J `Back to analysis` reset and analysis-scoped one-step undo so timing-driven reanalysis cannot strand a displaced working chart.
+- Keep the consumed Phase 2J chord holdout fixed; timing thresholds require separate development evidence and must not be tuned against those holdout results.
+
+Recommended data contract:
+- Evolve the user-owned `practiceState.tempoMap` into a versioned `practiceState.timingMap` with one ordered `events` list.
+- Each event is attached to one bar and may contain `timeSeconds`, `timeSignature`, or both. A meter-only event inherits its calculated audio time; a timing-only event inherits the active meter.
+- Bar 1 seeds the effective meter and may also own the first explicit downbeat time. Normalize existing `tempoMap` anchors into timing events so the documented `TeAmo.mov` corrections remain usable.
+- Tempo remains derived from musical distance and audio time between timed events. Do not persist an independent BPM value that can contradict the anchors.
+- Keep immutable analyzer timing provenance separate from user-owned corrections. Automatic timing changes are candidates until accepted or used to create a new analysis result; they must not silently rewrite `practiceState.timingMap`.
+
+Unified interaction:
+- Keep one visual bar line on the existing waveform/timeline. Do not add separate tempo-anchor and meter-change markers or lanes.
+- Dragging or nudging the line updates that bar's optional `timeSeconds` and therefore the derived tempo of adjacent spans.
+- Selecting the same line exposes its exact time, local derived tempo, and effective time signature. A time-signature change applies from that bar and is stored on the same event.
+- Typing a segment tempo continues to move or create the relevant timed boundary under explicit, documented semantics; it does not create a second visual object.
+- Removing one aspect of a correction preserves the other. For example, removing a moved time must not discard a meter change stored on the same bar.
+
+Meter-aware timing responsibilities:
+- Extend the shared timing module to integrate musical distance through the effective meter of every crossed bar instead of multiplying a bar difference by one global `beatsPerBar`.
+- Define beat-unit and compound-meter pulse/accent semantics explicitly before implementation so 6/8 does not become an ambiguous six-quarter-note or six-click span.
+- Route bar enumeration, beat positions, local tempo, metronome accents, chord cue timing, bar loops, count-in, section rendering, and inverse time lookup through the same meter-aware map.
+- Preserve grid-first chord and section positions. A timing or meter correction changes derived playback/rendering time, not the user's musical bar identity.
+
+Threshold-aware automatic analysis:
+1. Make timing an explicit stage before chord segmentation and retain its candidates, confidence, and limitations as provenance.
+2. Estimate plausible beat/downbeat observations and fit stable tempo spans across multiple beats or bars instead of warping to every onset.
+3. Open a new tempo span only when phase error or local-tempo deviation exceeds a relative threshold for a persistent window; calibrate the threshold from timing fixtures rather than choosing it from one song.
+4. Detect meter changes only at plausible downbeats and attach each accepted/candidate change to a concrete bar.
+5. Treat uncertain tempo or meter changes as reviewable timing candidates, not automatic user corrections.
+6. Run chord analysis only after the selected analyzer or user-corrected timing map has produced beat-aligned windows.
+
+Test/learn/correct loop:
+- Add known-answer fixtures for leading silence/pre-roll, a pickup before Bar 1, stable human-like beat jitter, an abrupt tempo change, gradual accelerando/ritardando, and 4/4-to-3/4 meter change.
+- Measure beat/downbeat precision and recall, Bar 1 error, bar-line timing error, cumulative phase drift, tempo-change boundary error, and meter-change/bar accuracy before measuring downstream chord scores.
+- Compare automatic timing with reference timing through the existing chord benchmark to quantify the remaining harmonic gap, but use a new timing development split or generated fixtures for threshold selection.
+- Change one timing rule at a time, retain analyzer provenance, and compare final user corrections against analyzer output as evaluation evidence without automatically training on or overwriting those corrections.
+- Finish with manual click/chord/loop/count-in review on at least two real screen recordings, including one with a late song start and one with tempo or meter change.
+
+Acceptance criteria:
+- A user can move a bar, change the time signature from that bar, or do both through the same selected bar line.
+- Ordinary human timing variation does not create a correction event for every beat; persistent drift or a real tempo change creates a sparse, inspectable span boundary.
+- Mid-song meter changes keep click accents, bar numbering, chords, loops, sections, and inverse seek mapping aligned.
+- Corrected timing is established before chord windows are scored, and analyzer evidence remains distinct from user-owned timing and chord charts.
+- Existing version-1 tempo maps either normalize deterministically or fail with an explicit documented clean-break decision before runtime code ships.
+- Mock mode remains dependency-light and includes a representative timing/meter-change scenario.
+
+Status: Planned immediately after the narrow Phase 2J reset/undo safety slice and before further chord heuristics, general multi-level undo, or normal-timeline polish.
+
+### 18. Phase 3G.2: Zoomed Playback Timeline and Follow
 
 Goal: Make long-song bars readable during ordinary practice without expanding the timing editor's first implementation scope.
 
@@ -352,13 +405,13 @@ Verification:
 - Viewport checks around 1180 px, 820 px, and 390 px with no horizontal page overflow.
 - Manual playback review on a long song before enabling Follow by default; default to off unless evidence supports otherwise.
 
-Status: Planned after the Phase 2J checkpoint, or as the next independent task if that human calibration session is waiting for input.
+Status: Planned after the unified timing-event work, so normal playback zoom/follow is built on the meter-aware map rather than the current global-meter assumption.
 
-### 18. Phase 5D: Compact Practice Shell and Touch Accessibility
+### 19. Phase 5D: Compact Practice Shell and Touch Accessibility
 
 Goal: Reduce interface friction before adding more advanced section/chord gestures.
 
-#### 18.1 Library, App Shell, and Selected-Song Header
+#### 19.1 Library, App Shell, and Selected-Song Header
 
 Deliverables:
 - Fix persisted thumbnails so actual images render and all artwork is square.
@@ -369,7 +422,7 @@ Deliverables:
 - Remove duplicate selected-song eyebrow, duration/key/BPM metadata, and the visible `Learning status` label where the values already communicate their meaning.
 - Simplify the empty state and remove obsolete explanatory copy/card treatment.
 
-#### 18.2 Transport, Keyboard, Loop, and Mobile Harmony
+#### 19.2 Transport, Keyboard, Loop, and Mobile Harmony
 
 Deliverables:
 - Keep transport controls available while scrolling, using a sticky/fixed treatment validated on desktop and mobile.
@@ -386,7 +439,7 @@ Verification:
 
 Status: Planned after the timing-map and normal-timeline work.
 
-### 19. Phase 5B.4: Section Resize Handles and Color Coding
+### 20. Phase 5B.4: Section Resize Handles and Color Coding
 
 Goal: Let users reshape and scan sections directly in the Harmony grid.
 
@@ -403,7 +456,7 @@ Verification:
 
 Status: Planned after Phase 5D.
 
-### 20. Phase 5B.5: Chord Multi-Selection
+### 21. Phase 5B.5: Chord Multi-Selection
 
 Goal: Establish one selection model for chord copy/paste and loop commands.
 
@@ -419,7 +472,7 @@ Verification:
 
 Status: Planned after section resize/color.
 
-### 21. Phase 5B.6: Chord Copy/Paste and Loop From Selection
+### 22. Phase 5B.6: Chord Copy/Paste and Loop From Selection
 
 Goal: Use selected chord ranges for repeated harmony and focused practice.
 
@@ -440,6 +493,8 @@ Status: Planned after chord multi-selection.
 ## Next Task
 
 Implement `Back to analysis` as a confirmed reset to the active conservative analyzer layer, plus one-step undo that restores the exact prior working chart only while the song and analysis identity remain unchanged. Cover corrected-timing analysis replacement and ordinary analyzer suggestions without adding multi-level history.
+
+After that safety slice, implement Phase 3G.3 unified timing events and threshold-aware timing analysis before further chord heuristics or general undo history.
 
 ## Parked Work
 
