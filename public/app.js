@@ -375,6 +375,29 @@ function metadataGridDefaults(metadata) {
   };
 }
 
+function metadataGridFromTimingSnapshot(metadata, timing = null) {
+  const defaults = metadataGridDefaults(metadata);
+  const overrides = normalizedGridOverrides(timing);
+  const bpm = roundedBpm(overrides.bpm) || defaults.bpm;
+  const beatDurationSeconds = bpm ? 60 / bpm : defaults.beatDurationSeconds;
+  const beatsPerBar = overrides.beatsPerBar || defaults.beatsPerBar;
+  const beatUnit = overrides.beatUnit || defaults.beatUnit;
+  const downbeatOffsetSeconds = hasGridOverride(overrides, "downbeatOffsetSeconds")
+    ? overrides.downbeatOffsetSeconds
+    : defaults.downbeatOffsetSeconds;
+  const snapshotTimingMap = normalizeTimingMap(timing?.timingMap || timing?.tempoMap, {
+    baseTimeSignature: { beatsPerBar, beatUnit }
+  });
+  return {
+    bpm,
+    beatDurationSeconds,
+    beatsPerBar,
+    beatUnit,
+    downbeatOffsetSeconds,
+    timingMap: snapshotTimingMap
+  };
+}
+
 function normalizedPracticeTimingMap(state = null, metadata = currentAnalyzedMetadata) {
   const overrides = normalizedGridOverrides(state);
   const defaults = metadataGridDefaults(metadata);
@@ -415,6 +438,9 @@ function effectiveMetadata(metadata) {
     baseTimeSignature: { beatsPerBar, beatUnit }
   });
   const activeTimingMap = timingMap || analyzerTimingMap;
+  const analysisTimingGrid = correctedAnalysis
+    ? metadataGridFromTimingSnapshot(metadata, correctedAnalysis.timing)
+    : defaults;
 
   const key = keyOverride || analysisMetadata.key;
   const effectiveGrid = bpm || beatDurationSeconds
@@ -436,16 +462,16 @@ function effectiveMetadata(metadata) {
   const chartChords = chordChartToCues(chordChart, effectiveGrid, key);
   const sourceChords = chartChords || analysisMetadata.chords || [];
   const chords = sourceChords.map((chord) => ({
-    ...(chord.source === "user" || chord.source === "corrected-timing-chroma"
+    ...(chord.source === "user"
       ? chord
-      : hasTimingGridOverride ? adjustChordTimingForGrid(chord, defaults, effectiveGrid) : chord),
+      : hasTimingGridOverride ? adjustChordTimingForGrid(chord, analysisTimingGrid, effectiveGrid) : chord),
     roman: romanNumeralForChord(chord.name, key) || chord.roman || "",
     source: chord.source || "analysis"
   }));
   const suppressedChordSuggestions = (analysisMetadata.suppressedChordSuggestions || []).map((chord) => ({
-    ...(chord.source === "suppressed-corrected-timing-chroma" || !hasTimingGridOverride
+    ...(!hasTimingGridOverride
       ? chord
-      : adjustChordTimingForGrid(chord, defaults, effectiveGrid)),
+      : adjustChordTimingForGrid(chord, analysisTimingGrid, effectiveGrid)),
     roman: romanNumeralForChord(chord.name, key) || chord.roman || ""
   }));
 

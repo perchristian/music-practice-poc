@@ -1331,7 +1331,7 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
   await expect(page.getByTestId("timing-editor-controls")).toBeVisible();
 });
 
-test("harmony chord beat labels stay musical through manual grid tempo and bar start corrections", async ({ page }) => {
+test("corrected-timing chords follow later grid corrections for placement and highlighting", async ({ page }) => {
   const jobId = "44444444-4444-4444-8444-444444444444";
   const job = {
     id: jobId,
@@ -1359,6 +1359,36 @@ test("harmony chord beat labels stay musical through manual grid tempo and bar s
           { bar: 2, beat: 1, start: 5, end: 9, name: "F", roman: "IV" }
         ],
         melody: []
+      }
+    }
+  };
+  job.result.metadata.correctedTimingAnalysis = {
+    createdAt: new Date().toISOString(),
+    harmonySource: "corrected timing fixture",
+    analysisSource: "test",
+    key: { tonic: "C", mode: "major" },
+    chords: job.result.metadata.chords.map((chord) => ({
+      ...chord,
+      source: "corrected-timing-chroma"
+    })),
+    suppressedChordSuggestions: [],
+    analysis: { name: "corrected-timing-test" },
+    timing: {
+      gridOverrides: {
+        bpm: 60,
+        beatsPerBar: 4,
+        beatUnit: 4,
+        downbeatOffsetSeconds: 1
+      },
+      timingMap: {
+        version: 2,
+        events: [
+          {
+            bar: 1,
+            timeSeconds: 1,
+            timeSignature: { beatsPerBar: 4, beatUnit: 4 }
+          }
+        ]
       }
     }
   };
@@ -1407,11 +1437,15 @@ test("harmony chord beat labels stay musical through manual grid tempo and bar s
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
 
-  await setBarOneStart(page, 2);
+  await setBarOneStart(page, 0);
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-bar", "2");
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
+  await setPlaybackPosition(page, 0.1);
+  await expect(page.getByTestId("chord-card-0")).toHaveClass(/active/);
+  await setPlaybackPosition(page, 2.1);
+  await expect(page.getByTestId("chord-card-1")).toHaveClass(/active/);
 });
 
 test("editable chord chart persists user overrides without replacing analyzer metadata", async ({ page }) => {

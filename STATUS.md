@@ -114,6 +114,8 @@ The first partial Phase 3G.3 human checkpoint was recorded on 2026-07-22 using `
 
 Loop-entry semantics were clarified after the first fix on 2026-07-22: when Loop is enabled and valid, every explicit Play action must relocate to loop start, including when the paused playhead is already inside the range. With count-in off, the visible playhead is updated before asynchronous stem seeking and audio starts at the boundary. With count-in on, relocation happens first, one count-in runs, and audio then starts at the same boundary. The strengthened Playwright case failed against the narrower out-of-range clamp, then passed after unconditional targeting; it also retains ordinary non-loop Pause/Play resume coverage. `npm test` passed with 52 tests and one optional local calibration skipped, all 28 Playwright tests passed, syntax and diff checks passed, and no test-created jobs remained. Human confirmation passed on `ShapeOfMyHeart manually adjusted`. No agents were delegated, and no model switch or skill was used.
 
+The Phase 3G.3 scenario coverage advanced on 2026-07-22. Human review confirmed that `ShapeOfMyHeart manually adjusted` has changing tempo represented by its bar adjustments and that the metronome follows those changes. A second real recording with a late song start passed corrected click, loop, repeated count-in, and reload behavior, but exposed that chord highlighting did not move when Bar 1 moved: corrected-timing reanalysis cues were exempted from later grid remapping and retained their old absolute waveform seconds. The frontend now reconstructs the immutable timing snapshot stored with corrected analysis and remaps those cue windows into the current user timing grid; user-owned chord charts remain directly derived from the current grid. A Playwright regression verifies the first chord at an earlier Bar 1 and the next chord at the resulting shifted Bar 2; it failed before the fix and passed afterward. `npm test` passed with 52 tests and one optional local calibration skipped, all 28 Playwright tests passed, syntax and diff checks passed, and no test-created jobs remained. Only human confirmation of corrected highlighting remains before the timing checkpoint can close. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -349,11 +351,11 @@ Local web POC:
 ## In Progress
 
 - No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; the holdout is consumed and fixed.
-- Phase 3G.3 is complete for automated verification. The remaining gate is manual click/chord/loop/count-in review on two real screen recordings; a general undo history remains deferred.
+- Phase 3G.3 is complete for automated verification and both required real-recording scenarios have been exercised. Human confirmation of the corrected chord-highlighting behavior is the remaining gate; a general undo history remains deferred.
 
 ## Next Recommended Task
 
-Run the Phase 3G.3 human timing checkpoint on two real recordings, including a late start and a meaningful tempo or meter change.
+Confirm that chord highlighting follows Bar 1 and later timing adjustments on the late-start recording, including immediately before the active loop.
 
 Then implement Phase 3G.2 normal-playback timeline zoom and optional follow mode before additional chord heuristics or broad undo functionality.
 
