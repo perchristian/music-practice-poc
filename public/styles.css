@@ -712,6 +712,7 @@ audio {
 
 .timing-correction-picker,
 .timing-anchor-time,
+.timing-anchor-meter,
 .count-in-control {
   display: grid;
   gap: 4px;
@@ -721,6 +722,7 @@ audio {
 
 .timing-correction-picker select,
 .timing-anchor-time input,
+.timing-anchor-meter select,
 .count-in-control select {
   min-height: 34px;
   border: 1px solid var(--line);
@@ -732,6 +734,10 @@ audio {
 .timing-anchor-time input {
   width: 92px;
   font-variant-numeric: tabular-nums;
+}
+
+.timing-anchor-meter select {
+  min-width: 78px;
 }
 
 .timing-editor-controls input[type="range"] {
@@ -820,6 +826,14 @@ audio {
 .grid-marker.downbeat.anchored {
   width: 3px;
   background: #b45309;
+}
+
+.grid-marker.downbeat.meter-change {
+  border-left: 2px dotted #7c3aed;
+}
+
+.grid-marker.downbeat.timing-candidate {
+  border-left: 2px dashed #2563eb;
 }
 
 .grid-marker.downbeat.selected::after {

@@ -32,13 +32,19 @@ import {
 } from "./section-ranges.js";
 import {
   absoluteBeatToSeconds,
-  enumerateBeatTimes,
+  barStartAbsoluteBeat,
+  enumerateGridBeats,
   localTempoAtSeconds,
+  meterPulseShape,
+  musicalPulseDistance,
   musicalPositionToSeconds,
-  normalizeTempoMap,
+  normalizeTimingMap,
   secondsToAbsoluteBeat,
-  tempoMapWithAnchor,
-  tempoMapWithoutAnchor
+  secondsToMusicalPosition,
+  timeSignatureAtBar,
+  timingMapTimeEvents,
+  timingMapWithEvent,
+  timingMapWithoutEventAspect
 } from "./tempo-map.js";
 
 const serviceStatus = document.querySelector("#serviceStatus");
@@ -94,9 +100,12 @@ const timingCorrectionSelect = document.querySelector("#timingCorrectionSelect")
 const timingPreviousAnchor = document.querySelector("#timingPreviousAnchor");
 const timingNextAnchor = document.querySelector("#timingNextAnchor");
 const timingAnchorTime = document.querySelector("#timingAnchorTime");
+const timingMeterSelect = document.querySelector("#timingMeterSelect");
 const timingNudgeLeft = document.querySelector("#timingNudgeLeft");
 const timingNudgeRight = document.querySelector("#timingNudgeRight");
 const timingRemoveAnchor = document.querySelector("#timingRemoveAnchor");
+const timingRemoveMeter = document.querySelector("#timingRemoveMeter");
+const timingResetMap = document.querySelector("#timingResetMap");
 const speedControls = document.querySelector("#speedControls");
 const loopStart = document.querySelector("#loopStart");
 const loopEnd = document.querySelector("#loopEnd");
@@ -177,7 +186,7 @@ let currentJob = null;
 let currentJobId = null;
 let currentAnalyzedMetadata = null;
 let gridOverrides = {};
-let tempoMap = null;
+let timingMap = null;
 let keyOverride = null;
 let chordChart = null;
 let sections = [];
@@ -366,6 +375,17 @@ function metadataGridDefaults(metadata) {
   };
 }
 
+function normalizedPracticeTimingMap(state = null, metadata = currentAnalyzedMetadata) {
+  const overrides = normalizedGridOverrides(state);
+  const defaults = metadataGridDefaults(metadata);
+  return normalizeTimingMap(state?.timingMap || state?.tempoMap, {
+    baseTimeSignature: {
+      beatsPerBar: overrides.beatsPerBar || defaults.beatsPerBar,
+      beatUnit: overrides.beatUnit || defaults.beatUnit
+    }
+  });
+}
+
 function effectiveMetadata(metadata) {
   if (!metadata) return metadata;
 
@@ -391,6 +411,10 @@ function effectiveMetadata(metadata) {
     ? gridOverrides.downbeatOffsetSeconds
     : defaults.downbeatOffsetSeconds;
   const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0;
+  const analyzerTimingMap = normalizeTimingMap(metadata.beatGrid?.timingMap || metadata.beatGrid?.tempoMap, {
+    baseTimeSignature: { beatsPerBar, beatUnit }
+  });
+  const activeTimingMap = timingMap || analyzerTimingMap;
 
   const key = keyOverride || analysisMetadata.key;
   const effectiveGrid = bpm || beatDurationSeconds
@@ -400,14 +424,15 @@ function effectiveMetadata(metadata) {
       beatsPerBar,
       beatUnit,
       downbeatOffsetSeconds,
-      tempoMap
+      timingMap: activeTimingMap,
+      tempoMap: null
     }
     : null;
   const hasTimingGridOverride =
     Boolean(roundedBpm(gridOverrides.bpm)) ||
     Boolean(gridOverrides.beatsPerBar || gridOverrides.beatUnit) ||
     hasGridOverride(gridOverrides, "downbeatOffsetSeconds") ||
-    Boolean(tempoMap);
+    Boolean(timingMap);
   const chartChords = chordChartToCues(chordChart, effectiveGrid, key);
   const sourceChords = chartChords || analysisMetadata.chords || [];
   const chords = sourceChords.map((chord) => ({
@@ -448,7 +473,7 @@ function effectiveMetadata(metadata) {
       downbeatOffsetSeconds,
       meter: { beatsPerBar, beatUnit },
       timeSignature: { beatsPerBar, beatUnit },
-      tempoMap,
+      timingMap: activeTimingMap,
       tempoOverride: Boolean(roundedBpm(gridOverrides.bpm)),
       gridOverride: Object.keys(gridOverrides).length > 0
     }
@@ -464,7 +489,9 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
   const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
   const downbeatOffsetSeconds = Number(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0) || 0;
-  const effectiveTempoMap = normalizeTempoMap(grid.tempoMap);
+  const effectiveTimingMap = normalizeTimingMap(grid.timingMap || grid.tempoMap, {
+    baseTimeSignature: { beatsPerBar, beatUnit }
+  });
   const metadataDuration = Number(metadata?.durationSeconds ?? metadata?.duration);
   const chordDuration = Math.max(0, ...(metadata?.chords || []).map((chord) => Number(chord.end) || 0));
   const durationSeconds = [durationFallback, metadataDuration, chordDuration]
@@ -479,7 +506,7 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
     beatUnit,
     beatDurationSeconds,
     downbeatOffsetSeconds,
-    tempoMap: effectiveTempoMap,
+    timingMap: effectiveTimingMap,
     durationSeconds
   };
 }
@@ -684,12 +711,11 @@ function loopSecondsFromValue(value, mode = loopMode(), edge = "start") {
 function loopBarPositionFromSeconds(seconds, edge = "start") {
   const grid = currentLoopGrid();
   if (!grid) return null;
-  const beatOffset = secondsToAbsoluteBeat(grid, Number(seconds));
-  if (!Number.isFinite(beatOffset)) return null;
-  const barOffset = beatOffset / grid.beatsPerBar;
+  const position = secondsToMusicalPosition(grid, Number(seconds));
+  if (!position) return null;
   return edge === "end"
-    ? Math.max(1, Math.ceil(barOffset - 0.001))
-    : Math.max(1, Math.floor(barOffset + 0.001) + 1);
+    ? Math.max(1, position.bar - (Math.abs(position.beat - 1) < 0.001 ? 1 : 0))
+    : Math.max(1, position.bar);
 }
 
 function loopInputSeconds(input) {
@@ -1013,7 +1039,7 @@ function practiceStatePayload() {
     metronomeAccent: true,
     metronomeSolo,
     gridOverrides,
-    tempoMap,
+    timingMap,
     keyOverride,
     chordChart,
     sections,
@@ -1102,7 +1128,7 @@ async function persistPracticeState(pending) {
 function applySavedPracticeState(job) {
   const state = job?.practiceState || {};
   gridOverrides = normalizedGridOverrides(state);
-  tempoMap = normalizeTempoMap(state.tempoMap);
+  timingMap = normalizedPracticeTimingMap(state);
   keyOverride = normalizedKeyOverride(state);
   chordChart = normalizedChordChart(state);
   sections = normalizedSections(state);
@@ -1312,7 +1338,7 @@ function renderCompletedJob(job) {
     ? job.result.stems
     : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
   gridOverrides = normalizedGridOverrides(job.practiceState);
-  tempoMap = normalizeTempoMap(job.practiceState?.tempoMap);
+  timingMap = normalizedPracticeTimingMap(job.practiceState, job.result?.metadata);
   keyOverride = normalizedKeyOverride(job.practiceState);
   chordChart = normalizedChordChart(job.practiceState);
   showSelectedHeader({
@@ -1355,7 +1381,7 @@ function renderMetadata(metadata) {
 }
 
 function updateHarmonyReanalysisControls(message = "") {
-  const available = currentJob?.mode === "real" && Boolean(tempoMap);
+  const available = currentJob?.mode === "real" && Boolean(timingMap);
   if (reanalyzeHarmonyButton) {
     reanalyzeHarmonyButton.hidden = !available;
     reanalyzeHarmonyButton.disabled = harmonyReanalysisPending || chordChartRecoveryPending;
@@ -1526,7 +1552,7 @@ function recoverSuppressedSuggestion(index) {
 }
 
 async function reanalyzeHarmonyFromCorrectedTiming() {
-  if (!currentJobId || harmonyReanalysisPending || currentJob?.mode !== "real" || !tempoMap) return;
+  if (!currentJobId || harmonyReanalysisPending || currentJob?.mode !== "real" || !timingMap) return;
   const existingCount = chordChart?.chords?.length || 0;
   const keyBasis = keyOverride
     ? ` The selected key ${keyOverride.tonic} ${keyOverride.mode} will be used as the analysis key.`
@@ -1551,7 +1577,7 @@ async function reanalyzeHarmonyFromCorrectedTiming() {
     if (!response.ok) throw new Error(payload.error || "Chord reanalysis failed.");
     currentJob = payload;
     gridOverrides = normalizedGridOverrides(payload.practiceState);
-    tempoMap = normalizeTempoMap(payload.practiceState?.tempoMap);
+    timingMap = normalizedPracticeTimingMap(payload.practiceState, payload.result?.metadata);
     keyOverride = normalizedKeyOverride(payload.practiceState);
     chordChart = normalizedChordChart(payload.practiceState);
     renderMetadata(payload.result.metadata);
@@ -1607,7 +1633,7 @@ function loopGridRangeForBar(bar, grid, beatsPerBar) {
   const range = activeLoopBeatRange(grid);
   if (!range) return null;
 
-  const barStartBeat = (bar - 1) * beatsPerBar;
+  const barStartBeat = barStartAbsoluteBeat(grid, bar);
   const barEndBeat = barStartBeat + beatsPerBar;
   const startBeat = Math.max(barStartBeat, range.startBeat);
   const endBeat = Math.min(barEndBeat, range.endBeat);
@@ -1620,7 +1646,6 @@ function loopGridRangeForBar(bar, grid, beatsPerBar) {
 
 function renderChordGrid(chords, grid) {
   const chartGrid = fallbackChartGrid(grid);
-  const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
   const barsPerRow = harmonyView.barsPerRow;
   const entriesByBar = new Map();
   let highestChordBar = 1;
@@ -1628,6 +1653,7 @@ function renderChordGrid(chords, grid) {
 
   chords.forEach((chord, index) => {
     const hit = chordGridHit(chord, chartGrid);
+    const beatsPerBar = timeSignatureAtBar(chartGrid, hit.bar).beatsPerBar;
     const beatCell = Math.min(beatsPerBar, Math.max(1, Math.floor(hit.beat - 1 + 0.001) + 1));
     highestChordBar = Math.max(highestChordBar, hit.bar);
     const row = entriesByBar.get(hit.bar) || [];
@@ -1635,9 +1661,9 @@ function renderChordGrid(chords, grid) {
     entriesByBar.set(hit.bar, row);
   });
 
-  const finalBeat = chartGrid.durationSeconds ? secondsToAbsoluteBeat(chartGrid, chartGrid.durationSeconds) : null;
-  const gridBarCount = Number.isFinite(finalBeat)
-    ? Math.ceil(Math.max(1, finalBeat) / beatsPerBar)
+  const finalPosition = chartGrid.durationSeconds ? secondsToMusicalPosition(chartGrid, chartGrid.durationSeconds) : null;
+  const gridBarCount = finalPosition
+    ? Math.max(1, Math.ceil(finalPosition.bar))
     : 1;
   for (const section of sections) {
     highestSectionBar = Math.max(highestSectionBar, section.endBar);
@@ -1650,12 +1676,12 @@ function renderChordGrid(chords, grid) {
     for (let bar = startBar; bar < startBar + barsPerRow && bar <= barCount; bar += 1) {
       rowBars.push(bar);
     }
-    rows.push(renderChordChartRow(rowBars, entriesByBar, chartGrid, beatsPerBar, barsPerRow));
+    rows.push(renderChordChartRow(rowBars, entriesByBar, chartGrid, barsPerRow));
   }
   return rows;
 }
 
-function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) {
+function renderChordChartRow(bars, entriesByBar, grid, barsPerRow) {
   const row = document.createElement("div");
   row.className = "chord-chart-row";
   row.style.setProperty("--bars-per-row", String(barsPerRow));
@@ -1669,6 +1695,7 @@ function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) 
   row.classList.toggle("has-section-row", sectionBands.length > 0);
 
   const segments = bars.map((bar, index) => {
+    const beatsPerBar = timeSignatureAtBar(grid, bar).beatsPerBar;
     const segment = renderChordBarSegment(bar, entriesByBar.get(bar) || [], grid, beatsPerBar);
     segment.style.gridColumn = String(index + 1);
     segment.style.gridRow = "1";
@@ -1680,7 +1707,7 @@ function renderChordChartRow(bars, entriesByBar, grid, beatsPerBar, barsPerRow) 
 }
 
 function chordEntrySpan(entry, entries, grid, beatsPerBar) {
-  const absoluteStartBeat = (entry.hit.bar - 1) * beatsPerBar + (entry.beatCell - 1);
+  const absoluteStartBeat = barStartAbsoluteBeat(grid, entry.hit.bar) + (entry.beatCell - 1);
   const range = chordBeatRange(entry.chord, grid);
   const rawSpan = range
     ? Math.ceil(Math.max(1, range.endBeat - absoluteStartBeat - 0.001))
@@ -2158,17 +2185,18 @@ function updateTempoControl() {
   if (!tempoControl || !tempoDisplay || !currentMetadata) return;
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  const contextualBpm = tempoMap && grid
+  const hasMappedGrid = Boolean(grid?.timingMap);
+  const contextualBpm = hasMappedGrid
     ? localTempoAtSeconds(grid, transportTime())
     : null;
   const displayBpm = roundedBpm(contextualBpm) || roundedBpm(currentMetadata.beatGrid?.bpm);
   const label = displayBpm ? `${displayBpm} BPM` : "";
   tempoControl.hidden = !label;
   tempoDisplay.textContent = label || "Tempo";
-  tempoDisplay.classList.toggle("overridden", Boolean(roundedBpm(gridOverrides.bpm)) || Boolean(tempoMap));
-  tempoDisplay.setAttribute("aria-label", tempoMap ? "Edit tempo for current segment" : "Edit tempo");
-  if (tempoHalf) tempoHalf.disabled = Boolean(tempoMap);
-  if (tempoDouble) tempoDouble.disabled = Boolean(tempoMap);
+  tempoDisplay.classList.toggle("overridden", Boolean(roundedBpm(gridOverrides.bpm)) || Boolean(timingMap));
+  tempoDisplay.setAttribute("aria-label", hasMappedGrid ? "Edit tempo for current segment" : "Edit tempo");
+  if (tempoHalf) tempoHalf.disabled = hasMappedGrid;
+  if (tempoDouble) tempoDouble.disabled = hasMappedGrid;
   if (tempoInput && document.activeElement !== tempoInput) {
     tempoInput.value = displayBpm || "";
   }
@@ -2180,7 +2208,10 @@ function updateSelectedSongMeta() {
 }
 
 function activeTempoAnchorSegment() {
-  const anchors = tempoMap?.anchors || [];
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const anchors = timingMapTimeEvents(timingMap || grid?.timingMap, {
+    baseTimeSignature: grid ? timeSignatureAtBar(grid, 1) : defaultTimeSignature
+  });
   if (!anchors.length) return null;
 
   const selectedIndex = anchors.findIndex((anchor) => anchor.bar === selectedTimingAnchorBar);
@@ -2207,17 +2238,19 @@ function applyTempoOverride(nextBpm) {
   if (!bpm || !currentAnalyzedMetadata) return;
 
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  const segment = tempoMap && grid ? activeTempoAnchorSegment() : null;
+  const segment = grid?.timingMap ? activeTempoAnchorSegment() : null;
   if (segment) {
     const rightBar = segment.right?.bar || segment.left.bar + 1;
-    const beatCount = (rightBar - segment.left.bar) * grid.beatsPerBar;
-    const nextRightTime = segment.left.timeSeconds + beatCount * (60 / bpm);
-    const nextMap = tempoMapWithAnchor(tempoMap, {
+    const pulseCount = musicalPulseDistance(grid, segment.left.bar, rightBar);
+    const nextRightTime = segment.left.timeSeconds + pulseCount * (60 / bpm);
+    const nextMap = timingMapWithEvent(timingMap || grid.timingMap, {
       bar: rightBar,
       timeSeconds: nextRightTime
+    }, {
+      baseTimeSignature: timeSignatureAtBar(grid, 1)
     });
     if (nextMap) {
-      commitTempoMap(nextMap, rightBar);
+      commitTimingMap(nextMap, rightBar);
     } else {
       updateTempoControl();
     }
@@ -2227,11 +2260,15 @@ function applyTempoOverride(nextBpm) {
   applyGridOverrides({ bpm });
 }
 
-function commitTempoMap(nextMap, selectedBar = selectedTimingAnchorBar) {
-  tempoMap = normalizeTempoMap(nextMap);
-  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === selectedBar) ? selectedBar : null;
+function commitTimingMap(nextMap, selectedBar = selectedTimingAnchorBar) {
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  timingMap = normalizeTimingMap(nextMap, {
+    baseTimeSignature: grid ? timeSignatureAtBar(grid, 1) : defaultTimeSignature
+  });
+  selectedTimingAnchorBar = Number.isInteger(Number(selectedBar)) ? Number(selectedBar) : null;
   if (currentJob?.practiceState) {
-    currentJob.practiceState.tempoMap = tempoMap;
+    currentJob.practiceState.timingMap = timingMap;
+    delete currentJob.practiceState.tempoMap;
   }
   resetMetronomeSchedule();
   renderMetadata(currentAnalyzedMetadata);
@@ -2275,18 +2312,18 @@ function updateGridCorrectionControls() {
   if (!effectiveGrid) return;
 
   if (meterSelect && document.activeElement !== meterSelect) {
-    meterSelect.value = timeSignatureValue(effectiveGrid);
+    meterSelect.value = timeSignatureValue(timeSignatureAtBar(effectiveGrid, 1));
   }
   if (meterSelect) {
-    meterSelect.disabled = Boolean(tempoMap);
-    meterSelect.title = tempoMap ? "Remove timing corrections before changing time signature." : "";
+    meterSelect.disabled = Boolean(effectiveGrid.timingMap);
+    meterSelect.title = effectiveGrid.timingMap ? "Edit the selected bar line to change meter while mapped timing exists." : "";
   }
 }
 
 function openTempoInput() {
   if (!tempoInput || !tempoDisplay || !currentMetadata) return;
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-  tempoInput.value = roundedBpm(tempoMap && grid ? localTempoAtSeconds(grid, transportTime()) : currentMetadata.beatGrid?.bpm) || "";
+  tempoInput.value = roundedBpm(grid?.timingMap ? localTempoAtSeconds(grid, transportTime()) : currentMetadata.beatGrid?.bpm) || "";
   tempoInput.hidden = false;
   tempoDisplay.hidden = true;
   tempoInput.focus();
@@ -2416,15 +2453,26 @@ function timingViewportState() {
     : "Beat and bar grid");
 }
 
+function analyzerTimingCandidateBars() {
+  return new Set((currentAnalyzedMetadata?.beatGrid?.timingAnalysis?.candidates || [])
+    .map((candidate) => Number(candidate.bar))
+    .filter(Number.isInteger));
+}
+
 function selectedTimingAnchor() {
-  const mapped = tempoMap?.anchors.find((anchor) => anchor.bar === selectedTimingAnchorBar);
-  if (mapped) return mapped;
-  if (selectedTimingAnchorBar === 1 && currentMetadata) {
-    const grid = normalizedBeatGrid(currentMetadata, transportDuration());
-    const timeSeconds = grid ? musicalPositionToSeconds(grid, { bar: 1, beat: 1 }) : null;
-    return Number.isFinite(timeSeconds) ? { bar: 1, timeSeconds } : null;
-  }
-  return null;
+  if (!Number.isInteger(selectedTimingAnchorBar) || !currentMetadata) return null;
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const event = timingMap?.events?.find((candidate) => candidate.bar === selectedTimingAnchorBar) || null;
+  const timeSeconds = event?.timeSeconds ?? musicalPositionToSeconds(grid, { bar: selectedTimingAnchorBar, beat: 1 });
+  return Number.isFinite(timeSeconds)
+    ? {
+        bar: selectedTimingAnchorBar,
+        timeSeconds,
+        explicitTime: Number.isFinite(event?.timeSeconds),
+        explicitTimeSignature: event?.timeSignature || null,
+        effectiveTimeSignature: timeSignatureAtBar(grid, selectedTimingAnchorBar)
+      }
+    : null;
 }
 
 function updateTimingAnchorControls() {
@@ -2442,16 +2490,25 @@ function updateTimingAnchorControls() {
   if (timingAnchorTime && document.activeElement !== timingAnchorTime) {
     timingAnchorTime.value = anchor.timeSeconds.toFixed(3);
   }
-  const corrections = [anchor.bar === 1 ? anchor : selectedTimingAnchor()].filter(Boolean);
-  for (const candidate of tempoMap?.anchors || []) {
-    if (!corrections.some((entry) => entry.bar === candidate.bar)) corrections.push(candidate);
+  if (timingMeterSelect && document.activeElement !== timingMeterSelect) {
+    timingMeterSelect.value = timeSignatureValue(anchor.effectiveTimeSignature);
   }
-  corrections.sort((left, right) => left.bar - right.bar);
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  const analyzerCandidates = analyzerTimingCandidateBars();
+  const correctionBars = new Set([1, ...(timingMap?.events || []).map((event) => event.bar), ...analyzerCandidates]);
+  const corrections = [...correctionBars].sort((left, right) => left - right).map((bar) => {
+    const event = timingMap?.events?.find((candidate) => candidate.bar === bar);
+    const timeSeconds = event?.timeSeconds ?? musicalPositionToSeconds(grid, { bar, beat: 1 });
+    const signature = event?.timeSignature;
+    return { bar, timeSeconds, signature, analyzerCandidate: analyzerCandidates.has(bar) && !event };
+  });
   if (timingCorrectionSelect) {
     timingCorrectionSelect.replaceChildren(...corrections.map((correction) => {
       const option = document.createElement("option");
       option.value = String(correction.bar);
-      option.textContent = `Bar ${correction.bar} · ${correction.timeSeconds.toFixed(3)}s`;
+      const meterLabel = correction.signature ? ` · ${timeSignatureValue(correction.signature)}` : "";
+      const candidateLabel = correction.analyzerCandidate ? " · suggestion" : "";
+      option.textContent = `Bar ${correction.bar} · ${correction.timeSeconds.toFixed(3)}s${meterLabel}${candidateLabel}`;
       return option;
     }));
     timingCorrectionSelect.value = String(anchor.bar);
@@ -2460,9 +2517,11 @@ function updateTimingAnchorControls() {
   if (timingPreviousAnchor) timingPreviousAnchor.disabled = selectedIndex <= 0;
   if (timingNextAnchor) timingNextAnchor.disabled = selectedIndex < 0 || selectedIndex >= corrections.length - 1;
   if (timingRemoveAnchor) {
-    timingRemoveAnchor.disabled = !tempoMap;
-    timingRemoveAnchor.textContent = anchor.bar === 1 ? "Reset corrections" : "Remove correction";
+    timingRemoveAnchor.disabled = !anchor.explicitTime;
+    timingRemoveAnchor.textContent = "Remove time";
   }
+  if (timingRemoveMeter) timingRemoveMeter.disabled = !anchor.explicitTimeSignature;
+  if (timingResetMap) timingResetMap.disabled = !timingMap;
   updateTempoControl();
 }
 
@@ -2477,41 +2536,44 @@ function selectTimingCorrection(bar) {
 }
 
 function moveTimingCorrectionSelection(delta) {
-  const bars = [1, ...(tempoMap?.anchors || []).map((anchor) => anchor.bar).filter((bar) => bar !== 1)]
+  const bars = [1, ...(timingMap?.events || []).map((event) => event.bar).filter((bar) => bar !== 1)]
     .sort((left, right) => left - right);
   const index = bars.indexOf(selectedTimingAnchorBar);
   selectTimingCorrection(bars[Math.min(bars.length - 1, Math.max(0, index + delta))]);
 }
 
-function baseTempoMapForEditing(grid) {
-  if (tempoMap) return tempoMap;
+function baseTimingMapForEditing(grid) {
+  if (timingMap) return timingMap;
   const barOneSeconds = musicalPositionToSeconds(grid, { bar: 1, beat: 1 });
-  return normalizeTempoMap({
-    version: 1,
-    anchors: [{ bar: 1, timeSeconds: barOneSeconds }]
+  return normalizeTimingMap({
+    version: 2,
+    events: [{ bar: 1, timeSeconds: barOneSeconds, timeSignature: timeSignatureAtBar(grid, 1) }]
   });
 }
 
 function placeTimingAnchor(bar, timeSeconds) {
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   if (!grid) return false;
-  if (bar === 1 && !tempoMap) {
-    selectedTimingAnchorBar = 1;
-    applyGridOverrides({ downbeatOffsetSeconds: timeSeconds });
-    updateTimingAnchorControls();
-    return true;
-  }
-  const startingMap = baseTempoMapForEditing(grid);
-  const nextMap = tempoMapWithAnchor(startingMap, { bar, timeSeconds });
+  const startingMap = baseTimingMapForEditing(grid);
+  const nextMap = timingMapWithEvent(startingMap, { bar, timeSeconds }, {
+    baseTimeSignature: timeSignatureAtBar(grid, 1)
+  });
   if (!nextMap) return false;
-  if (bar === 1) {
-    gridOverrides = normalizedGridOverrides({
-      gridOverrides: { ...gridOverrides, downbeatOffsetSeconds: timeSeconds }
-    });
-    if (currentJob?.practiceState) currentJob.practiceState.gridOverrides = gridOverrides;
-  }
-  commitTempoMap(nextMap, bar);
+  commitTimingMap(nextMap, bar);
   return true;
+}
+
+function changeSelectedTimingMeter(value) {
+  const signature = parseTimeSignature(value);
+  const anchor = selectedTimingAnchor();
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!signature || !anchor || !grid) return;
+  const startingMap = baseTimingMapForEditing(grid);
+  const nextMap = timingMapWithEvent(startingMap, {
+    bar: anchor.bar,
+    timeSignature: signature
+  }, { baseTimeSignature: timeSignatureAtBar(grid, 1) });
+  if (nextMap) commitTimingMap(nextMap, anchor.bar);
 }
 
 function nudgeSelectedTimingAnchor(deltaSeconds) {
@@ -2522,12 +2584,20 @@ function nudgeSelectedTimingAnchor(deltaSeconds) {
 
 function removeSelectedTimingAnchor() {
   const anchor = selectedTimingAnchor();
-  if (!anchor) return;
-  if (anchor.bar === 1) {
-    commitTempoMap(null, null);
-    return;
-  }
-  commitTempoMap(tempoMapWithoutAnchor(tempoMap, anchor.bar), null);
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!anchor || !grid || !anchor.explicitTime) return;
+  commitTimingMap(timingMapWithoutEventAspect(timingMap, anchor.bar, "timeSeconds", {
+    baseTimeSignature: timeSignatureAtBar(grid, 1)
+  }), anchor.bar);
+}
+
+function removeSelectedTimingMeter() {
+  const anchor = selectedTimingAnchor();
+  const grid = normalizedBeatGrid(currentMetadata, transportDuration());
+  if (!anchor || !grid || !anchor.explicitTimeSignature) return;
+  commitTimingMap(timingMapWithoutEventAspect(timingMap, anchor.bar, "timeSignature", {
+    baseTimeSignature: timeSignatureAtBar(grid, 1)
+  }), anchor.bar);
 }
 
 function timelineSecondsForClientX(clientX) {
@@ -2542,7 +2612,7 @@ function beginTimingMarkerDrag(event, marker) {
   const bar = Number(marker.dataset.bar);
   if (!Number.isInteger(bar) || bar < 1) return;
   event.preventDefault();
-  selectedTimingAnchorBar = tempoMap?.anchors.some((anchor) => anchor.bar === bar) ? bar : null;
+  selectedTimingAnchorBar = bar;
   timingDragState = {
     pointerId: event.pointerId,
     bar,
@@ -2591,22 +2661,23 @@ function renderGridTimeline(metadata) {
   gridTimeline.classList.toggle("empty", !grid);
   if (!grid) return;
 
-  const beats = enumerateBeatTimes(grid, 0, grid.durationSeconds, { paddingBeats: 1 });
+  const beats = enumerateGridBeats(grid, 0, grid.durationSeconds, { paddingBeats: 1 });
   const timelineWidth = timelineTrack?.clientWidth || gridTimeline.clientWidth || 720;
   const visibleBeatCount = Math.max(1, beats.length);
   const beatSpacing = timelineWidth / visibleBeatCount;
   const showBeatMarkers = beatSpacing >= 4;
-  const downbeatCount = Math.max(1, Math.ceil(visibleBeatCount / grid.beatsPerBar));
+  const downbeatCount = Math.max(1, beats.filter((beat) => beat.downbeat).length);
   const rawBarLabelInterval = Math.ceil((downbeatCount * 46) / timelineWidth);
   const barLabelInterval = rawBarLabelInterval <= 1
     ? 1
     : 2 ** Math.ceil(Math.log2(rawBarLabelInterval));
 
-  for (const { beatIndex, timeSeconds: time } of beats) {
+  for (const beat of beats) {
+    const { timeSeconds: time } = beat;
     if (time < 0 || time > grid.durationSeconds) continue;
 
-    const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
-    const isDownbeat = beatWithinBar === 0;
+    const beatWithinBar = beat.beatWithinBar;
+    const isDownbeat = beat.downbeat;
     if (!isDownbeat && !showBeatMarkers) continue;
 
     const marker = document.createElement("span");
@@ -2617,15 +2688,20 @@ function renderGridTimeline(metadata) {
     marker.dataset.beat = String(beatWithinBar + 1);
 
     if (isDownbeat) {
-      const barNumber = Math.floor(beatIndex / grid.beatsPerBar) + 1;
+      const barNumber = beat.bar;
       marker.dataset.bar = String(barNumber);
-      const anchored = tempoMap?.anchors.some((anchor) => anchor.bar === barNumber);
+      const timingEvent = timingMap?.events?.find((event) => event.bar === barNumber);
+      const analyzerCandidate = analyzerTimingCandidateBars().has(barNumber) && !timingEvent;
+      const anchored = Number.isFinite(timingEvent?.timeSeconds);
       marker.classList.toggle("anchored", Boolean(anchored));
+      marker.classList.toggle("meter-change", Boolean(timingEvent?.timeSignature));
+      marker.classList.toggle("timing-candidate", analyzerCandidate);
       marker.classList.toggle("selected", barNumber === selectedTimingAnchorBar);
       if (timingEditMode) {
         marker.tabIndex = 0;
         marker.setAttribute("role", "button");
-        marker.setAttribute("aria-label", `${anchored ? "Adjusted" : "Calculated"} downbeat for bar ${barNumber}`);
+        const correctionLabel = analyzerCandidate ? "Analyzer suggested" : anchored || timingEvent?.timeSignature ? "Adjusted" : "Calculated";
+        marker.setAttribute("aria-label", `${correctionLabel} downbeat for bar ${barNumber}, ${timeSignatureValue(beat.timeSignature)}`);
       }
       const label = document.createElement("span");
       label.textContent = String(barNumber);
@@ -2770,22 +2846,31 @@ function countInConfig(targetTime = null, { loopOnly = false } = {}) {
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   if (!grid) return null;
 
-  const beats = Math.max(1, Math.round(bars * grid.beatsPerBar));
   const targetBeatIndex = Math.round(secondsToAbsoluteBeat(grid, start));
-  const firstBeatIndex = targetBeatIndex - beats;
+  const targetPosition = secondsToMusicalPosition(grid, start);
+  const signature = timeSignatureAtBar(grid, targetPosition?.bar || 1);
+  const pulseShape = meterPulseShape(signature);
+  const writtenBeats = Math.max(1, Math.round(bars * signature.beatsPerBar));
+  const firstBeatIndex = targetBeatIndex - writtenBeats;
   const firstBeatTime = absoluteBeatToSeconds(grid, firstBeatIndex);
   const targetBeatTime = absoluteBeatToSeconds(grid, targetBeatIndex);
-  const clickOffsetsSeconds = Array.from({ length: beats }, (_, index) =>
-    Math.max(0, absoluteBeatToSeconds(grid, firstBeatIndex + index) - firstBeatTime)
+  const clickBeatIndexes = Array.from(
+    { length: Math.max(1, Math.round(bars * pulseShape.pulsesPerBar)) },
+    (_, index) => firstBeatIndex + index * pulseShape.subdivisionsPerPulse
   );
+  const clicks = clickBeatIndexes.map((beatIndex) => {
+    const position = secondsToMusicalPosition(grid, absoluteBeatToSeconds(grid, beatIndex));
+    return {
+      beatIndex,
+      downbeat: Boolean(position?.downbeat),
+      offsetSeconds: Math.max(0, absoluteBeatToSeconds(grid, beatIndex) - firstBeatTime)
+    };
+  });
   const durationSeconds = Math.max(0.05, targetBeatTime - firstBeatTime);
   return {
     targetTime: boundTransportTime(start),
-    beats,
     durationSeconds,
-    clickOffsetsSeconds,
-    beatsPerBar: grid.beatsPerBar,
-    targetBeatIndex
+    clicks
   };
 }
 
@@ -2798,12 +2883,9 @@ function playbackStartSeconds() {
 
 function scheduleLoopCountInClicks(config) {
   resetMetronomeSchedule();
-  const firstBeatIndex = config.targetBeatIndex - config.beats;
-  for (let index = 0; index < config.beats; index += 1) {
-    const beatIndex = firstBeatIndex + index;
-    const beatWithinBar = ((beatIndex % config.beatsPerBar) + config.beatsPerBar) % config.beatsPerBar;
-    const delaySeconds = config.clickOffsetsSeconds[index] / Math.max(0.1, playbackRate);
-    playMetronomeClick(delaySeconds, beatWithinBar === 0);
+  for (const click of config.clicks) {
+    const delaySeconds = click.offsetSeconds / Math.max(0.1, playbackRate);
+    playMetronomeClick(delaySeconds, click.downbeat);
   }
 }
 
@@ -2841,7 +2923,6 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
   if (!grid) return;
 
   const lookaheadSeconds = 0.45;
-  const startBeatIndex = Math.floor(secondsToAbsoluteBeat(grid, currentTime - 0.04));
   const loopStartSeconds = loopInputSeconds(loopStart);
   const loopEndSeconds = loopInputSeconds(loopEnd);
   const hasActiveLoop =
@@ -2852,18 +2933,16 @@ function scheduleMetronomeClicks(currentTime = transportTime()) {
     currentTime >= loopStartSeconds - 0.02 &&
     currentTime < loopEndSeconds;
   const scheduleEndTime = hasActiveLoop ? Math.min(grid.durationSeconds, loopEndSeconds) : grid.durationSeconds;
-  const endBeatIndex = Math.ceil(secondsToAbsoluteBeat(grid, currentTime + lookaheadSeconds * playbackRate));
-
-  for (let beatIndex = startBeatIndex; beatIndex <= endBeatIndex; beatIndex += 1) {
-    const beatTime = absoluteBeatToSeconds(grid, beatIndex);
+  const beats = enumerateGridBeats(grid, currentTime - 0.04, currentTime + lookaheadSeconds * playbackRate, { paddingBeats: 1 });
+  for (const beat of beats) {
+    if (!beat.primaryPulse) continue;
+    const beatTime = beat.timeSeconds;
     if (beatTime < 0 || beatTime < currentTime - 0.06 || beatTime >= scheduleEndTime) continue;
-    const key = `${beatIndex}:${Math.round(beatTime * 1000)}`;
+    const key = `${beat.beatIndex}:${Math.round(beatTime * 1000)}`;
     if (scheduledMetronomeBeats.has(key)) continue;
 
-    const beatWithinBar = ((beatIndex % grid.beatsPerBar) + grid.beatsPerBar) % grid.beatsPerBar;
-    const accented = beatWithinBar === 0;
     const delaySeconds = (beatTime - currentTime) / Math.max(0.1, playbackRate);
-    if (playMetronomeClick(delaySeconds, accented)) {
+    if (playMetronomeClick(delaySeconds, beat.downbeat)) {
       scheduledMetronomeBeats.add(key);
     }
   }
@@ -2914,7 +2993,7 @@ function updateTimeDisplay() {
   }
 
   renderTimelineIndicators();
-  if (tempoMap) updateTempoControl();
+  if (timingMap) updateTempoControl();
 }
 
 function highlightCurrentChord() {
@@ -3793,7 +3872,7 @@ scrubber.addEventListener("input", () => {
   anchorTransport(previewTime);
   timeReadout.textContent = `${formatTime(previewTime)} / ${formatDuration(transportDuration())}`;
   renderTimelineIndicators();
-  if (tempoMap) updateTempoControl();
+  if (timingMap) updateTempoControl();
 });
 
 scrubber.addEventListener("change", () => {
@@ -3815,6 +3894,9 @@ timingZoom?.addEventListener("input", () => {
 timingNudgeLeft?.addEventListener("click", () => nudgeSelectedTimingAnchor(-0.01));
 timingNudgeRight?.addEventListener("click", () => nudgeSelectedTimingAnchor(0.01));
 timingRemoveAnchor?.addEventListener("click", removeSelectedTimingAnchor);
+timingRemoveMeter?.addEventListener("click", removeSelectedTimingMeter);
+timingResetMap?.addEventListener("click", () => commitTimingMap(null, 1));
+timingMeterSelect?.addEventListener("change", () => changeSelectedTimingMeter(timingMeterSelect.value));
 timingCorrectionSelect?.addEventListener("change", () => selectTimingCorrection(timingCorrectionSelect.value));
 timingPreviousAnchor?.addEventListener("click", () => moveTimingCorrectionSelection(-1));
 timingNextAnchor?.addEventListener("click", () => moveTimingCorrectionSelection(1));

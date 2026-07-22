@@ -383,7 +383,7 @@ Acceptance criteria:
 - Existing version-1 tempo maps either normalize deterministically or fail with an explicit documented clean-break decision before runtime code ships.
 - Mock mode remains dependency-light and includes a representative timing/meter-change scenario.
 
-Status: Planned immediately after the narrow Phase 2J reset/undo safety slice and before further chord heuristics, general multi-level undo, or normal-timeline polish.
+Status: Implemented and complete for automated verification on 2026-07-22. Version-1 tempo anchors migrate to version-2 timing events; the shared mapping, editor, click, chord windows, loops, count-in, Harmony, and inverse seeking are meter-aware; and timing/meter correction aspects share one bar line but remain independently removable. The automatic timing stage records sparse candidates/provenance before chord segmentation. Seven generated known-answer fixtures pass the locked timing gate, including jitter rejection, tempo changes, accelerando/ritardando, and 4/4-to-3/4. Manual click/chord/loop/count-in review on two real screen recordings remains the human completion gate.
 
 ### 18. Phase 3G.2: Zoomed Playback Timeline and Follow
 
@@ -492,9 +492,9 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Implement Phase 3G.3 unified bar timing and threshold-aware analysis. Evolve the existing tempo anchors into one versioned, meter-aware timing-event list, keep tempo derived from timed bar events, and establish the separate known-answer timing evaluation loop before downstream chord scoring.
+Perform the Phase 3G.3 human timing checkpoint on at least two real screen recordings: one with a late song start and one with a meaningful tempo or meter change. Listen through click, chord changes, a bar loop, and repeated count-in, and record the evidence without tuning from the consumed chord holdout.
 
-After that timing checkpoint, implement Phase 3G.2 normal-playback timeline zoom and optional follow mode without expanding the timing model's first vertical slice.
+After that checkpoint, implement Phase 3G.2 normal-playback timeline zoom and optional follow mode.
 
 ## Parked Work
 

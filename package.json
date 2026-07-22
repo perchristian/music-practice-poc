@@ -7,6 +7,7 @@
   "scripts": {
     "bakeoff:stems": "node scripts/build-stem-bakeoff.js",
     "benchmark:chords": "node scripts/benchmark-chords.js",
+    "benchmark:timing": "node scripts/evaluate-timing-analysis.js",
     "generate:test-media": "node scripts/generate-phase2a-test-media.js",
     "prepare:benchmark-audio": "node scripts/extract-rwc-pilot.js",
     "start": "node server.js",

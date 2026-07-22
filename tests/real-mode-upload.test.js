@@ -388,6 +388,8 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(metadata.harmonySource, "real-audio-analysis-v2");
     assert.equal(metadata.analysisSource, "source-audio.wav");
     assert.equal(metadata.beatGrid.beatsPerBar, 4);
+    assert.equal(metadata.beatGrid.timingAnalysis.method, "persistent-relative-deviation-v1");
+    assert.ok(Array.isArray(metadata.beatGrid.timingAnalysis.candidates));
     assert.ok(metadata.beatGrid.confidence >= 0.1);
     assert.ok(Math.abs(metadata.beatGrid.bpm - 60) <= 8, JSON.stringify(metadata.beatGrid));
     assert.ok(Math.abs(metadata.beatGrid.downbeatOffsetSeconds - 0.65) <= 0.25, JSON.stringify(metadata.beatGrid));

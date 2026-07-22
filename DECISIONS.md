@@ -677,6 +677,8 @@ The unified event shape is conceptually:
 
 Both correction fields are optional. A time-only event inherits the active meter; a meter-only event uses its calculated audio time. Bar 1 establishes the initial effective meter and may also establish the first explicit downbeat. Existing version-1 `{ bar, timeSeconds }` tempo anchors should normalize into the new model so intentional calibration work can survive the transition.
 
+Implemented outcome on 2026-07-22: the persisted contract is `practiceState.timingMap` version 2. Simple meters use one pulse per written beat; 6/8 and 12/8 use dotted-quarter pulses, producing two and four primary clicks per bar; 7/8 uses eighth-note pulses because no grouping is available. The analyzer uses locked 18% phase, 8% local-tempo, four-beat persistence, and two-bar meter-persistence thresholds from a separate generated timing fixture set. Its candidates remain in immutable beat-grid provenance and never write user practice state.
+
 The analyzer must continue to estimate timing before chords, but its current one-tempo/one-meter result is insufficient. The next timing pass should fit stable spans over multiple observations, ignore ordinary human beat variation, and propose a new tempo boundary only after relative phase or tempo deviation crosses a calibrated threshold for a persistent window. Meter-change candidates are limited to plausible downbeats and concrete bars. Analyzer candidates remain immutable provenance and do not silently rewrite user timing.
 
 Alternatives considered:

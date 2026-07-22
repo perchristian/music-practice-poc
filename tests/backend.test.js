@@ -195,11 +195,11 @@ describe("mock backend", () => {
           beatUnit: 8,
           downbeatOffsetSeconds: -0.37
         },
-        tempoMap: {
-          version: 1,
-          anchors: [
-            { bar: 1, timeSeconds: -0.37 },
-            { bar: 5, timeSeconds: 15.92 },
+        timingMap: {
+          version: 2,
+          events: [
+            { bar: 1, timeSeconds: -0.37, timeSignature: { beatsPerBar: 7, beatUnit: 8 } },
+            { bar: 5, timeSeconds: 15.92, timeSignature: { beatsPerBar: 6, beatUnit: 8 } },
             { bar: 9, timeSeconds: 33.11 }
           ]
         },
@@ -248,11 +248,11 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.gridOverrides.beatsPerBar, 7);
     assert.equal(updatedJob.practiceState.gridOverrides.beatUnit, 8);
     assert.equal(updatedJob.practiceState.gridOverrides.downbeatOffsetSeconds, -0.37);
-    assert.deepEqual(updatedJob.practiceState.tempoMap, {
-      version: 1,
-      anchors: [
-        { bar: 1, timeSeconds: -0.37 },
-        { bar: 5, timeSeconds: 15.92 },
+    assert.deepEqual(updatedJob.practiceState.timingMap, {
+      version: 2,
+      events: [
+        { bar: 1, timeSeconds: -0.37, timeSignature: { beatsPerBar: 7, beatUnit: 8 } },
+        { bar: 5, timeSeconds: 15.92, timeSignature: { beatsPerBar: 6, beatUnit: 8 } },
         { bar: 9, timeSeconds: 33.11 }
       ]
     });
@@ -333,7 +333,8 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.startAtBarOne, true);
     assert.equal(reopenedJob.practiceState.metronomeEnabled, true);
     assert.equal(reopenedJob.practiceState.gridOverrides.bpm, 106.4);
-    assert.equal(reopenedJob.practiceState.tempoMap.anchors[1].bar, 5);
+    assert.equal(reopenedJob.practiceState.timingMap.events[1].bar, 5);
+    assert.deepEqual(reopenedJob.practiceState.timingMap.events[1].timeSignature, { beatsPerBar: 6, beatUnit: 8 });
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
     assert.equal(reopenedJob.practiceState.sections[0].label, "Verse");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");

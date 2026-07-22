@@ -526,8 +526,9 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
   await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0");
   await expect(page.getByTestId("meter-select")).toHaveValue("4/4");
 
-  await setBarOneStart(page, 0.5);
-  await page.getByTestId("meter-select").selectOption("3/4");
+  await setBarOneStart(page, 0.5, { done: false });
+  await page.getByTestId("timing-meter-select").selectOption("3/4");
+  await page.getByTestId("timing-done").click();
   await expect(page.locator(".grid-marker").first()).toHaveAttribute("data-time", "0.5");
   await expect(page.locator(".grid-marker.downbeat")).toHaveCount(6);
   await expect(page.getByTestId("meter-select")).toHaveValue("3/4");
@@ -1032,10 +1033,10 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
 
 test("corrected timing can drive a guarded chord reanalysis", async ({ page }) => {
   const jobId = "33333333-3333-4333-8333-333333333333";
-  const tempoMap = {
-    version: 1,
-    anchors: [
-      { bar: 1, timeSeconds: 0 },
+  const timingMap = {
+    version: 2,
+    events: [
+      { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
       { bar: 2, timeSeconds: 5 }
     ]
   };
@@ -1050,7 +1051,7 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
     practiceState: {
       learningStatus: "not_started",
       stemStates: {},
-      tempoMap,
+      timingMap,
       gridOverrides: {},
       keyOverride: { tonic: "C", mode: "major" },
       chordChart: {
@@ -1222,6 +1223,10 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
   await expect(page.getByTestId("timing-correction-select")).toHaveValue("3");
   await page.getByTestId("timing-anchor-time").fill("10");
   await page.getByTestId("timing-anchor-time").press("Enter");
+  await page.getByTestId("timing-meter-select").selectOption("3/4");
+  await expect(page.locator('.grid-marker.downbeat[data-bar="3"]')).toHaveClass(/meter-change/);
+  await expect(page.locator('.grid-marker.downbeat[data-bar="4"]')).toHaveAttribute("data-time", "13");
+  await expect(page.locator('.chord-bar-segment[data-bar="3"]')).toHaveCSS("--beats-per-bar", "3");
   await page.getByTestId("timing-previous-anchor").click();
   await expect(page.getByTestId("timing-correction-select")).toHaveValue("2");
   await page.getByTestId("timing-next-anchor").click();
@@ -1230,14 +1235,14 @@ test("waveform timing editor persists variable-tempo downbeats and keeps playbac
   await expect
     .poll(async () => page.evaluate(async (id) => {
       const response = await fetch(`/api/jobs/${id}`);
-      return (await response.json()).practiceState.tempoMap;
+      return (await response.json()).practiceState.timingMap;
     }, jobId))
     .toEqual({
-      version: 1,
-      anchors: [
-        { bar: 1, timeSeconds: 0 },
+      version: 2,
+      events: [
+        { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
         { bar: 2, timeSeconds: 6 },
-        { bar: 3, timeSeconds: 10 }
+        { bar: 3, timeSeconds: 10, timeSignature: { beatsPerBar: 3, beatUnit: 4 } }
       ]
     });
 
@@ -1443,7 +1448,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
           chartOffsetDiv: firstChartChord?.offsetDiv,
           chartDurationDiv: firstChartChord?.durationDiv,
           bpm: job.practiceState.gridOverrides?.bpm,
-          downbeatOffsetSeconds: job.practiceState.gridOverrides?.downbeatOffsetSeconds,
+          barOneTime: job.practiceState.timingMap?.events?.[0]?.timeSeconds,
           harmonyView: job.practiceState.harmonyView
         };
       }, jobId);
@@ -1453,7 +1458,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
       chartOffsetDiv: 4,
       chartDurationDiv: 12,
       bpm: 120,
-      downbeatOffsetSeconds: 2,
+      barOneTime: 2,
       harmonyView: {
         barsPerRow: 4,
         chordDisplay: "both",
@@ -1895,8 +1900,9 @@ test("processed song library reopens songs and persists practice state", async (
   await page.getByTestId("metronome-solo").click();
   await page.getByTestId("key-select").selectOption("D:major");
   await page.getByTestId("tempo-double").click();
-  await setBarOneStart(page, -0.25);
-  await page.getByTestId("meter-select").selectOption("6/8");
+  await setBarOneStart(page, -0.25, { done: false });
+  await page.getByTestId("timing-meter-select").selectOption("6/8");
+  await page.getByTestId("timing-done").click();
   await setPlaybackPosition(page, 3.2);
   await page.getByTestId("stem-mute-piano").click();
   await page.getByTestId("stem-volume-piano").evaluate((slider) => {
@@ -1923,9 +1929,7 @@ test("processed song library reopens songs and persists practice state", async (
         metronomeVolume: state.metronomeVolume,
         metronomeSolo: state.metronomeSolo,
         tempoBpm: state.gridOverrides?.bpm,
-        beatsPerBar: state.gridOverrides?.beatsPerBar,
-        beatUnit: state.gridOverrides?.beatUnit,
-        downbeatOffsetSeconds: state.gridOverrides?.downbeatOffsetSeconds,
+        timingEvent: state.timingMap?.events?.[0],
         keyOverride: state.keyOverride,
         pianoMuted: state.stemStates.piano.muted,
         pianoVolume: state.stemStates.piano.volume
@@ -1934,8 +1938,8 @@ test("processed song library reopens songs and persists practice state", async (
     .toEqual({
       learningStatus: "practicing",
       playbackRate: 0.75,
-      loopStart: 2.75,
-      loopEnd: 5.75,
+      loopStart: 0.75,
+      loopEnd: 1.75,
       loopEnabled: true,
       countInBars: 1,
       lastPosition: 3.2,
@@ -1943,9 +1947,11 @@ test("processed song library reopens songs and persists practice state", async (
       metronomeVolume: 0.65,
       metronomeSolo: true,
       tempoBpm: 120,
-      beatsPerBar: 6,
-      beatUnit: 8,
-      downbeatOffsetSeconds: -0.25,
+      timingEvent: {
+        bar: 1,
+        timeSeconds: -0.25,
+        timeSignature: { beatsPerBar: 6, beatUnit: 8 }
+      },
       keyOverride: { tonic: "D", mode: "major" },
       pianoMuted: true,
       pianoVolume: 0.35

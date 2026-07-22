@@ -1,9 +1,45 @@
 export const tempoMapVersion = 1;
+export const timingMapVersion = 2;
 export const maxTempoMapAnchors = 2048;
+export const maxTimingMapEvents = 2048;
+
+const defaultSignature = Object.freeze({ beatsPerBar: 4, beatUnit: 4 });
+const supportedSignatures = new Set(["3/4", "4/4", "5/4", "6/8", "7/8", "12/8"]);
 
 function finiteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+export function normalizeTimeSignature(value, fallback = null) {
+  const beatsPerBar = Math.round(Number(value?.beatsPerBar));
+  const beatUnit = Math.round(Number(value?.beatUnit));
+  if (!supportedSignatures.has(`${beatsPerBar}/${beatUnit}`)) {
+    return fallback ? normalizeTimeSignature(fallback) : null;
+  }
+  return { beatsPerBar, beatUnit };
+}
+
+function baseSignature(grid) {
+  return normalizeTimeSignature({
+    beatsPerBar: grid?.beatsPerBar || grid?.meter?.beatsPerBar || grid?.timeSignature?.beatsPerBar,
+    beatUnit: grid?.beatUnit || grid?.meter?.beatUnit || grid?.timeSignature?.beatUnit
+  }, defaultSignature);
+}
+
+// Compound 6/8 and 12/8 use dotted-quarter pulses. Other supported meters use
+// one pulse per written beat. Chord positions still use the written beat cells.
+export function meterPulseShape(signature) {
+  const normalized = normalizeTimeSignature(signature, defaultSignature);
+  const compound = normalized.beatUnit === 8 && normalized.beatsPerBar >= 6 && normalized.beatsPerBar % 3 === 0;
+  const subdivisionsPerPulse = compound ? 3 : 1;
+  return {
+    ...normalized,
+    subdivisionsPerPulse,
+    pulsesPerBar: normalized.beatsPerBar / subdivisionsPerPulse,
+    pulseUnit: compound ? 8 / 3 : normalized.beatUnit,
+    grouping: compound ? "compound" : "simple"
+  };
 }
 
 export function normalizeTempoMap(value, {
@@ -35,14 +71,9 @@ export function normalizeTempoMap(value, {
       return null;
     }
 
-    const anchor = {
-      bar,
-      timeSeconds: Number(timeSeconds.toFixed(3))
-    };
+    const anchor = { bar, timeSeconds: Number(timeSeconds.toFixed(3)) };
     const previous = anchors.at(-1);
-    if (previous && (anchor.bar <= previous.bar || anchor.timeSeconds <= previous.timeSeconds)) {
-      return null;
-    }
+    if (previous && (anchor.bar <= previous.bar || anchor.timeSeconds <= previous.timeSeconds)) return null;
     anchors.push(anchor);
   }
 
@@ -50,21 +81,126 @@ export function normalizeTempoMap(value, {
   return { version: tempoMapVersion, anchors };
 }
 
+export function timingMapFromTempoMap(value, { timeSignature = defaultSignature } = {}) {
+  const legacy = normalizeTempoMap(value);
+  if (!legacy) return null;
+  const signature = normalizeTimeSignature(timeSignature, defaultSignature);
+  return {
+    version: timingMapVersion,
+    events: legacy.anchors.map((anchor, index) => ({
+      ...anchor,
+      ...(index === 0 ? { timeSignature: signature } : {})
+    }))
+  };
+}
+
+export function normalizeTimingMap(value, {
+  maxBar = 10000,
+  minTimeSeconds = -60,
+  maxTimeSeconds = 60 * 60,
+  maxEvents = maxTimingMapEvents,
+  requireBarOne = true,
+  baseTimeSignature = defaultSignature
+} = {}) {
+  if (value == null) return null;
+  if (Number(value?.version) === tempoMapVersion && Array.isArray(value?.anchors)) {
+    value = timingMapFromTempoMap(value, { timeSignature: baseTimeSignature });
+  }
+  if (typeof value !== "object" || Number(value.version) !== timingMapVersion || !Array.isArray(value.events)) {
+    return null;
+  }
+  if (!value.events.length || value.events.length > maxEvents) return null;
+
+  const events = [];
+  let previousTimedEvent = null;
+  for (const candidate of value.events) {
+    const bar = Math.round(Number(candidate?.bar));
+    const hasTime = Object.prototype.hasOwnProperty.call(candidate || {}, "timeSeconds");
+    const timeSeconds = hasTime ? finiteNumber(candidate.timeSeconds) : null;
+    const hasSignature = Object.prototype.hasOwnProperty.call(candidate || {}, "timeSignature");
+    const timeSignature = hasSignature ? normalizeTimeSignature(candidate.timeSignature) : null;
+    if (
+      !Number.isInteger(bar) || bar < 1 || bar > maxBar ||
+      (hasTime && (timeSeconds === null || timeSeconds < minTimeSeconds || timeSeconds > maxTimeSeconds)) ||
+      (hasSignature && !timeSignature) ||
+      (!hasTime && !hasSignature)
+    ) return null;
+
+    const previous = events.at(-1);
+    if (previous && bar <= previous.bar) return null;
+    const event = {
+      bar,
+      ...(hasTime ? { timeSeconds: Number(timeSeconds.toFixed(3)) } : {}),
+      ...(hasSignature ? { timeSignature } : {})
+    };
+    if (hasTime) {
+      if (previousTimedEvent && event.timeSeconds <= previousTimedEvent.timeSeconds) return null;
+      previousTimedEvent = event;
+    }
+    events.push(event);
+  }
+  if (requireBarOne && events[0]?.bar !== 1) return null;
+  return { version: timingMapVersion, events };
+}
+
+export function gridTimingMap(grid) {
+  const signature = baseSignature(grid);
+  return normalizeTimingMap(grid?.timingMap, { baseTimeSignature: signature })
+    || normalizeTimingMap(grid?.tempoMap, { baseTimeSignature: signature });
+}
+
+function eventOptions(options = {}) {
+  return {
+    ...options,
+    baseTimeSignature: normalizeTimeSignature(options.baseTimeSignature, defaultSignature)
+  };
+}
+
+export function timingMapWithEvent(value, nextEvent, options = {}) {
+  const normalizedOptions = eventOptions(options);
+  const current = normalizeTimingMap(value, { ...normalizedOptions, requireBarOne: false });
+  const bar = Math.round(Number(nextEvent?.bar));
+  if (!Number.isInteger(bar) || bar < 1) return null;
+  const events = [...(current?.events || [])];
+  const existingIndex = events.findIndex((event) => event.bar === bar);
+  const existing = existingIndex >= 0 ? events[existingIndex] : { bar };
+  const merged = { ...existing, bar };
+  if (Object.prototype.hasOwnProperty.call(nextEvent || {}, "timeSeconds")) {
+    if (nextEvent.timeSeconds == null) delete merged.timeSeconds;
+    else merged.timeSeconds = Number(nextEvent.timeSeconds);
+  }
+  if (Object.prototype.hasOwnProperty.call(nextEvent || {}, "timeSignature")) {
+    if (nextEvent.timeSignature == null) delete merged.timeSignature;
+    else merged.timeSignature = nextEvent.timeSignature;
+  }
+  if (!Object.prototype.hasOwnProperty.call(merged, "timeSeconds") && !merged.timeSignature) {
+    if (existingIndex >= 0) events.splice(existingIndex, 1);
+  } else if (existingIndex >= 0) events[existingIndex] = merged;
+  else events.push(merged);
+  events.sort((left, right) => left.bar - right.bar);
+  if (!events.length) return null;
+  return normalizeTimingMap({ version: timingMapVersion, events }, normalizedOptions);
+}
+
+export function timingMapWithoutEventAspect(value, bar, aspect, options = {}) {
+  if (!["timeSeconds", "timeSignature"].includes(aspect)) return normalizeTimingMap(value, eventOptions(options));
+  return timingMapWithEvent(value, { bar, [aspect]: null }, eventOptions(options));
+}
+
+export function timingMapTimeEvents(value, options = {}) {
+  return (normalizeTimingMap(value, eventOptions(options))?.events || [])
+    .filter((event) => Number.isFinite(event.timeSeconds));
+}
+
+// Legacy edit helpers remain available for old callers and tests.
 export function tempoMapWithAnchor(value, anchor, options = {}) {
   const current = normalizeTempoMap(value, { ...options, requireBarOne: false });
-  const nextAnchor = {
-    bar: Math.round(Number(anchor?.bar)),
-    timeSeconds: Number(anchor?.timeSeconds)
-  };
+  const nextAnchor = { bar: Math.round(Number(anchor?.bar)), timeSeconds: Number(anchor?.timeSeconds) };
   if (!Number.isInteger(nextAnchor.bar) || !Number.isFinite(nextAnchor.timeSeconds)) return null;
-
   const anchors = [...(current?.anchors || [])];
   const existingIndex = anchors.findIndex((entry) => entry.bar === nextAnchor.bar);
-  if (existingIndex >= 0) {
-    anchors[existingIndex] = nextAnchor;
-  } else {
-    anchors.push(nextAnchor);
-  }
+  if (existingIndex >= 0) anchors[existingIndex] = nextAnchor;
+  else anchors.push(nextAnchor);
   anchors.sort((left, right) => left.bar - right.bar);
   return normalizeTempoMap({ version: tempoMapVersion, anchors }, options);
 }
@@ -78,133 +214,206 @@ export function tempoMapWithoutAnchor(value, bar, options = {}) {
   }, options);
 }
 
-function baseBeatDuration(grid) {
-  const direct = finiteNumber(grid?.beatDurationSeconds);
-  if (direct && direct > 0) return direct;
+function basePulseDuration(grid) {
   const bpm = finiteNumber(grid?.bpm);
-  return bpm && bpm > 0 ? 60 / bpm : null;
+  if (bpm && bpm > 0) return 60 / bpm;
+  const direct = finiteNumber(grid?.beatDurationSeconds);
+  return direct && direct > 0 ? direct : null;
 }
 
 function baseDownbeat(grid) {
   return finiteNumber(grid?.downbeatOffsetSeconds ?? grid?.beatOffsetSeconds) ?? 0;
 }
 
-function beatsPerBar(grid) {
-  const value = Math.round(Number(grid?.beatsPerBar || grid?.meter?.beatsPerBar || 4));
-  return Math.max(1, value || 4);
+function meterSpans(grid) {
+  const map = gridTimingMap(grid);
+  let signature = baseSignature(grid);
+  const changes = (map?.events || [])
+    .filter((event) => event.timeSignature)
+    .map((event) => ({ bar: event.bar, timeSignature: event.timeSignature }));
+  if (changes[0]?.bar === 1) signature = changes[0].timeSignature;
+  const boundaries = [{ bar: 1, timeSignature: signature }];
+  for (const change of changes) {
+    if (change.bar === 1) boundaries[0] = change;
+    else boundaries.push(change);
+  }
+
+  const spans = [];
+  let startBeat = 0;
+  let startPulse = 0;
+  for (let index = 0; index < boundaries.length; index += 1) {
+    const boundary = boundaries[index];
+    const nextBar = boundaries[index + 1]?.bar ?? Infinity;
+    const shape = meterPulseShape(boundary.timeSignature);
+    spans.push({
+      startBar: boundary.bar,
+      endBar: nextBar,
+      startBeat,
+      endBeat: Number.isFinite(nextBar) ? startBeat + (nextBar - boundary.bar) * shape.beatsPerBar : Infinity,
+      startPulse,
+      endPulse: Number.isFinite(nextBar) ? startPulse + (nextBar - boundary.bar) * shape.pulsesPerBar : Infinity,
+      ...shape
+    });
+    if (Number.isFinite(nextBar)) {
+      startBeat += (nextBar - boundary.bar) * shape.beatsPerBar;
+      startPulse += (nextBar - boundary.bar) * shape.pulsesPerBar;
+    }
+  }
+  return spans;
 }
 
-export function gridTempoMap(grid) {
-  return normalizeTempoMap(grid?.tempoMap, { requireBarOne: true });
+function spanForBar(spans, bar) {
+  return spans.find((span) => bar >= span.startBar && bar < span.endBar) || spans[0];
+}
+
+function spanForBeat(spans, beat) {
+  if (beat < 0) return spans[0];
+  return spans.find((span) => beat >= span.startBeat && beat < span.endBeat) || spans.at(-1);
+}
+
+function spanForPulse(spans, pulse) {
+  if (pulse < 0) return spans[0];
+  return spans.find((span) => pulse >= span.startPulse && pulse < span.endPulse) || spans.at(-1);
+}
+
+export function barStartAbsoluteBeat(grid, bar) {
+  const targetBar = Math.max(1, Math.round(Number(bar) || 1));
+  const spans = meterSpans(grid);
+  const span = spanForBar(spans, targetBar);
+  return span.startBeat + (targetBar - span.startBar) * span.beatsPerBar;
+}
+
+export function barStartPulse(grid, bar) {
+  const targetBar = Math.max(1, Math.round(Number(bar) || 1));
+  const spans = meterSpans(grid);
+  const span = spanForBar(spans, targetBar);
+  return span.startPulse + (targetBar - span.startBar) * span.pulsesPerBar;
+}
+
+export function timeSignatureAtBar(grid, bar) {
+  const span = spanForBar(meterSpans(grid), Math.max(1, Math.round(Number(bar) || 1)));
+  return { beatsPerBar: span.beatsPerBar, beatUnit: span.beatUnit };
+}
+
+export function musicalPulseDistance(grid, startBar, endBar) {
+  return barStartPulse(grid, endBar) - barStartPulse(grid, startBar);
+}
+
+function absoluteBeatToPulse(grid, absoluteBeat) {
+  const beat = finiteNumber(absoluteBeat);
+  if (beat === null) return null;
+  const span = spanForBeat(meterSpans(grid), beat);
+  return span.startPulse + (beat - span.startBeat) / span.subdivisionsPerPulse;
+}
+
+function pulseToAbsoluteBeat(grid, pulseIndex) {
+  const pulse = finiteNumber(pulseIndex);
+  if (pulse === null) return null;
+  const span = spanForPulse(meterSpans(grid), pulse);
+  return span.startBeat + (pulse - span.startPulse) * span.subdivisionsPerPulse;
+}
+
+function positionForAbsoluteBeat(grid, absoluteBeat) {
+  const beat = finiteNumber(absoluteBeat);
+  if (beat === null) return null;
+  const span = spanForBeat(meterSpans(grid), beat);
+  const relative = beat - span.startBeat;
+  const barOffset = Math.floor(relative / span.beatsPerBar);
+  const beatWithinBar = relative - barOffset * span.beatsPerBar;
+  return {
+    absoluteBeat: beat,
+    bar: span.startBar + barOffset,
+    beat: beatWithinBar + 1,
+    beatWithinBar,
+    timeSignature: { beatsPerBar: span.beatsPerBar, beatUnit: span.beatUnit },
+    subdivisionsPerPulse: span.subdivisionsPerPulse,
+    primaryPulse: Math.abs(beatWithinBar % span.subdivisionsPerPulse) < 1e-7,
+    downbeat: Math.abs(beatWithinBar) < 1e-7
+  };
 }
 
 function anchorPoints(grid) {
-  const map = gridTempoMap(grid);
-  if (!map) return [];
-  const barBeats = beatsPerBar(grid);
-  return map.anchors.map((anchor) => ({
-    ...anchor,
-    beatIndex: (anchor.bar - 1) * barBeats
+  return timingMapTimeEvents(gridTimingMap(grid), { baseTimeSignature: baseSignature(grid) }).map((event) => ({
+    ...event,
+    pulseIndex: barStartPulse(grid, event.bar)
   }));
 }
 
-function baseSecondsForBeat(grid, beatIndex) {
-  const beatDuration = baseBeatDuration(grid);
-  if (!beatDuration) return null;
-  return baseDownbeat(grid) + beatIndex * beatDuration;
-}
-
-function segmentForBeat(grid, beatIndex) {
-  const points = anchorPoints(grid);
+function segmentForValue(points, value, key) {
   if (points.length < 2) return null;
-  if (beatIndex <= points[0].beatIndex) return [points[0], points[1]];
-  if (beatIndex >= points.at(-1).beatIndex) return [points.at(-2), points.at(-1)];
+  if (value <= points[0][key]) return [points[0], points[1]];
+  if (value >= points.at(-1)[key]) return [points.at(-2), points.at(-1)];
   for (let index = 0; index < points.length - 1; index += 1) {
-    if (beatIndex >= points[index].beatIndex && beatIndex <= points[index + 1].beatIndex) {
-      return [points[index], points[index + 1]];
-    }
+    if (value >= points[index][key] && value <= points[index + 1][key]) return [points[index], points[index + 1]];
   }
   return null;
 }
 
-function segmentForSeconds(grid, seconds) {
-  const points = anchorPoints(grid);
-  if (points.length < 2) return null;
-  if (seconds <= points[0].timeSeconds) return [points[0], points[1]];
-  if (seconds >= points.at(-1).timeSeconds) return [points.at(-2), points.at(-1)];
-  for (let index = 0; index < points.length - 1; index += 1) {
-    if (seconds >= points[index].timeSeconds && seconds <= points[index + 1].timeSeconds) {
-      return [points[index], points[index + 1]];
-    }
-  }
-  return null;
-}
-
-function secondsPerBeat(segment) {
+function secondsPerPulse(segment) {
   if (!segment) return null;
   const [left, right] = segment;
-  const beatDistance = right.beatIndex - left.beatIndex;
-  if (beatDistance <= 0) return null;
-  const value = (right.timeSeconds - left.timeSeconds) / beatDistance;
+  const pulseDistance = right.pulseIndex - left.pulseIndex;
+  if (pulseDistance <= 0) return null;
+  const value = (right.timeSeconds - left.timeSeconds) / pulseDistance;
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 export function absoluteBeatToSeconds(grid, beatIndex) {
-  const beat = finiteNumber(beatIndex);
-  if (beat === null) return null;
+  const pulse = absoluteBeatToPulse(grid, beatIndex);
+  if (pulse === null) return null;
   const points = anchorPoints(grid);
-  if (!points.length) return baseSecondsForBeat(grid, beat);
-  if (points.length === 1) {
-    const duration = baseBeatDuration(grid);
-    return duration ? points[0].timeSeconds + (beat - points[0].beatIndex) * duration : null;
+  if (!points.length) {
+    const duration = basePulseDuration(grid);
+    return duration ? baseDownbeat(grid) + pulse * duration : null;
   }
-  const segment = segmentForBeat(grid, beat);
-  const duration = secondsPerBeat(segment);
-  return duration ? segment[0].timeSeconds + (beat - segment[0].beatIndex) * duration : null;
+  if (points.length === 1) {
+    const duration = basePulseDuration(grid);
+    return duration ? points[0].timeSeconds + (pulse - points[0].pulseIndex) * duration : null;
+  }
+  const segment = segmentForValue(points, pulse, "pulseIndex");
+  const duration = secondsPerPulse(segment);
+  return duration ? segment[0].timeSeconds + (pulse - segment[0].pulseIndex) * duration : null;
 }
 
 export function secondsToAbsoluteBeat(grid, seconds) {
   const time = finiteNumber(seconds);
   if (time === null) return null;
   const points = anchorPoints(grid);
+  let pulse = null;
   if (!points.length) {
-    const duration = baseBeatDuration(grid);
-    return duration ? (time - baseDownbeat(grid)) / duration : null;
+    const duration = basePulseDuration(grid);
+    pulse = duration ? (time - baseDownbeat(grid)) / duration : null;
+  } else if (points.length === 1) {
+    const duration = basePulseDuration(grid);
+    pulse = duration ? points[0].pulseIndex + (time - points[0].timeSeconds) / duration : null;
+  } else {
+    const segment = segmentForValue(points, time, "timeSeconds");
+    const duration = secondsPerPulse(segment);
+    pulse = duration ? segment[0].pulseIndex + (time - segment[0].timeSeconds) / duration : null;
   }
-  if (points.length === 1) {
-    const duration = baseBeatDuration(grid);
-    return duration ? points[0].beatIndex + (time - points[0].timeSeconds) / duration : null;
-  }
-  const segment = segmentForSeconds(grid, time);
-  const duration = secondsPerBeat(segment);
-  return duration ? segment[0].beatIndex + (time - segment[0].timeSeconds) / duration : null;
+  return pulse === null ? null : pulseToAbsoluteBeat(grid, pulse);
 }
 
 export function musicalPositionToSeconds(grid, { bar = 1, beat = 1, beatOffset = 0 } = {}) {
-  const barBeats = beatsPerBar(grid);
-  const absoluteBeat = (Number(bar) - 1) * barBeats + (Number(beat) - 1) + Number(beatOffset || 0);
+  const absoluteBeat = barStartAbsoluteBeat(grid, bar) + (Number(beat) - 1) + Number(beatOffset || 0);
   return absoluteBeatToSeconds(grid, absoluteBeat);
 }
 
 export function secondsToMusicalPosition(grid, seconds) {
-  const absoluteBeat = secondsToAbsoluteBeat(grid, seconds);
-  if (!Number.isFinite(absoluteBeat)) return null;
-  const barBeats = beatsPerBar(grid);
-  const barIndex = Math.floor(absoluteBeat / barBeats);
-  return {
-    absoluteBeat,
-    bar: barIndex + 1,
-    beat: absoluteBeat - barIndex * barBeats + 1
-  };
+  return positionForAbsoluteBeat(grid, secondsToAbsoluteBeat(grid, seconds));
+}
+
+export function absoluteBeatToMusicalPosition(grid, absoluteBeat) {
+  return positionForAbsoluteBeat(grid, absoluteBeat);
 }
 
 export function localTempoAtSeconds(grid, seconds) {
-  const segment = segmentForSeconds(grid, Number(seconds));
-  const duration = secondsPerBeat(segment) || baseBeatDuration(grid);
+  const segment = segmentForValue(anchorPoints(grid), Number(seconds), "timeSeconds");
+  const duration = secondsPerPulse(segment) || basePulseDuration(grid);
   return duration ? 60 / duration : null;
 }
 
-export function enumerateBeatTimes(grid, startSeconds, endSeconds, { paddingBeats = 1 } = {}) {
+export function enumerateGridBeats(grid, startSeconds, endSeconds, { paddingBeats = 1 } = {}) {
   const startBeat = secondsToAbsoluteBeat(grid, startSeconds);
   const endBeat = secondsToAbsoluteBeat(grid, endSeconds);
   if (!Number.isFinite(startBeat) || !Number.isFinite(endBeat)) return [];
@@ -213,17 +422,23 @@ export function enumerateBeatTimes(grid, startSeconds, endSeconds, { paddingBeat
   const result = [];
   for (let beatIndex = first; beatIndex <= last; beatIndex += 1) {
     const timeSeconds = absoluteBeatToSeconds(grid, beatIndex);
-    if (Number.isFinite(timeSeconds)) result.push({ beatIndex, timeSeconds });
+    const position = positionForAbsoluteBeat(grid, beatIndex);
+    if (Number.isFinite(timeSeconds) && position) result.push({ beatIndex, timeSeconds, ...position });
   }
   return result;
 }
 
+export function enumerateBeatTimes(grid, startSeconds, endSeconds, options = {}) {
+  return enumerateGridBeats(grid, startSeconds, endSeconds, options)
+    .map(({ beatIndex, timeSeconds }) => ({ beatIndex, timeSeconds }));
+}
+
 export function segmentAroundSeconds(grid, seconds) {
-  const segment = segmentForSeconds(grid, Number(seconds));
+  const segment = segmentForValue(anchorPoints(grid), Number(seconds), "timeSeconds");
   if (!segment) return null;
   return {
     left: { bar: segment[0].bar, timeSeconds: segment[0].timeSeconds },
     right: { bar: segment[1].bar, timeSeconds: segment[1].timeSeconds },
-    bpm: 60 / secondsPerBeat(segment)
+    bpm: 60 / secondsPerPulse(segment)
   };
 }

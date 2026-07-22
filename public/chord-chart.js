@@ -1,4 +1,12 @@
-import { absoluteBeatToSeconds, secondsToAbsoluteBeat } from "./tempo-map.js";
+import {
+  absoluteBeatToMusicalPosition,
+  absoluteBeatToSeconds,
+  barStartAbsoluteBeat,
+  musicalPositionToSeconds,
+  secondsToAbsoluteBeat,
+  secondsToMusicalPosition,
+  timeSignatureAtBar
+} from "./tempo-map.js";
 
 export const notePitchClasses = {
   C: 0,
@@ -111,38 +119,53 @@ export function fallbackChartGrid(grid = null) {
     beatsPerBar: Number(grid?.beatsPerBar) || defaultTimeSignature.beatsPerBar,
     beatUnit: Number(grid?.beatUnit) || defaultTimeSignature.beatUnit,
     downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0,
+    timingMap: grid?.timingMap || null,
     tempoMap: grid?.tempoMap || null,
     durationSeconds: Number(grid?.durationSeconds) || null
   };
 }
 
 export function chartChordTotalDiv(chord, grid, divisionsPerQuarter) {
-  const barDivisions = chartDivisionsPerBar(grid, divisionsPerQuarter);
-  return Math.max(0, (Math.max(1, Number(chord.bar) || 1) - 1) * barDivisions + Math.max(0, Number(chord.offsetDiv) || 0));
+  const bar = Math.max(1, Number(chord.bar) || 1);
+  return Math.max(0, chartDivisionsBeforeBar(grid, bar, divisionsPerQuarter) + Math.max(0, Number(chord.offsetDiv) || 0));
 }
 
 export function chartPositionFromTotalDiv(totalDiv, grid, divisionsPerQuarter) {
-  const barDivisions = chartDivisionsPerBar(grid, divisionsPerQuarter);
   const bounded = Math.max(0, Math.round(totalDiv));
-  return {
-    bar: Math.floor(bounded / barDivisions) + 1,
-    offsetDiv: bounded % barDivisions
-  };
+  let consumed = 0;
+  for (let bar = 1; bar <= 10000; bar += 1) {
+    const barDivisions = chartDivisionsPerBar(timeSignatureAtBar(grid, bar), divisionsPerQuarter);
+    if (bounded < consumed + barDivisions) return { bar, offsetDiv: bounded - consumed };
+    consumed += barDivisions;
+  }
+  return { bar: 10000, offsetDiv: 0 };
+}
+
+function chartDivisionsBeforeBar(grid, bar, divisionsPerQuarter) {
+  let result = 0;
+  for (let currentBar = 1; currentBar < Math.max(1, bar); currentBar += 1) {
+    result += chartDivisionsPerBar(timeSignatureAtBar(grid, currentBar), divisionsPerQuarter);
+  }
+  return result;
 }
 
 export function chordCueToChartEvent(chord, grid, divisionsPerQuarter, idFactory = createChordId) {
   const chartGrid = fallbackChartGrid(grid);
-  const divPerBeat = chartDivisionsPerBeat(chartGrid, divisionsPerQuarter);
   const startSeconds = Number(chord.start);
   const endSeconds = Number(chord.end);
-  const startBeat = Number.isFinite(startSeconds)
-    ? secondsToAbsoluteBeat(chartGrid, startSeconds)
-    : ((Number(chord.bar) || 1) - 1) * chartGrid.beatsPerBar + ((Number(chord.beat) || 1) - 1);
-  const endBeat = Number.isFinite(endSeconds)
-    ? secondsToAbsoluteBeat(chartGrid, endSeconds)
-    : startBeat + chartGrid.beatsPerBar;
-  const startDiv = Math.max(0, Math.round(startBeat * divPerBeat));
-  const durationDiv = Math.max(1, Math.round(Math.max(1 / divPerBeat, endBeat - startBeat) * divPerBeat));
+  const startPosition = Number.isFinite(startSeconds)
+    ? secondsToMusicalPosition(chartGrid, startSeconds)
+    : { bar: Number(chord.bar) || 1, beat: Number(chord.beat) || 1 };
+  const startSignature = timeSignatureAtBar(chartGrid, startPosition.bar);
+  const startDivPerBeat = chartDivisionsPerBeat(startSignature, divisionsPerQuarter);
+  const startDiv = chartDivisionsBeforeBar(chartGrid, startPosition.bar, divisionsPerQuarter)
+    + Math.max(0, Math.round((startPosition.beat - 1) * startDivPerBeat));
+  const endPosition = Number.isFinite(endSeconds) ? secondsToMusicalPosition(chartGrid, endSeconds) : null;
+  const endDiv = endPosition
+    ? chartDivisionsBeforeBar(chartGrid, endPosition.bar, divisionsPerQuarter)
+      + Math.max(0, Math.round((endPosition.beat - 1) * chartDivisionsPerBeat(timeSignatureAtBar(chartGrid, endPosition.bar), divisionsPerQuarter)))
+    : startDiv + chartDivisionsPerBar(startSignature, divisionsPerQuarter);
+  const durationDiv = Math.max(1, endDiv - startDiv);
   const position = chartPositionFromTotalDiv(startDiv, chartGrid, divisionsPerQuarter);
 
   return {
@@ -207,18 +230,29 @@ export function chordChartToCues(chart, grid, key) {
   if (!normalized) return null;
 
   const chartGrid = fallbackChartGrid(grid);
-  const divPerBeat = chartDivisionsPerBeat(chartGrid, normalized.divisionsPerQuarter);
   return normalized.chords.map((chord) => {
-    const startBeat = chartChordTotalDiv(chord, chartGrid, normalized.divisionsPerQuarter) / divPerBeat;
-    const endBeat = startBeat + chord.durationDiv / divPerBeat;
-    const start = absoluteBeatToSeconds(chartGrid, startBeat);
-    const end = absoluteBeatToSeconds(chartGrid, endBeat);
+    const startPosition = chartPositionFromTotalDiv(
+      chartChordTotalDiv(chord, chartGrid, normalized.divisionsPerQuarter),
+      chartGrid,
+      normalized.divisionsPerQuarter
+    );
+    const endPosition = chartPositionFromTotalDiv(
+      chartChordTotalDiv(chord, chartGrid, normalized.divisionsPerQuarter) + chord.durationDiv,
+      chartGrid,
+      normalized.divisionsPerQuarter
+    );
+    const startDivPerBeat = chartDivisionsPerBeat(timeSignatureAtBar(chartGrid, startPosition.bar), normalized.divisionsPerQuarter);
+    const endDivPerBeat = chartDivisionsPerBeat(timeSignatureAtBar(chartGrid, endPosition.bar), normalized.divisionsPerQuarter);
+    const startBeat = startPosition.offsetDiv / startDivPerBeat + 1;
+    const endBeat = endPosition.offsetDiv / endDivPerBeat + 1;
+    const start = musicalPositionToSeconds(chartGrid, { bar: startPosition.bar, beat: startBeat });
+    const end = musicalPositionToSeconds(chartGrid, { bar: endPosition.bar, beat: endBeat });
     return {
       chartId: chord.id,
       start,
       end,
       bar: chord.bar,
-      beat: Number((chord.offsetDiv / divPerBeat + 1).toFixed(2)),
+      beat: Number(startBeat.toFixed(2)),
       name: chord.raw,
       roman: romanNumeralForChord(chord.raw, key),
       source: "user"
@@ -240,7 +274,7 @@ export function chordBeatRange(chord, grid) {
   if (Number.isFinite(startSeconds)) {
     startBeat = secondsToAbsoluteBeat(grid, startSeconds);
   } else if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
-    startBeat = (bar - 1) * grid.beatsPerBar + (beat - 1);
+    startBeat = barStartAbsoluteBeat(grid, bar) + (beat - 1);
   }
 
   if (!Number.isFinite(startBeat)) return null;
@@ -257,10 +291,8 @@ export function chordBeatRange(chord, grid) {
 
 export function chordGridPosition(beatIndex, grid) {
   const roundedBeatIndex = Math.max(0, Math.floor(beatIndex + 0.001));
-  return {
-    bar: Math.floor(roundedBeatIndex / grid.beatsPerBar) + 1,
-    beat: (roundedBeatIndex % grid.beatsPerBar) + 1
-  };
+  const position = absoluteBeatToMusicalPosition(grid, roundedBeatIndex);
+  return { bar: position?.bar || 1, beat: position?.beat || 1 };
 }
 
 export function adjustChordTimingForGrid(chord, sourceGrid, targetGrid) {
@@ -328,13 +360,12 @@ export function formatBeatNumber(value) {
 
 export function chordGridHit(chord, grid) {
   const chartGrid = fallbackChartGrid(grid);
-  const beatsPerBar = Math.max(1, Math.round(Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar));
   const bar = Number(chord.bar);
   const beat = Number(chord.beat);
   let absoluteBeat = null;
 
   if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
-    absoluteBeat = (bar - 1) * beatsPerBar + (beat - 1);
+    absoluteBeat = barStartAbsoluteBeat(chartGrid, bar) + (beat - 1);
   } else {
     const start = Number(chord.start);
     if (Number.isFinite(start) && Number.isFinite(chartGrid.beatDurationSeconds) && chartGrid.beatDurationSeconds > 0) {
@@ -344,12 +375,8 @@ export function chordGridHit(chord, grid) {
 
   const rawBeat = Number(absoluteBeat);
   const snappedBeat = Math.max(0, snapNearInteger(Number.isFinite(rawBeat) ? rawBeat : 0));
-  const barIndex = Math.floor(snappedBeat / beatsPerBar);
-  const beatWithinBar = snappedBeat - barIndex * beatsPerBar + 1;
-  return {
-    bar: barIndex + 1,
-    beat: beatWithinBar
-  };
+  const position = absoluteBeatToMusicalPosition(chartGrid, snappedBeat);
+  return { bar: position?.bar || 1, beat: position?.beat || 1 };
 }
 
 export function seedChordChart({ chordChart, sourceChords = [], grid, idFactory = createChordId }) {
@@ -397,11 +424,10 @@ function normalizeEditedChart(baseChart, nextChords, idFactory = createChordId) 
 
 export function chartCellTotalDiv(bar, beat, grid, divisionsPerQuarter) {
   const safeBar = clampedInteger(bar, 1, 1, maxChordChartBars);
-  const safeBeat = clampedInteger(beat, 1, 1, Number(grid.beatsPerBar) || defaultTimeSignature.beatsPerBar);
-  return (
-    (safeBar - 1) * chartDivisionsPerBar(grid, divisionsPerQuarter) +
-    (safeBeat - 1) * chartDivisionsPerBeat(grid, divisionsPerQuarter)
-  );
+  const signature = timeSignatureAtBar(grid, safeBar);
+  const safeBeat = clampedInteger(beat, 1, 1, signature.beatsPerBar);
+  return chartDivisionsBeforeBar(grid, safeBar, divisionsPerQuarter)
+    + (safeBeat - 1) * chartDivisionsPerBeat(signature, divisionsPerQuarter);
 }
 
 export function deleteChordFromChart(chart, index, idFactory = createChordId) {
@@ -425,9 +451,10 @@ export function addChordAtCellToChart(chart, grid, bar, beat, idFactory = create
   const divisionsPerQuarter = chart?.divisionsPerQuarter || defaultChordDivisionsPerQuarter;
   const chords = (chart?.chords || []).map((chord) => ({ ...chord }));
   const startDiv = chartCellTotalDiv(bar, beat, chartGrid, divisionsPerQuarter);
-  const beatDiv = chartDivisionsPerBeat(chartGrid, divisionsPerQuarter);
-  const barDiv = chartDivisionsPerBar(chartGrid, divisionsPerQuarter);
-  const barEnd = (Math.max(1, Number(bar) || 1) - 1) * barDiv + barDiv;
+  const signature = timeSignatureAtBar(chartGrid, bar);
+  const beatDiv = chartDivisionsPerBeat(signature, divisionsPerQuarter);
+  const barEnd = chartDivisionsBeforeBar(chartGrid, bar, divisionsPerQuarter)
+    + chartDivisionsPerBar(signature, divisionsPerQuarter);
   const sorted = chords
     .map((chord) => ({ chord, start: chartChordTotalDiv(chord, chartGrid, divisionsPerQuarter) }))
     .sort((left, right) => left.start - right.start);
@@ -463,7 +490,7 @@ export function moveChordToCellInChart(chart, grid, index, bar, beat, idFactory 
     .map((candidate) => chartChordTotalDiv(candidate, chartGrid, divisionsPerQuarter))
     .filter((candidateStart) => candidateStart > startDiv)
     .sort((left, right) => left - right)[0];
-  const beatDiv = chartDivisionsPerBeat(chartGrid, divisionsPerQuarter);
+  const beatDiv = chartDivisionsPerBeat(timeSignatureAtBar(chartGrid, bar), divisionsPerQuarter);
   chords[index] = {
     ...chord,
     ...chartPositionFromTotalDiv(startDiv, chartGrid, divisionsPerQuarter),
@@ -479,12 +506,13 @@ export function resizeChordToBeatBoundaryInChart(chart, grid, index, bar, bounda
   if (!chord) return chart;
 
   const divisionsPerQuarter = chart?.divisionsPerQuarter || defaultChordDivisionsPerQuarter;
-  const beatDiv = chartDivisionsPerBeat(chartGrid, divisionsPerQuarter);
-  const barDiv = chartDivisionsPerBar(chartGrid, divisionsPerQuarter);
+  const signature = timeSignatureAtBar(chartGrid, bar);
+  const beatDiv = chartDivisionsPerBeat(signature, divisionsPerQuarter);
+  const barDiv = chartDivisionsPerBar(signature, divisionsPerQuarter);
   const startDiv = chartChordTotalDiv(chord, chartGrid, divisionsPerQuarter);
-  const barStartDiv = (Math.max(1, Number(bar) || 1) - 1) * barDiv;
+  const barStartDiv = chartDivisionsBeforeBar(chartGrid, bar, divisionsPerQuarter);
   const barEndDiv = barStartDiv + barDiv;
-  const requestedEndDiv = barStartDiv + clampedInteger(boundaryBeat, 1, 1, Number(chartGrid.beatsPerBar) || defaultTimeSignature.beatsPerBar) * beatDiv;
+  const requestedEndDiv = barStartDiv + clampedInteger(boundaryBeat, 1, 1, signature.beatsPerBar) * beatDiv;
   const nextStart = chords
     .filter((candidate, candidateIndex) => candidateIndex !== index)
     .map((candidate) => chartChordTotalDiv(candidate, chartGrid, divisionsPerQuarter))

@@ -8,6 +8,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added unified per-bar timing events so one waveform bar line can carry a downbeat-time correction, a time-signature change, or both.
+- Added reviewable threshold-aware tempo/meter candidates before chord segmentation plus a dependency-free seven-fixture timing benchmark.
+- Added mid-song meter-aware bar, beat, click, chord, loop, count-in, Harmony, and inverse-seek mapping, including dotted-quarter pulse grouping for 6/8 and 12/8.
 - Added confirmed `Back to analysis` and analysis-scoped one-step undo so users can compare conservative suggestions without losing their working chart.
 - Added a review dialog for chord changes hidden by conservative smoothing; users can restore one beat explicitly without replacing the rest of their working chart.
 - Added a compact immutable `suppressedChordSuggestions` analyzer layer instead of persisting a duplicate of every raw beat estimate.
@@ -24,6 +27,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Replaced user-owned `practiceState.tempoMap` persistence with version-2 `practiceState.timingMap` events; existing version-1 anchors migrate deterministically on read.
+- Time and meter correction aspects can now be removed independently, while tempo remains derived from timed bar events.
 - Real harmonic analysis now suppresses isolated one-beat chord changes when both neighboring beats agree, reducing development cue density and false boundaries while preserving the user-owned working chart.
 - Displayed BPM now follows the active tempo-map segment, and segment edits move only its next anchored downbeat.
 - Timeline markers, metronome clicks, chord timing, loops, Harmony overlays, and count-in now use the same invertible musical-time map.

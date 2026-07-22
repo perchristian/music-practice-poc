@@ -7,7 +7,14 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { resolveDemucsInvocation } from "./demucs-command.js";
 import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
-import { absoluteBeatToSeconds, normalizeTempoMap } from "./public/tempo-map.js";
+import { fitStableTimingSpans } from "./timing-analysis.js";
+import {
+  enumerateGridBeats,
+  gridTimingMap,
+  normalizeTimeSignature,
+  normalizeTimingMap,
+  timingMapFromTempoMap
+} from "./public/tempo-map.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -538,6 +545,56 @@ function tempoScoreForBeatDuration(onsets, frameSeconds, beatDurationSeconds) {
   );
 }
 
+function timingObservations(onsets, frameSeconds, offsetSeconds, beatDurationSeconds, downbeatPhase) {
+  const observations = [];
+  const searchRadius = Math.max(1, Math.round((beatDurationSeconds / frameSeconds) * 0.22));
+  for (let index = 0, expected = offsetSeconds; expected < onsets.length * frameSeconds; index += 1, expected += beatDurationSeconds) {
+    const expectedFrame = Math.round(expected / frameSeconds);
+    let bestFrame = expectedFrame;
+    let bestStrength = -Infinity;
+    for (let frame = expectedFrame - searchRadius; frame <= expectedFrame + searchRadius; frame += 1) {
+      const strength = onsets[frame] || 0;
+      if (strength > bestStrength) {
+        bestStrength = strength;
+        bestFrame = frame;
+      }
+    }
+    observations.push({
+      beatIndex: index - downbeatPhase,
+      timeSeconds: Number((bestFrame * frameSeconds).toFixed(4)),
+      strength: Number(Math.max(0, bestStrength).toFixed(4))
+    });
+  }
+  return observations;
+}
+
+function localMeterObservations(strengths, baseBeatsPerBar) {
+  const observations = [];
+  const windowBars = 4;
+  for (let bar = 1; bar <= Math.floor(strengths.length / baseBeatsPerBar); bar += 1) {
+    const start = (bar - 1) * baseBeatsPerBar;
+    const window = strengths.slice(start, start + windowBars * baseBeatsPerBar);
+    if (window.length < baseBeatsPerBar * 2) continue;
+    const scores = METER_CANDIDATES.map((candidate) => {
+      const estimate = estimateDownbeatPhase(window, candidate);
+      return { beatsPerBar: candidate, score: estimate.score, confidence: estimate.confidence, phase: estimate.phase };
+    }).sort((left, right) => right.score - left.score);
+    const best = scores[0];
+    const base = scores.find((candidate) => candidate.beatsPerBar === baseBeatsPerBar);
+    const clearAlternative = best.beatsPerBar !== baseBeatsPerBar
+      && best.phase === 0
+      && best.confidence >= 0.65
+      && best.score > Math.max(0.0001, base?.score || 0) * 1.35;
+    observations.push({
+      bar,
+      beatsPerBar: clearAlternative ? best.beatsPerBar : baseBeatsPerBar,
+      beatUnit: 4,
+      confidence: clearAlternative ? best.confidence : Math.max(0.7, base?.confidence || 0.7)
+    });
+  }
+  return observations;
+}
+
 function estimateBeatGrid(audio) {
   const { values, frameSeconds } = rmsEnvelope(audio);
   const onsets = onsetEnvelope(values);
@@ -630,10 +687,10 @@ function estimateBeatGrid(audio) {
   const downbeatOffsetSeconds = offsetSeconds + downbeat.phase * beatDurationSeconds;
   const barDurationSeconds = beatDurationSeconds * beatsPerBar;
   const confidence = Math.max(0.1, Math.min(0.95, best.score));
-  const beats = [];
+  const rawBeats = [];
   for (let time = offsetSeconds, index = 0; time < audio.analyzedDurationSeconds; time += beatDurationSeconds, index += 1) {
     const relativeBeatIndex = index - downbeat.phase;
-    beats.push({
+    rawBeats.push({
       time: Number(time.toFixed(3)),
       beat: ((relativeBeatIndex % beatsPerBar) + beatsPerBar) % beatsPerBar + 1,
       bar: Math.floor(relativeBeatIndex / beatsPerBar) + 1,
@@ -641,18 +698,27 @@ function estimateBeatGrid(audio) {
     });
   }
 
-  const bars = [];
+  const rawBars = [];
   for (let start = downbeatOffsetSeconds; start < audio.analyzedDurationSeconds; start += barDurationSeconds) {
     const end = Math.min(audio.durationSeconds, start + barDurationSeconds);
     if (end - start < Math.min(1, barDurationSeconds * 0.35)) continue;
-    bars.push({
-      bar: bars.length + 1,
+    rawBars.push({
+      bar: rawBars.length + 1,
       start: Number(Math.max(0, start).toFixed(3)),
       end: Number(end.toFixed(3))
     });
   }
 
-  return {
+  const observations = timingObservations(onsets, frameSeconds, offsetSeconds, beatDurationSeconds, downbeat.phase);
+  const timingAnalysis = fitStableTimingSpans({
+    observations,
+    baseBpm: best.bpm,
+    beatsPerBar,
+    beatUnit: 4,
+    downbeatTime: downbeatOffsetSeconds,
+    meterObservations: localMeterObservations(strengths.slice(downbeat.phase), beatsPerBar)
+  });
+  const baseResult = {
     bpm: Number(best.bpm.toFixed(1)),
     beatDurationSeconds: Number(beatDurationSeconds.toFixed(3)),
     beatsPerBar,
@@ -663,9 +729,41 @@ function estimateBeatGrid(audio) {
     downbeatConfidence: Number(downbeat.confidence.toFixed(2)),
     meterCandidates: meter.candidates,
     confidence: Number(confidence.toFixed(2)),
-    beats,
-    bars
+    timingMap: timingAnalysis.timingMap,
+    timingMapSource: timingAnalysis.timingMap ? "threshold-aware-analysis" : null,
+    timingAnalysis: {
+      version: timingAnalysis.version,
+      method: timingAnalysis.method,
+      thresholds: timingAnalysis.thresholds,
+      observationCount: timingAnalysis.observations.length,
+      candidates: timingAnalysis.candidates,
+      limitations: [
+        "Tempo spans require persistent relative deviation and are attached to bar boundaries.",
+        "Meter candidates are limited to 3/4 and 4/4 in the first automatic pass.",
+        "Analyzer timing remains immutable provenance; user timing corrections are stored separately."
+      ]
+    }
   };
+  if (!timingAnalysis.timingMap) return { ...baseResult, beats: rawBeats, bars: rawBars };
+
+  const mappedBeats = enumerateGridBeats({
+    ...baseResult,
+    downbeatOffsetSeconds,
+    durationSeconds: audio.analyzedDurationSeconds
+  }, 0, audio.analyzedDurationSeconds, { paddingBeats: 0 })
+    .filter((beat) => beat.bar >= 1 && beat.timeSeconds < audio.analyzedDurationSeconds)
+    .map((beat) => ({
+      time: Number(beat.timeSeconds.toFixed(3)),
+      beat: beat.beat,
+      bar: beat.bar,
+      downbeat: beat.downbeat
+    }));
+  const mappedBars = mappedBeats.filter((beat) => beat.downbeat).map((beat, index, downbeats) => ({
+    bar: beat.bar,
+    start: Number(Math.max(0, beat.time).toFixed(3)),
+    end: Number(Math.min(audio.durationSeconds, downbeats[index + 1]?.time ?? audio.durationSeconds).toFixed(3))
+  }));
+  return { ...baseResult, beats: mappedBeats, bars: mappedBars };
 }
 
 function pitchClassEnergyDetails(audio, startSeconds, endSeconds, options = {}) {
@@ -929,13 +1027,15 @@ function romanNumeral(root, quality, key) {
 }
 
 function chordSegmentsForTimingGrid(beatGrid, durationSeconds) {
-  if (!beatGrid?.tempoMap) return null;
+  if (!gridTimingMap(beatGrid)) return null;
   const segments = [];
-  const beatsPerBar = Math.max(1, Math.round(Number(beatGrid.beatsPerBar) || DEFAULT_BEATS_PER_BAR));
-
-  for (let beatIndex = 0; beatIndex < MAX_CHORD_CHART_CHORDS * beatsPerBar; beatIndex += 1) {
-    const rawStart = absoluteBeatToSeconds(beatGrid, beatIndex);
-    const rawEnd = absoluteBeatToSeconds(beatGrid, beatIndex + 1);
+  const beats = enumerateGridBeats(beatGrid, 0, durationSeconds, { paddingBeats: 1 });
+  for (let index = 0; index < Math.min(beats.length - 1, MAX_CHORD_CHART_CHORDS); index += 1) {
+    const current = beats[index];
+    const next = beats[index + 1];
+    if (current.bar < 1) continue;
+    const rawStart = current.timeSeconds;
+    const rawEnd = next.timeSeconds;
     if (!Number.isFinite(rawStart) || !Number.isFinite(rawEnd) || rawEnd <= rawStart) break;
     if (rawStart >= durationSeconds) break;
     if (rawEnd <= 0) continue;
@@ -943,8 +1043,8 @@ function chordSegmentsForTimingGrid(beatGrid, durationSeconds) {
     const end = Math.min(durationSeconds, rawEnd);
     if (end - start < Math.min(0.18, (rawEnd - rawStart) * 0.4)) continue;
     segments.push({
-      bar: Math.floor(beatIndex / beatsPerBar) + 1,
-      beat: (beatIndex % beatsPerBar) + 1,
+      bar: current.bar,
+      beat: current.beat,
       start: Number(start.toFixed(3)),
       end: Number(end.toFixed(3))
     });
@@ -1525,7 +1625,7 @@ async function createJobRecord({
       metronomeAccent: true,
       metronomeSolo: false,
       gridOverrides: {},
-      tempoMap: null,
+      timingMap: null,
       keyOverride: null,
       chordChart: null,
       chordChartBackup: null,
@@ -1653,6 +1753,15 @@ function ensurePracticeState(job) {
     };
   }
 
+  const baseTimeSignature = normalizeTimeSignature({
+    beatsPerBar: gridOverrides.beatsPerBar || job.metadata?.beatGrid?.beatsPerBar || DEFAULT_BEATS_PER_BAR,
+    beatUnit: gridOverrides.beatUnit || job.metadata?.beatGrid?.beatUnit || 4
+  }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
+  const migratedTimingMap = normalizeTimingMap(
+    job.practiceState?.timingMap || timingMapFromTempoMap(job.practiceState?.tempoMap, { timeSignature: baseTimeSignature }),
+    { baseTimeSignature }
+  );
+
   job.practiceState = {
     learningStatus: ["not_started", "practicing", "learned"].includes(job.practiceState?.learningStatus)
       ? job.practiceState.learningStatus
@@ -1669,7 +1778,7 @@ function ensurePracticeState(job) {
     metronomeAccent: true,
     metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
-    tempoMap: normalizeTempoMap(job.practiceState?.tempoMap),
+    timingMap: migratedTimingMap,
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
     chordChartBackup: job.practiceState?.chordChartBackup?.chordChart
@@ -2403,11 +2512,20 @@ async function handleUpdatePracticeState(req, id, res) {
   }
 
   const payload = await readJsonBody(req);
-  let requestedTempoMap = null;
-  if (Object.prototype.hasOwnProperty.call(payload, "tempoMap") && payload.tempoMap !== null) {
-    requestedTempoMap = normalizeTempoMap(payload.tempoMap);
-    if (!requestedTempoMap) {
-      badRequest(res, "Tempo map must contain ordered downbeat anchors beginning at bar 1.");
+  const requestedGridSignature = normalizeTimeSignature({
+    beatsPerBar: payload.gridOverrides?.beatsPerBar || job.practiceState?.gridOverrides?.beatsPerBar || job.metadata?.beatGrid?.beatsPerBar || DEFAULT_BEATS_PER_BAR,
+    beatUnit: payload.gridOverrides?.beatUnit || job.practiceState?.gridOverrides?.beatUnit || job.metadata?.beatGrid?.beatUnit || 4
+  }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
+  const hasRequestedTimingMap = Object.prototype.hasOwnProperty.call(payload, "timingMap");
+  const hasLegacyTempoMap = Object.prototype.hasOwnProperty.call(payload, "tempoMap");
+  let requestedTimingMap = null;
+  if ((hasRequestedTimingMap && payload.timingMap !== null) || (hasLegacyTempoMap && payload.tempoMap !== null)) {
+    const candidate = hasRequestedTimingMap
+      ? payload.timingMap
+      : timingMapFromTempoMap(payload.tempoMap, { timeSignature: requestedGridSignature });
+    requestedTimingMap = normalizeTimingMap(candidate, { baseTimeSignature: requestedGridSignature });
+    if (!requestedTimingMap) {
+      badRequest(res, "Timing map must contain ordered bar events beginning at bar 1 with valid time or meter corrections.");
       return;
     }
   }
@@ -2469,8 +2587,10 @@ async function handleUpdatePracticeState(req, id, res) {
       );
     }
   }
-  if (Object.prototype.hasOwnProperty.call(payload, "tempoMap")) {
-    practiceState.tempoMap = payload.tempoMap === null ? null : requestedTempoMap;
+  if (hasRequestedTimingMap || hasLegacyTempoMap) {
+    practiceState.timingMap = (hasRequestedTimingMap ? payload.timingMap : payload.tempoMap) === null
+      ? null
+      : requestedTimingMap;
   }
   if (payload.keyOverride && typeof payload.keyOverride === "object") {
     const noteNames = new Set(["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"]);
@@ -2515,7 +2635,14 @@ async function handleUpdatePracticeState(req, id, res) {
 function correctedTimingGridForJob(job) {
   const source = job.metadata?.beatGrid || {};
   const overrides = job.practiceState?.gridOverrides || {};
-  const tempoMap = normalizeTempoMap(job.practiceState?.tempoMap);
+  const baseTimeSignature = normalizeTimeSignature({
+    beatsPerBar: overrides.beatsPerBar || source.beatsPerBar || DEFAULT_BEATS_PER_BAR,
+    beatUnit: overrides.beatUnit || source.beatUnit || 4
+  }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
+  const timingMap = normalizeTimingMap(
+    job.practiceState?.timingMap || timingMapFromTempoMap(job.practiceState?.tempoMap, { timeSignature: baseTimeSignature }),
+    { baseTimeSignature }
+  );
   const bpm = Number(overrides.bpm || source.bpm);
   const beatDurationSeconds = Number(source.beatDurationSeconds) || (bpm > 0 ? 60 / bpm : null);
   const beatsPerBar = Math.max(1, Math.round(Number(overrides.beatsPerBar || source.beatsPerBar) || DEFAULT_BEATS_PER_BAR));
@@ -2530,7 +2657,7 @@ function correctedTimingGridForJob(job) {
     beatsPerBar,
     beatUnit,
     downbeatOffsetSeconds: Number.isFinite(downbeatOffsetSeconds) ? downbeatOffsetSeconds : 0,
-    tempoMap
+    timingMap
   };
 }
 
@@ -2624,7 +2751,7 @@ async function handleReanalyzeHarmony(req, id, res) {
   }
 
   const timingGrid = correctedTimingGridForJob(job);
-  if (!timingGrid?.tempoMap) {
+  if (!timingGrid?.timingMap) {
     badRequest(res, "Add at least one timing correction before reanalyzing chords.");
     return;
   }
@@ -2659,7 +2786,7 @@ async function handleReanalyzeHarmony(req, id, res) {
     analysis: analysis.analysis,
     timing: {
       gridOverrides: { ...(job.practiceState?.gridOverrides || {}) },
-      tempoMap: timingGrid.tempoMap
+      timingMap: timingGrid.timingMap
     },
     replacedWorkingChordCount: previousChordCount
   };
