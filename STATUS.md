@@ -118,6 +118,8 @@ The Phase 3G.3 scenario coverage advanced on 2026-07-22. Human review confirmed 
 
 Exact-downbeat chord review found a second boundary issue on 2026-07-22 after snapshot remapping: analyzer cues carried explicit bar/beat positions, but remapping still preferred their millisecond-rounded source times. On the late-start job, a cue declared as Bar 2, Beat 1 began about 3 ms before the mathematically reconstructed downbeat and was therefore rendered as Bar 1, Beat 4; at the Bar 2 downbeat, that visually previous-bar card remained highlighted. Chord beat ranges now treat explicit musical position as authoritative, use seconds only for duration or fallback, and snap near-integer end beats across harmless rounding error. The browser regression uses a deliberately 3 ms-early Bar 2 cue and verifies both its rendered placement and its highlight at the exact shifted downbeat; a pure test covers the same conversion. `npm test` passed with 53 tests and one optional local calibration skipped, all 28 Playwright tests passed, syntax and diff checks passed, and no test-created jobs remained. Human confirmation at the exact downbeat is still required. No agents were delegated, and no model switch or skill was used.
 
+Phase 3G.3 passed its final human gate on 2026-07-22. The reviewer confirmed that exact-downbeat highlighting now selects the chord beginning on the new bar rather than the previous bar's final-beat cue. Combined with the accepted changing-tempo metronome behavior, late-start correction, loop-entry semantics, repeated count-in, and reload persistence, the required two-recording checkpoint is complete. Incorrect chord names remain a separate documented harmonic-analysis limitation. Phase 3G.2 normal-playback zoom and optional Follow is now the recommended implementation task. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -353,13 +355,11 @@ Local web POC:
 ## In Progress
 
 - No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; the holdout is consumed and fixed.
-- Phase 3G.3 is complete for automated verification and both required real-recording scenarios have been exercised. Human confirmation of the corrected chord-highlighting behavior is the remaining gate; a general undo history remains deferred.
+- Phase 3G.3 is complete for automated and human verification across the required changing-tempo and late-start recordings; a general undo history remains deferred.
 
 ## Next Recommended Task
 
-Confirm that chord highlighting follows Bar 1 and later timing adjustments on the late-start recording, including immediately before the active loop.
-
-Then implement Phase 3G.2 normal-playback timeline zoom and optional follow mode before additional chord heuristics or broad undo functionality.
+Implement Phase 3G.2 normal-playback timeline zoom and optional follow mode before additional chord heuristics or broad undo functionality.
 
 ## Skills Used
 
