@@ -1355,8 +1355,8 @@ test("corrected-timing chords follow later grid corrections for placement and hi
           downbeatOffsetSeconds: 1
         },
         chords: [
-          { bar: 1, beat: 1, start: 1, end: 5, name: "C", roman: "I" },
-          { bar: 2, beat: 1, start: 5, end: 9, name: "F", roman: "IV" }
+          { bar: 1, beat: 1, start: 1, end: 4.997, name: "C", roman: "I" },
+          { bar: 2, beat: 1, start: 4.997, end: 9, name: "F", roman: "IV" }
         ],
         melody: []
       }
@@ -1444,7 +1444,7 @@ test("corrected-timing chords follow later grid corrections for placement and hi
   await expect(page.getByTestId("chord-card-1")).toHaveAttribute("data-beat", "1");
   await setPlaybackPosition(page, 0.1);
   await expect(page.getByTestId("chord-card-0")).toHaveClass(/active/);
-  await setPlaybackPosition(page, 2.1);
+  await setPlaybackPosition(page, 2);
   await expect(page.getByTestId("chord-card-1")).toHaveClass(/active/);
 });
 

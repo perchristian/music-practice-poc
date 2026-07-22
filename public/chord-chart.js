@@ -271,10 +271,10 @@ export function chordBeatRange(chord, grid) {
   const beat = Number(chord.beat || 1);
   let startBeat = null;
 
-  if (Number.isFinite(startSeconds)) {
-    startBeat = secondsToAbsoluteBeat(grid, startSeconds);
-  } else if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
+  if (Number.isFinite(bar) && bar > 0 && Number.isFinite(beat) && beat > 0) {
     startBeat = barStartAbsoluteBeat(grid, bar) + (beat - 1);
+  } else if (Number.isFinite(startSeconds)) {
+    startBeat = secondsToAbsoluteBeat(grid, startSeconds);
   }
 
   if (!Number.isFinite(startBeat)) return null;
@@ -282,6 +282,7 @@ export function chordBeatRange(chord, grid) {
   let endBeat = Number.isFinite(endSeconds)
     ? secondsToAbsoluteBeat(grid, endSeconds)
     : startBeat + 1;
+  endBeat = snapNearInteger(endBeat);
   if (!Number.isFinite(endBeat) || endBeat <= startBeat) {
     endBeat = startBeat + 1;
   }

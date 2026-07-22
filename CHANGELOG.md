@@ -39,7 +39,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Fixed
 
-- Fixed corrected-timing chord highlights retaining reanalysis-time waveform seconds after later Bar 1, tempo, or meter adjustments.
+- Fixed chord remapping after timing corrections: corrected-analysis cues now use snapshot-to-current mapping, and explicit bar/beat positions override rounded waveform seconds at boundaries.
 - Fixed enabled loops resuming from arbitrary playhead positions instead of always relocating to the loop start before direct playback or count-in.
 - Fixed Demucs startup after moving the repository by invoking the module through the relocated virtualenv Python; added dependency-free command-resolution coverage and kept explicit interpreter/entrypoint overrides.
 - Fixed cumulative click and chord-chart drift on recordings that require more than one tempo segment.

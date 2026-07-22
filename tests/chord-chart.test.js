@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   addChordAtCellToChart,
+  adjustChordTimingForGrid,
   chordChartContainsCue,
   chordChartToCues,
   deleteChordFromChart,
@@ -208,5 +209,30 @@ describe("chord chart transforms", () => {
         { bar: 2, beat: 1, start: 6, end: 11 }
       ]
     );
+  });
+
+  it("keeps explicit bar and beat authoritative over rounded boundary seconds", () => {
+    const sourceGrid = {
+      ...grid,
+      downbeatOffsetSeconds: 1
+    };
+    const targetGrid = {
+      ...grid,
+      bpm: 120,
+      beatDurationSeconds: 0.5
+    };
+
+    const adjusted = adjustChordTimingForGrid({
+      bar: 2,
+      beat: 1,
+      start: 4.997,
+      end: 9,
+      name: "F"
+    }, sourceGrid, targetGrid);
+
+    assert.equal(adjusted.bar, 2);
+    assert.equal(adjusted.beat, 1);
+    assert.equal(adjusted.start, 2);
+    assert.equal(adjusted.end, 4);
   });
 });
