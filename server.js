@@ -1635,6 +1635,10 @@ async function createJobRecord({
         chordDisplay: "both",
         sectionInfoVisible: true
       },
+      timelineView: {
+        zoom: 1,
+        follow: false
+      },
       stemStates: {}
     },
     createdAt: new Date().toISOString(),
@@ -1701,6 +1705,13 @@ function normalizeHarmonyView(value) {
     barsPerRow: supportedBarsPerRow.has(barsPerRow) ? barsPerRow : 2,
     chordDisplay,
     sectionInfoVisible: value?.sectionInfoVisible !== false
+  };
+}
+
+function normalizeTimelineView(value) {
+  return {
+    zoom: Math.round(clampNumber(Number(value?.zoom), 1, 1, 24)),
+    follow: value?.follow === true
   };
 }
 
@@ -1793,6 +1804,7 @@ function ensurePracticeState(job) {
       : null,
     sections: normalizeSections(job.practiceState?.sections),
     harmonyView: normalizeHarmonyView(job.practiceState?.harmonyView),
+    timelineView: normalizeTimelineView(job.practiceState?.timelineView),
     stemStates
   };
 
@@ -2609,6 +2621,9 @@ async function handleUpdatePracticeState(req, id, res) {
   }
   if (payload.harmonyView && typeof payload.harmonyView === "object") {
     practiceState.harmonyView = normalizeHarmonyView(payload.harmonyView);
+  }
+  if (payload.timelineView && typeof payload.timelineView === "object") {
+    practiceState.timelineView = normalizeTimelineView(payload.timelineView);
   }
   if (payload.stemStates && typeof payload.stemStates === "object") {
     practiceState.stemStates = {

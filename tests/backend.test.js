@@ -225,6 +225,10 @@ describe("mock backend", () => {
           barsPerRow: 4,
           chordDisplay: "roman"
         },
+        timelineView: {
+          zoom: 7,
+          follow: true
+        },
         stemStates: {
           piano: { muted: true, solo: false, volume: 0.35 }
         }
@@ -302,6 +306,10 @@ describe("mock backend", () => {
       chordDisplay: "roman",
       sectionInfoVisible: true
     });
+    assert.deepEqual(updatedJob.practiceState.timelineView, {
+      zoom: 7,
+      follow: true
+    });
     assert.equal(updatedJob.practiceState.stemStates.piano.muted, true);
     assert.equal(updatedJob.practiceState.stemStates.piano.volume, 0.35);
 
@@ -338,6 +346,7 @@ describe("mock backend", () => {
     assert.equal(reopenedJob.practiceState.chordChart.chords[0].raw, "Csus2/G");
     assert.equal(reopenedJob.practiceState.sections[0].label, "Verse");
     assert.equal(reopenedJob.practiceState.harmonyView.chordDisplay, "roman");
+    assert.deepEqual(reopenedJob.practiceState.timelineView, { zoom: 7, follow: true });
 
     const sectionEditResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
       method: "PUT",

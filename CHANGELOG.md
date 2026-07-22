@@ -8,6 +8,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added normal-playback timeline zoom, Fit, and optional Follow controls for reading bars in longer songs.
+- Added persisted per-song timeline view settings plus browser coverage for zoom anchoring, paused seeks, loop jumps, manual-pan cancellation, reload, and narrow layouts.
 - Added unified per-bar timing events so one waveform bar line can carry a downbeat-time correction, a time-signature change, or both.
 - Added reviewable threshold-aware tempo/meter candidates before chord segmentation plus a dependency-free seven-fixture timing benchmark.
 - Added mid-song meter-aware bar, beat, click, chord, loop, count-in, Harmony, and inverse-seek mapping, including dotted-quarter pulse grouping for 6/8 and 12/8.
@@ -27,6 +29,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Follow keeps the playhead about 37.5% into the visible timeline, yields when the user manually pans, remains separate from timing-editor zoom, and defaults to off pending long-song review.
 - Replaced user-owned `practiceState.tempoMap` persistence with version-2 `practiceState.timingMap` events; existing version-1 anchors migrate deterministically on read.
 - Time and meter correction aspects can now be removed independently, while tempo remains derived from timed bar events.
 - Real harmonic analysis now suppresses isolated one-beat chord changes when both neighboring beats agree, reducing development cue density and false boundaries while preserving the user-owned working chart.

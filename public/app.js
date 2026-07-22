@@ -90,6 +90,10 @@ const timelineViewport = document.querySelector("#timelineViewport");
 const timelineTrack = document.querySelector("#timelineTrack");
 const waveformCanvas = document.querySelector("#waveformCanvas");
 const editTimingButton = document.querySelector("#editTimingButton");
+const playbackTimelineControls = document.querySelector("#playbackTimelineControls");
+const playbackTimelineZoom = document.querySelector("#playbackTimelineZoom");
+const playbackTimelineFitButton = document.querySelector("#playbackTimelineFitButton");
+const playbackTimelineFollowButton = document.querySelector("#playbackTimelineFollowButton");
 const timingEditorControls = document.querySelector("#timingEditorControls");
 const timingZoom = document.querySelector("#timingZoom");
 const timingFitButton = document.querySelector("#timingFitButton");
@@ -201,6 +205,7 @@ let metronomeVolume = 0.45;
 let waveformData = null;
 let waveformLoadId = 0;
 let timingEditMode = false;
+let timelineView = { zoom: 1, follow: false };
 let timingZoomFactor = 1;
 let selectedTimingAnchorBar = null;
 let timingDragState = null;
@@ -210,6 +215,8 @@ let chordChartRecoveryPending = false;
 let timelineHoverClientX = null;
 const timingTouchPointers = new Map();
 let timingPinchState = null;
+let timelinePanPointer = null;
+let programmaticTimelineScrollUntil = 0;
 let persistTimer = null;
 let pendingPracticeStatePersist = null;
 let practicePersistVersion = 0;
@@ -1070,6 +1077,7 @@ function practiceStatePayload() {
     chordChart,
     sections,
     harmonyView,
+    timelineView,
     stemStates: Object.fromEntries(
       stemPlayers.map((player) => [
         player.id,
@@ -1159,6 +1167,8 @@ function applySavedPracticeState(job) {
   chordChart = normalizedChordChart(state);
   sections = normalizedSections(state);
   harmonyView = normalizedHarmonyView(state);
+  timelineView = normalizedTimelineView(state);
+  updatePlaybackTimelineControls();
   if (chordDisplaySelect) {
     chordDisplaySelect.value = harmonyView.chordDisplay;
   }
@@ -2424,6 +2434,54 @@ function drawWaveform() {
   }
 }
 
+function normalizedTimelineView(state = null) {
+  const source = state?.timelineView || {};
+  return {
+    zoom: Math.min(24, Math.max(1, Math.round(Number(source.zoom) || 1))),
+    follow: source.follow === true
+  };
+}
+
+function effectiveTimelineZoom() {
+  return timingEditMode ? timingZoomFactor : timelineView.zoom;
+}
+
+function setTimelineScrollLeft(value) {
+  if (!timelineViewport) return;
+  const maximum = Math.max(0, timelineViewport.scrollWidth - timelineViewport.clientWidth);
+  programmaticTimelineScrollUntil = performance.now() + 150;
+  timelineViewport.scrollLeft = Math.min(maximum, Math.max(0, Number(value) || 0));
+}
+
+function updatePlaybackTimelineControls() {
+  if (playbackTimelineZoom) playbackTimelineZoom.value = String(timelineView.zoom);
+  if (playbackTimelineFollowButton) {
+    playbackTimelineFollowButton.classList.toggle("active", timelineView.follow);
+    playbackTimelineFollowButton.setAttribute("aria-pressed", String(timelineView.follow));
+  }
+}
+
+function followPlaybackTimeline(seconds = transportTime()) {
+  if (timingEditMode || !timelineView.follow || !timelineViewport || !timelineTrack) return;
+  const duration = transportDuration();
+  if (!Number.isFinite(duration) || duration <= 0) return;
+  const playheadX = (timelinePercent(seconds, duration) / 100) * timelineTrack.clientWidth;
+  setTimelineScrollLeft(playheadX - timelineViewport.clientWidth * 0.375);
+}
+
+function setPlaybackTimelineFollow(enabled, { persist = true } = {}) {
+  const follow = Boolean(enabled);
+  if (timelineView.follow === follow) {
+    if (follow) followPlaybackTimeline();
+    return;
+  }
+  timelineView = { ...timelineView, follow };
+  if (currentJob?.practiceState) currentJob.practiceState.timelineView = timelineView;
+  updatePlaybackTimelineControls();
+  if (follow) followPlaybackTimeline();
+  if (persist) queuePracticeStatePersist();
+}
+
 function updateTimelineTrackSize({ anchorRatio = null, viewportX = null } = {}) {
   if (!timelineTrack || !timelineViewport) return;
   const previousWidth = timelineTrack.clientWidth || timelineViewport.clientWidth;
@@ -2433,26 +2491,33 @@ function updateTimelineTrackSize({ anchorRatio = null, viewportX = null } = {}) 
     : previousWidth > 0
       ? (timelineViewport.scrollLeft + resolvedViewportX) / previousWidth
       : 0;
-  timelineTrack.style.width = timingEditMode ? `${Math.max(1, timingZoomFactor) * 100}%` : "100%";
+  timelineTrack.style.width = `${effectiveTimelineZoom() * 100}%`;
   requestAnimationFrame(() => {
-    if (timingEditMode) {
-      timelineViewport.scrollLeft = Math.max(0, resolvedAnchorRatio * timelineTrack.clientWidth - resolvedViewportX);
-    }
+    setTimelineScrollLeft(resolvedAnchorRatio * timelineTrack.clientWidth - resolvedViewportX);
     drawWaveform();
     if (currentMetadata) renderGridTimeline(currentMetadata);
+    followPlaybackTimeline();
   });
 }
 
-function setTimingZoom(nextZoom, { clientX = timelineHoverClientX } = {}) {
-  if (!timingEditMode || !timelineViewport || !timelineTrack) return;
+function setTimelineZoom(nextZoom, { clientX = timelineHoverClientX } = {}) {
+  if (!timelineViewport || !timelineTrack) return;
   const rect = timelineViewport.getBoundingClientRect();
   const pointerIsOverWaveform = Number.isFinite(clientX) && clientX >= rect.left && clientX <= rect.right;
   const viewportX = pointerIsOverWaveform ? clientX - rect.left : timelineViewport.clientWidth / 2;
   const anchorRatio = pointerIsOverWaveform
     ? (timelineViewport.scrollLeft + viewportX) / Math.max(1, timelineTrack.clientWidth)
     : timelinePercent(transportTime()) / 100;
-  timingZoomFactor = Math.min(24, Math.max(1, Number(nextZoom) || 1));
-  if (timingZoom) timingZoom.value = String(Math.round(timingZoomFactor));
+  const zoom = Math.min(24, Math.max(1, Math.round(Number(nextZoom) || 1)));
+  if (timingEditMode) {
+    timingZoomFactor = zoom;
+    if (timingZoom) timingZoom.value = String(zoom);
+  } else {
+    timelineView = { ...timelineView, zoom };
+    if (currentJob?.practiceState) currentJob.practiceState.timelineView = timelineView;
+    updatePlaybackTimelineControls();
+    queuePracticeStatePersist();
+  }
   updateTimelineTrackSize({ anchorRatio, viewportX });
 }
 
@@ -2464,7 +2529,6 @@ function setTimingEditMode(enabled) {
     selectedTimingAnchorBar = null;
     timingDragState = null;
     if (timingZoom) timingZoom.value = "1";
-    if (timelineViewport) timelineViewport.scrollLeft = 0;
   }
   updateTimelineTrackSize({ anchorRatio: timelinePercent(transportTime()) / 100 });
   updateTimingAnchorControls();
@@ -2473,6 +2537,7 @@ function setTimingEditMode(enabled) {
 function timingViewportState() {
   timelineViewport?.classList.toggle("editing", timingEditMode);
   if (editTimingButton) editTimingButton.hidden = timingEditMode || !currentMetadata;
+  if (playbackTimelineControls) playbackTimelineControls.hidden = timingEditMode;
   if (timingEditorControls) timingEditorControls.hidden = !timingEditMode;
   gridTimeline?.setAttribute("aria-label", timingEditMode
     ? "Editable beat and bar grid over waveform"
@@ -3019,6 +3084,7 @@ function updateTimeDisplay() {
   }
 
   renderTimelineIndicators();
+  followPlaybackTimeline(current);
   if (timingMap) updateTempoControl();
 }
 
@@ -3920,6 +3986,20 @@ scrubber.addEventListener("change", () => {
 
 editTimingButton?.addEventListener("click", () => setTimingEditMode(true));
 timingDoneButton?.addEventListener("click", () => setTimingEditMode(false));
+playbackTimelineFitButton?.addEventListener("click", () => {
+  timelineView = { ...timelineView, zoom: 1 };
+  if (currentJob?.practiceState) currentJob.practiceState.timelineView = timelineView;
+  updatePlaybackTimelineControls();
+  setTimelineScrollLeft(0);
+  updateTimelineTrackSize({ anchorRatio: 0, viewportX: 0 });
+  queuePracticeStatePersist();
+});
+playbackTimelineFollowButton?.addEventListener("click", () => {
+  setPlaybackTimelineFollow(!timelineView.follow);
+});
+playbackTimelineZoom?.addEventListener("input", () => {
+  setTimelineZoom(Number(playbackTimelineZoom.value));
+});
 timingFitButton?.addEventListener("click", () => {
   timingZoomFactor = 1;
   if (timingZoom) timingZoom.value = "1";
@@ -3927,7 +4007,7 @@ timingFitButton?.addEventListener("click", () => {
   updateTimelineTrackSize({ anchorRatio: 0, viewportX: 0 });
 });
 timingZoom?.addEventListener("input", () => {
-  setTimingZoom(Number(timingZoom.value));
+  setTimelineZoom(Number(timingZoom.value));
 });
 timingNudgeLeft?.addEventListener("click", () => nudgeSelectedTimingAnchor(-0.01));
 timingNudgeRight?.addEventListener("click", () => nudgeSelectedTimingAnchor(0.01));
@@ -3977,6 +4057,13 @@ timelineViewport?.addEventListener("pointerleave", () => {
 });
 timelineViewport?.addEventListener("pointermove", (event) => {
   timelineHoverClientX = event.clientX;
+  if (
+    timelinePanPointer?.pointerId === event.pointerId &&
+    Math.abs(event.clientX - timelinePanPointer.startX) >= 6
+  ) {
+    timelinePanPointer = null;
+    setPlaybackTimelineFollow(false);
+  }
   if (event.pointerType !== "touch" || !timingTouchPointers.has(event.pointerId)) return;
   timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (timingTouchPointers.size < 2 || !timingPinchState) return;
@@ -3984,30 +4071,43 @@ timelineViewport?.addEventListener("pointermove", (event) => {
   const distance = Math.hypot(second.x - first.x, second.y - first.y);
   const centerX = (first.x + second.x) / 2;
   event.preventDefault();
-  setTimingZoom(timingPinchState.zoom * distance / Math.max(1, timingPinchState.distance), { clientX: centerX });
+  setTimelineZoom(timingPinchState.zoom * distance / Math.max(1, timingPinchState.distance), { clientX: centerX });
 });
 timelineViewport?.addEventListener("pointerdown", (event) => {
-  if (!timingEditMode || event.pointerType !== "touch") return;
+  if (!timingEditMode) {
+    timelinePanPointer = { pointerId: event.pointerId, startX: event.clientX };
+  }
+  if (event.pointerType !== "touch") return;
   timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (timingTouchPointers.size === 2) {
     const [first, second] = [...timingTouchPointers.values()];
     timingPinchState = {
       distance: Math.hypot(second.x - first.x, second.y - first.y),
-      zoom: timingZoomFactor
+      zoom: effectiveTimelineZoom()
     };
   }
 });
 function finishTimingTouch(event) {
+  if (timelinePanPointer?.pointerId === event.pointerId) timelinePanPointer = null;
   timingTouchPointers.delete(event.pointerId);
   if (timingTouchPointers.size < 2) timingPinchState = null;
 }
 timelineViewport?.addEventListener("pointerup", finishTimingTouch);
 timelineViewport?.addEventListener("pointercancel", finishTimingTouch);
 timelineViewport?.addEventListener("wheel", (event) => {
-  if (!timingEditMode || (!event.ctrlKey && !event.metaKey)) return;
+  if (!timingEditMode && !event.ctrlKey && !event.metaKey) {
+    setPlaybackTimelineFollow(false);
+    return;
+  }
+  if (!event.ctrlKey && !event.metaKey) return;
   event.preventDefault();
-  setTimingZoom(timingZoomFactor * Math.exp(-event.deltaY * 0.01), { clientX: event.clientX });
+  setTimelineZoom(effectiveTimelineZoom() * Math.exp(-event.deltaY * 0.01), { clientX: event.clientX });
 }, { passive: false });
+timelineViewport?.addEventListener("scroll", () => {
+  if (!timingEditMode && timelineView.follow && performance.now() > programmaticTimelineScrollUntil) {
+    setPlaybackTimelineFollow(false);
+  }
+});
 
 window.addEventListener("resize", () => {
   drawWaveform();

@@ -685,6 +685,7 @@ audio {
 }
 
 .timing-toolbar,
+.playback-timeline-controls,
 .timing-editor-controls,
 .timing-anchor-controls {
   display: flex;
@@ -697,11 +698,13 @@ audio {
   justify-content: space-between;
 }
 
+.playback-timeline-controls[hidden],
 .timing-editor-controls[hidden],
 .timing-anchor-controls[hidden] {
   display: none;
 }
 
+.playback-timeline-controls label,
 .timing-editor-controls label {
   display: flex;
   align-items: center;
@@ -740,8 +743,15 @@ audio {
   min-width: 78px;
 }
 
+.playback-timeline-controls input[type="range"],
 .timing-editor-controls input[type="range"] {
   width: min(180px, 38vw);
+}
+
+.playback-timeline-controls .active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .compact-button {
@@ -751,7 +761,7 @@ audio {
 
 .timeline-viewport {
   position: relative;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: hidden;
   height: 58px;
   border: 1px solid var(--line);

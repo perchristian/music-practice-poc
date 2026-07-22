@@ -23,6 +23,7 @@ test.afterEach(async ({ request }) => {
     "resize-chords-",
     "delete-last-chord-",
     "loop-bars-",
+    "timeline-view-",
     "timing-map-"
   ];
   const entries = await request.get("/api/jobs").then((response) => (response.ok() ? response.json() : []));
@@ -798,6 +799,141 @@ test("loop playback always enters at its start with optional repeated count-in",
     .toBeGreaterThan(0);
   const countedLoopEntryPlayCalls = await page.evaluate(() => window.__playCalls);
   expect(countedLoopEntryPlayCalls.every((call) => call.currentTime === 1.5)).toBe(true);
+});
+
+test("playback timeline zoom and follow persist, track seeks and loops, and yield to manual pans", async ({ page }) => {
+  await page.addInitScript(() => {
+    const currentTimes = new WeakMap();
+    const pausedStates = new WeakMap();
+    Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+      get() {
+        return currentTimes.get(this) ?? 0;
+      },
+      set(value) {
+        currentTimes.set(this, Number(value) || 0);
+        queueMicrotask(() => this.dispatchEvent(new Event("seeked")));
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      get() {
+        return 64;
+      }
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      get() {
+        return pausedStates.get(this) ?? true;
+      }
+    });
+    HTMLMediaElement.prototype.play = function () {
+      pausedStates.set(this, false);
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      pausedStates.set(this, true);
+    };
+  });
+
+  await page.goto("/");
+  const filename = `timeline-view-${Date.now()}.mov`;
+  const jobId = await createProcessedJob(page, filename);
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+
+  await expect(page.getByTestId("playback-timeline-controls")).toBeVisible();
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "false");
+  await setPlaybackPosition(page, 32);
+  await page.getByTestId("playback-timeline-zoom").fill("4");
+  await expect
+    .poll(async () => page.locator("#timelineTrack").evaluate((element) => element.clientWidth))
+    .toBeGreaterThan(await page.getByTestId("timeline-viewport").evaluate((element) => element.clientWidth));
+  await expect
+    .poll(async () => page.evaluate(() => {
+      const viewport = document.querySelector("#timelineViewport").getBoundingClientRect();
+      const playhead = document.querySelector(".timeline-playhead").getBoundingClientRect();
+      return (playhead.left - viewport.left) / viewport.width;
+    }))
+    .toBeGreaterThan(0.45);
+  await expect
+    .poll(async () => page.evaluate(() => {
+      const viewport = document.querySelector("#timelineViewport").getBoundingClientRect();
+      const playhead = document.querySelector(".timeline-playhead").getBoundingClientRect();
+      return (playhead.left - viewport.left) / viewport.width;
+    }))
+    .toBeLessThan(0.55);
+
+  await page.getByTestId("playback-timeline-follow").click();
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(async () => page.evaluate(() => {
+      const viewport = document.querySelector("#timelineViewport").getBoundingClientRect();
+      const playhead = document.querySelector(".timeline-playhead").getBoundingClientRect();
+      return (playhead.left - viewport.left) / viewport.width;
+    }))
+    .toBeGreaterThan(0.34);
+  await expect
+    .poll(async () => page.evaluate(() => {
+      const viewport = document.querySelector("#timelineViewport").getBoundingClientRect();
+      const playhead = document.querySelector(".timeline-playhead").getBoundingClientRect();
+      return (playhead.left - viewport.left) / viewport.width;
+    }))
+    .toBeLessThan(0.41);
+
+  const middleScroll = await page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft);
+  await setPlaybackPosition(page, 48);
+  await expect
+    .poll(async () => page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(middleScroll);
+
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("playback-timeline-zoom")).toHaveValue("4");
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByTestId("edit-timing").click();
+  await expect(page.getByTestId("playback-timeline-controls")).not.toBeVisible();
+  const editScroll = await page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft);
+  await setPlaybackPosition(page, 8);
+  await expect(page.getByTestId("timeline-viewport")).toHaveJSProperty("scrollLeft", editScroll);
+  await page.getByTestId("timing-done").click();
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByTestId("loop-enabled").check();
+  await page.getByTestId("loop-start").fill("5");
+  await page.getByTestId("loop-end").fill("6");
+  await setPlaybackPosition(page, 48);
+  const beforeLoopEntry = await page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft);
+  await page.getByTestId("speed-05").click();
+  await page.getByRole("button", { name: "Play" }).click();
+  await expect(page.locator("#scrubber")).toHaveValue("16");
+  await expect
+    .poll(async () => page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft))
+    .toBeLessThan(beforeLoopEntry);
+  await page.getByRole("button", { name: "Pause" }).click();
+
+  const viewportBox = await page.getByTestId("timeline-viewport").boundingBox();
+  if (!viewportBox) throw new Error("Timeline viewport is unavailable.");
+  await page.mouse.move(viewportBox.x + viewportBox.width / 2, viewportBox.y + viewportBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewportBox.x + viewportBox.width / 2 + 24, viewportBox.y + viewportBox.height / 2);
+  await page.mouse.up();
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
+
+  for (const width of [1180, 820, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+      .toBe(true);
+  }
+
+  await page.reload();
+  await page.getByTestId(`song-row-${jobId}`).click();
+  await expect(page.getByTestId("playback-timeline-zoom")).toHaveValue("4");
+  await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "false");
+  await page.getByTestId("playback-timeline-fit").click();
+  await expect(page.getByTestId("playback-timeline-zoom")).toHaveValue("1");
+  await expect(page.getByTestId("timeline-viewport")).toHaveJSProperty("scrollLeft", 0);
 });
 
 test("loop range can be marked and extended from the harmony chord grid", async ({ page }) => {

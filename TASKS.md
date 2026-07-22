@@ -2,7 +2,7 @@
 
 ## Next Task
 
-Implement Phase 3G.2 normal-playback timeline zoom and optional follow mode, keeping Follow off by default until long-song manual review supports enabling it.
+Implement Phase 5D compact practice shell and touch accessibility, starting with the library/app-shell cleanup in Phase 5D.1.
 
 ## Purpose
 
@@ -409,7 +409,7 @@ Verification:
 - Viewport checks around 1180 px, 820 px, and 390 px with no horizontal page overflow.
 - Manual playback review on a long song before enabling Follow by default; default to off unless evidence supports otherwise.
 
-Status: Planned after the unified timing-event work, so normal playback zoom/follow is built on the meter-aware map rather than the current global-meter assumption.
+Status: Complete on 2026-07-22. Normal playback exposes persisted per-song Zoom, Fit, and optional Follow on the same timeline viewport. Follow targets 37.5% of the viewport, clamps at the song boundaries, updates through paused seeks, playback-speed changes, and loop relocation, and turns off on direct pan input. Timing edit keeps its own ephemeral zoom and suppresses Follow without changing the saved playback preference. Focused browser coverage verifies anchoring, reload, loop entry, manual-pan cancellation, and no page overflow at 1180, 820, and 390 px. Follow remains off by default until a long-song manual review provides evidence to change that default.
 
 ### 19. Phase 5D: Compact Practice Shell and Touch Accessibility
 
