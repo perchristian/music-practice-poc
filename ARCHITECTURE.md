@@ -11,7 +11,7 @@ The backend owns uploads, job status, pipeline mode, generated mock stem assets,
 - `PIPELINE_MODE=mock`: default. Uses no heavy ML, no FFmpeg, no GPU, and no large media. It simulates realistic processing and returns local demo stems when available, otherwise generated audio, plus plausible harmonic metadata.
 - `PIPELINE_MODE=real`: accepts real multipart media uploads, stores the source file under each job directory, invokes FFmpeg, writes `source-audio.wav`, runs Demucs `htdemucs_6s` by default to create drums, bass, guitar, piano, vocals, and other stems, then runs first-pass beat-aware harmonic analysis over the extracted full mix. The old FFmpeg spectral piano/accompaniment split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
 
-The browser topbar can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the startup default, and existing jobs retain the mode they were created with.
+Stable browser URLs and the topbar information popover can switch the active backend mode between `mock` and `real` for new uploads in the current local server session. `PIPELINE_MODE` remains the server startup default, and existing jobs retain the mode they were created with.
 
 ## Recommended Architecture
 
@@ -129,6 +129,10 @@ The processed-song library treats completed jobs as reusable practice items inst
 ## Library UX
 
 The frontend uses the Voice Memos-inspired song workspace documented in `UX_FLOOR_PLANS.md`.
+
+Pipeline mode is part of the browser entry URL (`?mode=real` or `?mode=mock`) rather than a transient main-surface control. A browser with no saved preference is redirected from the root to Real; later root visits reuse the last successfully selected mode. The processed-demo route explicitly selects Mock. The URL selection is applied through the existing backend setting endpoint because this remains a single-user local POC. Mode links and backend readiness live in the compact app-information popover.
+
+Library video thumbnails remain lightweight data URLs in each job record. New captures are centered 240 px square JPEG crops, and both list and selected-song artwork enforce clipped square presentation so older non-square thumbnails remain usable.
 
 The backend API and storage model should remain the same. This is primarily a client layout and navigation change:
 

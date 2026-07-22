@@ -7,7 +7,11 @@ PORT="${PORT:-3000}"
 HOST="${POC_HOST:-127.0.0.1}"
 PIPELINE_MODE="${PIPELINE_MODE:-mock}"
 OPEN_BROWSER="${OPEN_BROWSER:-1}"
-URL="http://localhost:${PORT}"
+if [ "${PIPELINE_MODE}" != "real" ]; then
+  PIPELINE_MODE="mock"
+fi
+URL="http://localhost:${PORT}/?mode=${PIPELINE_MODE}"
+HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
 export PORT HOST PIPELINE_MODE
 
@@ -31,7 +35,7 @@ if [ ! -d "node_modules" ]; then
   exit 1
 fi
 
-if curl --silent --fail "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+if curl --silent --fail "${HEALTH_URL}" >/dev/null 2>&1; then
   echo "Piano Practice POC is already running on ${URL}."
   open_browser
   exit 0
@@ -52,7 +56,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 for _ in {1..40}; do
-  if curl --silent --fail "http://127.0.0.1:${PORT}/api/health" >/dev/null 2>&1; then
+  if curl --silent --fail "${HEALTH_URL}" >/dev/null 2>&1; then
     open_browser
     echo
     echo "The app is running. Close this Terminal window to stop the service."

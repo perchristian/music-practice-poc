@@ -8,6 +8,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added stable `?mode=real` and `?mode=mock` app URLs, with Real as the first-visit default and the last selected mode remembered for later root visits.
+- Added a compact app-information popover for processing-mode selection and backend readiness details.
+- Added an icon-led library search field with an explicit clear action.
 - Added normal-playback timeline zoom, Fit, and optional Follow controls for reading bars in longer songs.
 - Added persisted per-song timeline view settings plus browser coverage for zoom anchoring, paused seeks, loop jumps, manual-pan cancellation, reload, and narrow layouts.
 - Added unified per-bar timing events so one waveform bar line can carry a downbeat-time correction, a time-signature change, or both.
@@ -29,6 +32,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Compacted the app shell, selected-song header, and empty state by removing duplicate pipeline, song metadata, and field-label copy.
+- Video thumbnails are now captured as square crops, while persisted artwork is clipped into square list and header surfaces.
+- The macOS demo launcher now opens the stable URL matching its configured pipeline mode.
 - Follow keeps the playhead about 37.5% into the visible timeline, yields when the user manually pans, remains separate from timing-editor zoom, and defaults to off pending long-song review.
 - Replaced user-owned `practiceState.tempoMap` persistence with version-2 `practiceState.timingMap` events; existing version-1 anchors migrate deterministically on read.
 - Time and meter correction aspects can now be removed independently, while tempo remains derived from timed bar events.

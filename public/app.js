@@ -48,8 +48,6 @@ import {
 } from "./tempo-map.js";
 
 const serviceStatus = document.querySelector("#serviceStatus");
-const pipelineEyebrow = document.querySelector("#pipelineEyebrow");
-const pipelineModeControls = document.querySelector("#pipelineModeControls");
 const uploadForm = document.querySelector("#uploadForm");
 const mediaInput = document.querySelector("#mediaInput");
 const fileLabel = document.querySelector("#fileLabel");
@@ -59,11 +57,10 @@ const practiceView = document.querySelector("#practiceView");
 const songList = document.querySelector("#songList");
 const songListEmpty = document.querySelector("#songListEmpty");
 const songSearch = document.querySelector("#songSearch");
+const songSearchClear = document.querySelector("#songSearchClear");
 const selectedSongHeader = document.querySelector("#selectedSongHeader");
 const selectedSongArt = document.querySelector("#selectedSongArt");
-const selectedSongEyebrow = document.querySelector("#selectedSongEyebrow");
 const selectedSongTitle = document.querySelector("#selectedSongTitle");
-const selectedSongMeta = document.querySelector("#selectedSongMeta");
 const practiceSaveStatus = document.querySelector("#practiceSaveStatus");
 const selectedSongActions = document.querySelector("#selectedSongActions");
 const selectedMoreButton = document.querySelector("#selectedMoreButton");
@@ -163,12 +160,32 @@ const libraryFilters = document.querySelector("#libraryFilters");
 const learningStatusSelect = document.querySelector("#learningStatus");
 const backToHomeButton = document.querySelector("#backToHomeButton");
 const urlParams = new URLSearchParams(window.location.search);
+const explicitPipelineMode = ["mock", "real"].includes(urlParams.get("mode"))
+  ? urlParams.get("mode")
+  : null;
+let savedPipelineMode = null;
+try {
+  savedPipelineMode = window.localStorage.getItem("piano-practice-pipeline-mode");
+} catch {
+  // Storage can be unavailable in restricted browser contexts.
+}
+const requestedPipelineMode = explicitPipelineMode || (
+  urlParams.get("demo") === "processed"
+    ? "mock"
+    : ["mock", "real"].includes(savedPipelineMode) ? savedPipelineMode : "real"
+);
+const redirectToStableModeUrl = !explicitPipelineMode;
+if (redirectToStableModeUrl) {
+  const stableUrl = new URL(window.location.href);
+  stableUrl.searchParams.set("mode", requestedPipelineMode);
+  window.location.replace(stableUrl);
+}
 
 let currentMetadata = null;
 const queueJobs = new Map();
 let libraryEntries = [];
 let activeLibraryFilter = "all";
-let pipelineMode = "mock";
+let pipelineMode = requestedPipelineMode;
 let pipelineModeRequestId = 0;
 let stemPlayers = [];
 let primaryPlayer = null;
@@ -548,10 +565,6 @@ function statusLabel(status) {
   return statusLabels[status] || "Not started";
 }
 
-function modeLabel(mode) {
-  return mode === "real" ? "Real" : "Mock";
-}
-
 function separatorLabel(settings) {
   if (settings?.mode !== "real" || !settings.realSeparator) return "";
   return settings.realSeparator === "ffmpeg-spectral-piano-v1"
@@ -565,12 +578,16 @@ function backendReadyLabel(settings, suffix = "") {
 
 function renderPipelineMode(mode) {
   pipelineMode = mode === "real" ? "real" : "mock";
-  if (pipelineEyebrow) {
-    pipelineEyebrow.textContent = `${modeLabel(pipelineMode)} pipeline`;
+  try {
+    window.localStorage.setItem("piano-practice-pipeline-mode", pipelineMode);
+  } catch {
+    // The URL remains the source of truth when storage is unavailable.
   }
-  for (const button of pipelineModeControls?.querySelectorAll("button[data-mode]") || []) {
-    button.classList.toggle("active", button.dataset.mode === pipelineMode);
-    button.setAttribute("aria-pressed", String(button.dataset.mode === pipelineMode));
+  for (const link of document.querySelectorAll(".mode-links a[data-mode]")) {
+    const active = link.dataset.mode === pipelineMode;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   }
 }
 
@@ -651,6 +668,11 @@ function renderArtwork(container, title, thumbnailDataUrl = null) {
     const image = document.createElement("img");
     image.src = thumbnailDataUrl;
     image.alt = "";
+    image.decoding = "async";
+    image.addEventListener("error", () => {
+      image.remove();
+      container.textContent = String(title || "Song").slice(0, 1).toUpperCase();
+    }, { once: true });
     container.append(image);
     return;
   }
@@ -658,11 +680,9 @@ function renderArtwork(container, title, thumbnailDataUrl = null) {
   container.textContent = String(title || "Song").slice(0, 1).toUpperCase();
 }
 
-function showSelectedHeader({ eyebrow, title, meta, actions = false, thumbnailDataUrl = null }) {
+function showSelectedHeader({ title, actions = false, thumbnailDataUrl = null }) {
   selectedSongHeader.hidden = false;
-  selectedSongEyebrow.textContent = eyebrow;
   selectedSongTitle.textContent = title;
-  selectedSongMeta.textContent = meta;
   renderArtwork(selectedSongArt, title, thumbnailDataUrl);
   selectedSongActions.hidden = !actions;
   if (selectedStatusControl) {
@@ -1378,16 +1398,13 @@ function renderCompletedJob(job) {
   keyOverride = normalizedKeyOverride(job.practiceState);
   chordChart = normalizedChordChart(job.practiceState);
   showSelectedHeader({
-    eyebrow: "Song",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(effectiveMetadata(job.result.metadata))}`,
     actions: true,
     thumbnailDataUrl: job.thumbnailDataUrl
   });
   renderStemPlayers(stems);
   applySavedPracticeState(job);
   renderMetadata(job.result.metadata);
-  updateSelectedSongMeta();
   showDetailPane("practice");
   openMobileDetail();
   if (learningStatusSelect) {
@@ -1457,7 +1474,6 @@ function applyChordChartActionJob(job) {
   currentJob = job;
   chordChart = normalizedChordChart(job.practiceState);
   renderMetadata(job.result.metadata);
-  updateSelectedSongMeta();
   setPracticeSaveStatus("saved");
 }
 
@@ -1617,7 +1633,6 @@ async function reanalyzeHarmonyFromCorrectedTiming() {
     keyOverride = normalizedKeyOverride(payload.practiceState);
     chordChart = normalizedChordChart(payload.practiceState);
     renderMetadata(payload.result.metadata);
-    updateSelectedSongMeta();
     setPracticeSaveStatus("saved");
     await loadLibrary();
   } catch (error) {
@@ -2238,11 +2253,6 @@ function updateTempoControl() {
   }
 }
 
-function updateSelectedSongMeta() {
-  if (!currentJob || !selectedSongMeta || !currentMetadata) return;
-  selectedSongMeta.textContent = `${formatActivityTime(currentJob.createdAt)} - ${jobDurationLabel(currentJob)} - ${keyTempoLabel(currentMetadata)}`;
-}
-
 function activeTempoAnchorSegment() {
   const grid = normalizedBeatGrid(currentMetadata, transportDuration());
   const anchors = timingMapTimeEvents(timingMap || grid?.timingMap, {
@@ -2308,7 +2318,6 @@ function commitTimingMap(nextMap, selectedBar = selectedTimingAnchorBar) {
   }
   resetMetronomeSchedule();
   renderMetadata(currentAnalyzedMetadata);
-  updateSelectedSongMeta();
   updateTimingAnchorControls();
   queuePracticeStatePersist();
 }
@@ -2323,7 +2332,6 @@ function applyGridOverrides(nextOverrides = {}) {
 
   resetMetronomeSchedule();
   renderMetadata(currentAnalyzedMetadata);
-  updateSelectedSongMeta();
   queuePracticeStatePersist();
 }
 
@@ -2336,7 +2344,6 @@ function applyKeyOverride(nextKey) {
   }
 
   renderMetadata(currentAnalyzedMetadata);
-  updateSelectedSongMeta();
   queuePracticeStatePersist();
 }
 
@@ -3611,9 +3618,7 @@ async function selectQueueJob(queueJob) {
 
 function renderProcessingJob(queueJob) {
   showSelectedHeader({
-    eyebrow: queueJob.status === "failed" ? "Failed" : "Processing",
     title: queueJob.filename,
-    meta: `${formatActivityTime(queueJob.updatedAt || queueJob.createdAt)} - ${queueStatusLabel(queueJob)}`,
     actions: false,
     thumbnailDataUrl: queueJob.thumbnailDataUrl
   });
@@ -3634,9 +3639,7 @@ function renderReadyJob(job) {
   selectedQueueLocalId = null;
   selectedReadyJobId = job.id;
   showSelectedHeader({
-    eyebrow: "Song",
     title: job.originalFilename,
-    meta: `${formatActivityTime(job.createdAt)} - ${jobDurationLabel(job)} - ${keyTempoLabel(job.result.metadata)}`,
     actions: true,
     thumbnailDataUrl: job.thumbnailDataUrl
   });
@@ -3731,15 +3734,28 @@ function readVideoThumbnail(file) {
         }
 
         const canvas = document.createElement("canvas");
-        const targetWidth = 240;
-        canvas.width = targetWidth;
-        canvas.height = Math.max(1, Math.round((height / width) * targetWidth));
+        const targetSize = 240;
+        canvas.width = targetSize;
+        canvas.height = targetSize;
         const context = canvas.getContext("2d");
         if (!context) {
           finish();
           return;
         }
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const sourceSize = Math.min(width, height);
+        const sourceX = (width - sourceSize) / 2;
+        const sourceY = (height - sourceSize) / 2;
+        context.drawImage(
+          video,
+          sourceX,
+          sourceY,
+          sourceSize,
+          sourceSize,
+          0,
+          0,
+          targetSize,
+          targetSize
+        );
         finish(canvas.toDataURL("image/jpeg", 0.72));
       } catch (error) {
         console.error(error);
@@ -3949,12 +3965,6 @@ uploadButton.addEventListener("click", () => {
 
 uploadForm.addEventListener("submit", (event) => {
   event.preventDefault();
-});
-
-pipelineModeControls?.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-mode]");
-  if (!button || button.dataset.mode === pipelineMode) return;
-  void setPipelineMode(button.dataset.mode);
 });
 
 playButton.addEventListener("click", () => {
@@ -4513,6 +4523,14 @@ libraryFilters.addEventListener("click", (event) => {
 });
 
 songSearch.addEventListener("input", () => {
+  songSearchClear.hidden = !songSearch.value;
+  renderSongList();
+});
+
+songSearchClear?.addEventListener("click", () => {
+  songSearch.value = "";
+  songSearchClear.hidden = true;
+  songSearch.focus();
   renderSongList();
 });
 
@@ -4591,7 +4609,9 @@ failedDeleteButton?.addEventListener("click", async () => {
 });
 
 async function boot() {
+  if (redirectToStableModeUrl) return;
   populateKeySelect();
+  await setPipelineMode(requestedPipelineMode);
   await checkHealth();
   await loadLibrary();
   if (!loadProcessedDemo) return;

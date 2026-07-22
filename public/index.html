@@ -10,17 +10,18 @@
     <main class="app-shell">
       <section class="workspace">
         <header class="topbar">
-          <div>
-            <p class="eyebrow" id="pipelineEyebrow">Mock pipeline</p>
-            <h1>Piano practice from a screen recording</h1>
-          </div>
-          <div class="topbar-tools">
-            <div class="mode-switch" id="pipelineModeControls" data-testid="pipeline-mode-controls" role="group" aria-label="Pipeline mode">
-              <button type="button" data-mode="mock" data-testid="mode-mock">Mock</button>
-              <button type="button" data-mode="real" data-testid="mode-real">Real</button>
+          <h1>Piano Practice</h1>
+          <details class="app-info" id="appInfo" data-testid="app-info">
+            <summary class="icon-button" aria-label="App and backend information">i</summary>
+            <div class="app-info-popover">
+              <strong>Processing mode</strong>
+              <nav class="mode-links" aria-label="Pipeline mode">
+                <a href="/?mode=real" data-mode="real" data-testid="mode-real">Real</a>
+                <a href="/?mode=mock" data-mode="mock" data-testid="mode-mock">Mock</a>
+              </nav>
+              <p class="muted" id="serviceStatus" data-testid="service-status">Checking backend</p>
             </div>
-            <div class="status-pill" id="serviceStatus" data-testid="service-status">Checking backend</div>
-          </div>
+          </details>
         </header>
 
         <section class="song-workspace" id="homeView" data-testid="home-view">
@@ -37,10 +38,15 @@
                 </button>
               </form>
             </div>
-            <label class="search-field">
-              <span>Search</span>
+            <div class="search-field" role="search">
+              <svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="6"></circle>
+                <path d="m16 16 4 4"></path>
+              </svg>
+              <label class="visually-hidden" for="songSearch">Search songs</label>
               <input id="songSearch" data-testid="song-search" type="search" placeholder="Search songs">
-            </label>
+              <button type="button" class="search-clear" id="songSearchClear" data-testid="song-search-clear" aria-label="Clear search" hidden>×</button>
+            </div>
             <div class="filter-row" id="libraryFilters" data-testid="library-filters" role="group" aria-label="Filter songs by learning status">
               <button type="button" class="active" data-filter="all" data-testid="filter-all">All</button>
               <button type="button" data-filter="not_started" data-testid="filter-not-started">Not started</button>
@@ -56,13 +62,11 @@
               <button type="button" class="secondary-button mobile-back-button" id="backToHomeButton" data-testid="back-to-home-button">Songs</button>
               <div class="selected-art" id="selectedSongArt" data-testid="selected-song-art" aria-hidden="true"></div>
               <div class="selected-copy">
-                <p class="eyebrow" id="selectedSongEyebrow">Selected song</p>
                 <h2 id="selectedSongTitle" data-testid="selected-song-title">Song</h2>
-                <p class="muted" id="selectedSongMeta" data-testid="selected-song-meta"></p>
                 <p class="save-status" id="practiceSaveStatus" data-testid="practice-save-status" aria-live="polite" hidden>Saved</p>
               </div>
               <label class="status-control selected-status-control" for="learningStatus">
-                <span>Learning status</span>
+                <span class="visually-hidden">Learning status</span>
                 <select id="learningStatus" data-testid="learning-status">
                   <option value="not_started">Not started</option>
                   <option value="practicing">Practicing</option>
@@ -78,9 +82,8 @@
               </div>
             </section>
 
-            <section class="panel empty-detail" id="emptyDetail" data-testid="empty-detail">
-              <h2>Select a song</h2>
-              <p class="muted">Uploads, processing jobs, and completed songs stay in the list.</p>
+            <section class="empty-detail" id="emptyDetail" data-testid="empty-detail">
+              <p class="muted">Select a song or upload a recording.</p>
             </section>
 
             <section class="panel processing-detail" id="processingDetail" data-testid="processing-detail" hidden>
@@ -93,9 +96,8 @@
               </div>
             </section>
 
-            <section class="panel empty-detail" id="readyDetail" data-testid="ready-detail" hidden>
-              <h2>Open from the song row</h2>
-              <p class="muted">The processed song remains in the list.</p>
+            <section class="empty-detail" id="readyDetail" data-testid="ready-detail" hidden>
+              <p class="muted">Ready to practise.</p>
             </section>
 
             <section class="panel empty-detail failed-detail" id="failedDetail" data-testid="failed-detail" hidden>

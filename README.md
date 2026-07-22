@@ -2,7 +2,7 @@
 
 Mock-first prototype for testing whether a screen recording can become a better piano learning workflow.
 
-The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. The browser can switch Mock/Real pipeline mode, queue multiple files, reopen processed songs from a creation-time-sorted library, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
+The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. Stable `?mode=mock` and `?mode=real` URLs select the upload pipeline. The browser can queue multiple files, reopen processed songs from a creation-time-sorted library, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
 
 ## Run
 
@@ -11,7 +11,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000/?mode=mock` for the dependency-light demo or `http://localhost:3000/?mode=real` for real processing. A first-time root visit chooses Real; later root visits remember the last selected mode.
 
 On macOS, after `npm install` has been run once, you can also start the local demo
 without opening an editor:
@@ -21,18 +21,18 @@ scripts/start-demo.command
 ```
 
 The same file can be double-clicked from Finder. It starts the app in mock mode,
-opens `http://localhost:3000` in the browser, and keeps the service running until
+opens `http://localhost:3000/?mode=mock` in the browser, and keeps the service running until
 the Terminal window is closed.
 
 For faster frontend iteration without selecting or uploading a file, open:
 
 ```text
-http://localhost:3000/?demo=processed
+http://localhost:3000/?mode=mock&demo=processed
 ```
 
 This creates an already-complete mock job and jumps directly to the processed practice view.
 
-Mock mode is the default and requires no heavy ML dependencies:
+Mock remains the dependency-light server and launcher default and requires no heavy ML dependencies:
 
 ```bash
 PIPELINE_MODE=mock npm start

@@ -20,7 +20,7 @@ In real mode, the browser uploads the actual selected file as multipart form dat
 
 Real-mode progress is approximate. FFmpeg extraction moves the job to the separation stage, and Demucs stderr percentages are mapped into the overall progress bar so stem separation should advance beyond 55% before completion when Demucs emits progress output.
 
-The topbar includes a Mock/Real pipeline switch. `PIPELINE_MODE` is still the server startup default, but the GUI switch changes the active backend mode for new uploads in the current server session.
+Processing mode uses stable browser URLs. A new browser visiting the root redirects to `?mode=real`; later root visits reuse the last selected mode. Open the topbar information control to choose Real or Mock and inspect backend readiness. `PIPELINE_MODE` remains the server startup default before a browser applies its URL selection, and mode selection changes the active backend mode for new uploads in the current server session.
 
 When Real mode is selected, the service status should show the active separator. `Backend ready: real · demucs-htdemucs_6s` means new uploads will use Demucs. `Backend ready: real · FFmpeg fallback` means the server was started with `REAL_SEPARATOR=ffmpeg-spectral`; stop that server and restart without `REAL_SEPARATOR=ffmpeg-spectral` if the goal is Demucs separation.
 
@@ -75,15 +75,15 @@ npm start
 Then open:
 
 ```text
-http://localhost:3000
+http://localhost:3000/?mode=mock
 ```
 
 If a sandbox blocks local port binding, run the same command in a normal terminal from the repository root.
 
-To start with real mode selected by default:
+To open Real mode:
 
-```bash
-PIPELINE_MODE=real npm start
+```text
+http://localhost:3000/?mode=real
 ```
 
 For Demucs real mode, prefer:
@@ -92,12 +92,12 @@ For Demucs real mode, prefer:
 TORCH_HOME=.cache/torch PIPELINE_MODE=real npm start
 ```
 
-You can also start normally and switch Mock/Real from the topbar before uploading a file.
+You can switch Real/Mock from the topbar information control before uploading a file.
 
 For repeated frontend testing where file selection and upload are not the thing being evaluated, open:
 
 ```text
-http://localhost:3000/?demo=processed
+http://localhost:3000/?mode=mock&demo=processed
 ```
 
 This feature toggle creates a complete mock job and opens the processed practice view directly. It still uses backend-generated/copy-backed stems, the normal job result shape, and the same player controls as the full upload flow.
@@ -117,7 +117,7 @@ npx playwright install chromium
 npm run test:gui
 ```
 
-The browser smoke test covers the mock-mode happy path: backend readiness, GUI pipeline mode switching, multi-file selection, per-file progress in the unified song list, active and failed job recovery after reload, failed-job removal, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, status filtering, selected-song actions, persisted learning/practice state, stem controls, playback speed, loops/count-in, thumbnails, waveform rendering, normal timeline zoom/Follow, manual-pan cancellation, timing edit-mode gating, separate edit zoom, downbeat drag/persistence, contextual segment BPM, variable-grid chord/loop alignment, beat/bar markers, metronome scheduling, key/meter correction, Harmony chord editing, section labels, and analyzer provenance.
+The browser smoke test covers the mock-mode happy path: backend readiness behind the information control, stable/default mode URLs, multi-file selection, per-file progress in the unified song list, active and failed job recovery after reload, failed-job removal, job completion without automatically opening practice, full-row song selection, desktop workspace selection, mobile list-first navigation, search clearing, status filtering, selected-song actions, persisted learning/practice state, stem controls, playback speed, loops/count-in, square persisted thumbnails, waveform rendering, normal timeline zoom/Follow, manual-pan cancellation, timing edit-mode gating, separate edit zoom, downbeat drag/persistence, contextual segment BPM, variable-grid chord/loop alignment, beat/bar markers, metronome scheduling, key/meter correction, Harmony chord editing, section labels, and analyzer provenance.
 
 The browser smoke test does not prove that the stems sound musically useful. Manual listening is still required before a user demo.
 
@@ -167,7 +167,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 npm run generate:test-media
 ```
 
-2. Start the app with `PIPELINE_MODE=real npm start`, or switch to Real in the topbar.
+2. Start the app with `PIPELINE_MODE=real npm start`, then open `/?mode=real`, or select Real in the topbar information control.
 3. Upload `test-media/phase-2h-bar-grid.wav`, `test-media/phase-2h-multi-chord-120.wav`, `test-media/phase-2h-three-four-90.wav`, `test-media/phase-2h-inversions-100.wav`, `test-media/phase-2g-piano-mix.wav`, or another short audio/video file.
 4. Wait for the job to complete. During Demucs separation, the selected song should show `Separating stems` and progress should advance past 55% before the job reaches 100%.
 5. Select the completed song and confirm the practice result shows `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` stems when using Demucs.
@@ -225,7 +225,7 @@ Open the app, select each entry from the song list, mute or solo the piano stem,
 ## Fast Iteration Steps
 
 1. Start the app with `PIPELINE_MODE=mock npm start`.
-2. Open `http://localhost:3000/?demo=processed`.
+2. Open `http://localhost:3000/?mode=mock&demo=processed`.
 3. Confirm the app lands directly on the processed practice view.
 4. Test mute/solo, speed, loop, grid click, and harmonic cue changes without repeating file selection.
 

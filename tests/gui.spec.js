@@ -228,13 +228,9 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
     };
   });
 
-  await page.goto("/");
-  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
-  await expect(page.getByTestId("mode-mock")).toHaveClass(/active/);
-  await page.getByTestId("mode-real").click();
-  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
-  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
-  await page.getByTestId("mode-mock").click();
+  await page.goto("/?mode=mock");
+  await expect(page.getByTestId("app-info")).not.toHaveAttribute("open", "");
+  await page.getByLabel("App and backend information").click();
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
   await expect(page.getByTestId("mode-mock")).toHaveClass(/active/);
 
@@ -391,37 +387,22 @@ test("mock-mode upload-to-practice GUI flow", async ({ page }) => {
   await expect(page.getByText("E4 G4")).toHaveCount(0);
 });
 
-test("pipeline mode switch ignores stale startup health response", async ({ page }) => {
-  let releaseStartupHealth;
-  let interceptedStartupHealth = false;
+test("root uses Real for a new browser and mode links have stable URLs", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\?mode=real$/);
+  await page.getByLabel("App and backend information").click();
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
+  await expect(page.getByTestId("mode-real")).toHaveAttribute("aria-current", "page");
+  await expect(page.getByTestId("mode-mock")).toHaveAttribute("href", "/?mode=mock");
 
-  await page.route("**/api/health", async (route) => {
-    if (interceptedStartupHealth) {
-      await route.continue();
-      return;
-    }
-
-    interceptedStartupHealth = true;
-    await new Promise((resolve) => {
-      releaseStartupHealth = resolve;
-    });
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true, mode: "mock", startupMode: "mock", ffmpegPath: "ffmpeg" })
-    });
-  });
+  await page.getByTestId("mode-mock").click();
+  await expect(page).toHaveURL(/\?mode=mock$/);
+  await page.getByLabel("App and backend information").click();
+  await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
+  await expect(page.getByTestId("mode-mock")).toHaveAttribute("aria-current", "page");
 
   await page.goto("/");
-  await page.getByTestId("mode-real").click();
-  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
-  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
-
-  releaseStartupHealth();
-  await page.waitForTimeout(100);
-
-  await expect(page.getByTestId("service-status")).toContainText("Backend ready: real");
-  await expect(page.getByTestId("mode-real")).toHaveClass(/active/);
+  await expect(page).toHaveURL(/\?mode=mock$/);
 });
 
 test("processed demo shortcut opens practice view without selecting a file", async ({ page }) => {
@@ -433,7 +414,7 @@ test("processed demo shortcut opens practice view without selecting a file", asy
     });
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("service-status")).toContainText("processed demo");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("file-label")).toHaveText("Upload");
@@ -520,7 +501,7 @@ test("beat grid timeline and metronome click follow the analyzed grid", async ({
     window.webkitAudioContext = MockAudioContext;
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.getByTestId("grid-timeline")).not.toHaveClass(/empty/);
   await expect(page.locator(".grid-marker.downbeat")).toHaveCount(5);
@@ -617,7 +598,7 @@ test("first playback waits for the metronome audio clock to resume", async ({ pa
     window.webkitAudioContext = SuspendedAudioContext;
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await page.getByTestId("metronome-mute").click();
   await page.getByRole("button", { name: "Play" }).click();
@@ -714,7 +695,7 @@ test("loop playback always enters at its start with optional repeated count-in",
     window.webkitAudioContext = MockAudioContext;
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await page.getByTestId("tempo-display").click();
   await page.getByTestId("tempo-input").fill("240");
@@ -833,7 +814,7 @@ test("playback timeline zoom and follow persist, track seeks and loops, and yiel
     };
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `timeline-view-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
   await page.reload();
@@ -937,7 +918,7 @@ test("playback timeline zoom and follow persist, track seeks and loops, and yiel
 });
 
 test("loop range can be marked and extended from the harmony chord grid", async ({ page }) => {
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await page.getByTestId("bars-per-row-select").selectOption("2");
   await page.getByTestId("loop-enabled").check();
@@ -979,7 +960,7 @@ test("song selection waits for real media duration instead of using a 16 second 
     });
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
   await expect(page.locator("#timeReadout")).toHaveText("0:00 / --");
   await expect(page.locator("#scrubber")).toHaveAttribute("max", "0");
@@ -1024,7 +1005,7 @@ test("song duration labels prefer media metadata over harmonic cue length", asyn
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
 
   await expect(page.getByTestId(`song-row-${jobId}`)).toContainText("1:14");
   await expect(page.getByTestId(`song-row-${jobId}`)).not.toContainText("0:16");
@@ -1076,7 +1057,7 @@ test("long song timeline skips dense bar labels", async ({ page }) => {
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("practice-view")).toBeVisible();
 
@@ -1131,10 +1112,19 @@ test("saved song thumbnails render in the list and selected song header", async 
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await expect(page.getByTestId(`song-row-${jobId}`).locator("img")).toHaveAttribute("src", thumbnailDataUrl);
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("selected-song-art").locator("img")).toHaveAttribute("src", thumbnailDataUrl);
+  const artworkSizes = await page.evaluate((id) => {
+    const listArt = document.querySelector(`[data-testid="song-row-${id}"] .song-art`).getBoundingClientRect();
+    const selectedArt = document.querySelector('[data-testid="selected-song-art"]').getBoundingClientRect();
+    return [listArt, selectedArt].map(({ width, height }) => ({ width, height }));
+  }, jobId);
+  expect(artworkSizes).toEqual([
+    { width: 52, height: 52 },
+    { width: 64, height: 64 }
+  ]);
 });
 
 test("harmony panel shows analysis tempo and chord beat placement", async ({ page }) => {
@@ -1194,12 +1184,13 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await page.getByTestId(`song-row-${jobId}`).click();
 
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("tempo-display")).toHaveText("72.5 BPM");
-  await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 72.5 BPM");
+  await expect(page.getByTestId("selected-song-header").locator(".eyebrow")).toHaveCount(0);
+  await expect(page.getByTestId("selected-song-header").getByText("Learning status")).toHaveClass("visually-hidden");
   await expect(page.getByTestId("bars-per-row-select")).toHaveValue("2");
   await expect(page.getByTestId("chord-display-select")).toHaveValue("both");
   await expect(page.locator(".chord-bar-number").first()).toHaveText("1");
@@ -1212,10 +1203,9 @@ test("harmony panel shows analysis tempo and chord beat placement", async ({ pag
   await page.getByTestId("tempo-input").fill("145");
   await page.getByTestId("tempo-input").press("Enter");
   await expect(page.getByTestId("tempo-display")).toHaveText("145 BPM");
-  await expect(page.getByTestId("selected-song-meta")).toContainText("C major · 145 BPM");
 
   await page.getByTestId("key-select").selectOption("A:minor");
-  await expect(page.getByTestId("selected-song-meta")).toContainText("A minor · 145 BPM");
+  await expect(page.getByTestId("key-select")).toHaveValue("A:minor");
   await expect(page.locator(".cue-roman").first()).toHaveText("III");
 });
 
@@ -1322,7 +1312,7 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("reanalyze-harmony")).toBeVisible();
   await expect(page.getByTestId("chord-name-0")).toHaveValue("C");
@@ -1378,7 +1368,7 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
 });
 
 test("waveform timing editor persists variable-tempo downbeats and keeps playback consumers aligned", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `timing-map-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1558,7 +1548,7 @@ test("corrected-timing chords follow later grid corrections for placement and hi
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await page.getByTestId(`song-row-${jobId}`).click();
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-bar", "1");
   await expect(page.getByTestId("chord-card-0")).toHaveAttribute("data-beat", "1");
@@ -1585,7 +1575,7 @@ test("corrected-timing chords follow later grid corrections for placement and hi
 });
 
 test("editable chord chart persists user overrides without replacing analyzer metadata", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `editable-chords-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1698,7 +1688,7 @@ test("editable chord chart persists user overrides without replacing analyzer me
 });
 
 test("flat section labels can be added renamed removed and persisted", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `flat-sections-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1807,7 +1797,7 @@ test("flat section labels can be added renamed removed and persisted", async ({ 
 });
 
 test("section ranges reject overlap and render one label across bars-per-row layouts", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `section-ranges-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1844,7 +1834,7 @@ test("section ranges reject overlap and render one label across bars-per-row lay
 });
 
 test("section creation starts from selected bars and keeps chord card height stable", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `section-selection-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1885,7 +1875,7 @@ test("section creation starts from selected bars and keeps chord card height sta
 });
 
 test("chord cards can be resized to expose beat cells for inserting chords", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `resize-chords-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -1941,7 +1931,7 @@ test("chord cards can be resized to expose beat cells for inserting chords", asy
 });
 
 test("last chord can be deleted without restoring analyzer chords", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `delete-last-chord-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 
@@ -2026,7 +2016,7 @@ test("play after pause resumes stem audio from the paused timeline position", as
     };
   });
 
-  await page.goto("/?demo=processed");
+  await page.goto("/?mode=mock&demo=processed");
   await expect(page.getByTestId("practice-view")).toBeVisible();
 
   await page.getByRole("button", { name: "Play" }).click();
@@ -2083,7 +2073,7 @@ test("processed song library reopens songs and persists practice state", async (
   });
 
   const filename = `phase-one-library-${Date.now()}.mov`;
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
 
   await page.getByTestId("media-input").setInputFiles({
@@ -2227,7 +2217,7 @@ test("practice state saves to the edited song before an immediate song switch", 
   const firstFilename = `save-reliability-first-${suffix}.mov`;
   const secondFilename = `save-reliability-second-${suffix}.mov`;
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const firstJobId = await createProcessedJob(page, firstFilename);
   const secondJobId = await createProcessedJob(page, secondFilename);
   await page.reload();
@@ -2267,7 +2257,7 @@ test("active and failed backend jobs remain available after reload", async ({ pa
   const activeFilename = `persistent-job-${suffix}.mov`;
   const failedFilename = `persistent-failed-${suffix}.mov`;
 
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const activeJob = await page.evaluate(async (filename) => {
     const response = await fetch("/api/jobs", {
       method: "POST",
@@ -2327,7 +2317,7 @@ test("active and failed backend jobs remain available after reload", async ({ pa
 });
 
 test("home upload queue processes multiple files without opening practice", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
 
   const firstFilename = `queue-first-${Date.now()}.mov`;
@@ -2360,7 +2350,7 @@ test("home upload queue processes multiple files without opening practice", asyn
 });
 
 test("unified song list shows completed songs and filters by learning status", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   await expect(page.getByTestId("service-status")).toContainText("Backend ready: mock");
 
   const prefix = `recent-${Date.now()}`;
@@ -2396,6 +2386,15 @@ test("unified song list shows completed songs and filters by learning status", a
   await expect(page.getByTestId(`song-row-${jobIds[4]}`)).toContainText("Practicing");
   await expect(page.getByTestId(`song-row-${jobIds[3]}`)).toContainText("Not started");
 
+  await expect(page.getByTestId("song-search-clear")).toBeHidden();
+  await page.getByTestId("song-search").fill(`${prefix}-3`);
+  await expect(page.getByTestId("song-search-clear")).toBeVisible();
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(1);
+  await page.getByTestId("song-search-clear").click();
+  await expect(page.getByTestId("song-search")).toHaveValue("");
+  await expect(page.getByTestId("song-search-clear")).toBeHidden();
+  await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(6);
+
   await page.getByTestId("filter-practicing").click();
   await expect(page.getByTestId("song-list").locator(".song-row").filter({ hasText: prefix })).toHaveCount(2);
   await expect(
@@ -2423,7 +2422,7 @@ test("unified song list shows completed songs and filters by learning status", a
 
 test("mobile uses a list-first song workspace stack", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 760 });
-  await page.goto("/");
+  await page.goto("/?mode=mock");
   const filename = `mobile-workspace-${Date.now()}.mov`;
   const jobId = await createProcessedJob(page, filename);
 

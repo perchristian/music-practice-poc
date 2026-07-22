@@ -122,6 +122,8 @@ Phase 3G.3 passed its final human gate on 2026-07-22. The reviewer confirmed tha
 
 Phase 3G.2 was implemented on 2026-07-22. Normal playback now exposes Zoom, Fit, and optional Follow over the shared timeline; `practiceState.timelineView` persists zoom and Follow per song. Follow keeps the playhead at a 37.5% viewport target when boundaries allow, updates during paused seeks, non-1x playback, and loop relocation, and turns off when direct pointer, wheel, or scroll panning takes control. Timing edit suppresses Follow and retains its own ephemeral zoom without mutating the playback preference. The focused browser test covers anchoring, reload, timing-editor separation, loop entry, manual cancellation, Fit, and 1180/820/390 px page-overflow checks. `npm test` passed with 54 tests and one optional local calibration skipped; all 29 Playwright tests passed. Test-created jobs were removed. Follow remains off by default pending a long-song manual review. No agents were delegated, and no model switch or skill was used.
 
+Phase 5D task 19.1 was implemented on 2026-07-23. The compact shell now presents only the Piano Practice identity and an information control; backend readiness and stable Real/Mock URL links live in its popover. A new browser redirects root to Real, later root visits remember the last successfully selected mode, and the processed demo explicitly uses Mock. The library search field uses an embedded icon and visible clear action. New video thumbnails are centered square crops, while persisted thumbnails are clipped into square list/header artwork with a fallback when an image cannot decode. The selected-song header removes its duplicate eyebrow, date/duration/key/BPM line, and visible learning-status label; empty states no longer use obsolete card instructions. `npm test` passed with 54 tests, 53 passing and the optional unavailable local calibration skipped. All 29 Playwright tests passed, including the focused mode, information, thumbnail, search/clear, header, and existing 1180/820/390 px overflow checks. Automated cleanup left no test-created jobs; the same six pre-existing local song directories remain. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -129,13 +131,13 @@ Local web POC:
 - static browser client
 - lightweight Node.js backend
 - local filesystem storage under `data/`
-- `PIPELINE_MODE=mock` by default
+- server startup uses `PIPELINE_MODE=mock` unless configured otherwise; the browser entry URL applies Real for a first-time root visit and remembers later mode choices
 - processed results represented as stems, with piano as the primary practice target
 - completed jobs exposed as a reusable processed-song library
 - unified workspace shows active uploads, processing jobs, failed jobs, and completed songs in one primary song list
 - per-song practice state stored in local `job.json`, including grid overrides, key override, and the user's grid-first chord chart
 - `PIPELINE_MODE=real` behind the same pipeline boundary, currently with real upload storage, FFmpeg source-audio extraction, and Demucs `htdemucs_6s` six-stem separation by default
-- GUI Mock/Real switch changes the active backend pipeline mode for new jobs in the current server session; `PIPELINE_MODE` remains the startup default
+- stable `?mode=real` and `?mode=mock` links in the app-information popover change the active backend pipeline mode for new jobs in the current server session; `PIPELINE_MODE` remains the server startup default
 - desktop/wide tablet uses a split view with song list on the left and selected detail/practice on the right
 - mobile uses a list-first stack with a back button from detail/practice to the same song list
 - beat/bar markers render from an effective grid derived from job `metadata.beatGrid` plus per-song `practiceState.gridOverrides`; the Web Audio metronome clicks against that same effective grid with downbeat accent always on and mute/solo/volume controls in the mixer
@@ -174,7 +176,7 @@ Local web POC:
 - Added stable GUI test hooks with `data-testid` attributes.
 - Added processed demo shortcut:
   - `GET /api/demo/processed-job`
-  - `/?demo=processed`
+  - `/?mode=mock&demo=processed`
 - The processed demo shortcut creates a complete mock job and jumps directly to the practice view without selecting or uploading a file.
 - Completed Phase 0 automated verification:
   - `npm test` passed on 2026-07-05.
@@ -215,9 +217,9 @@ Local web POC:
   - `npm run generate:test-media` now generates `test-media/phase-2g-piano-mix.wav`
   - direct FFmpeg smoke on the 6-second generated sample measured about `0.06s` extraction time and `0.05s` separation time
   - subjective listening was not completed in this Codex run and remains required
-- Added a GUI Mock/Real pipeline mode switch:
+- Added browser-selectable Mock/Real pipeline modes (now exposed as stable URLs in the information popover):
   - `PIPELINE_MODE` remains the startup default
-  - the GUI switch updates the active backend mode for new jobs in the current server process
+  - the browser selection updates the active backend mode for new jobs in the current server process
   - existing jobs retain the mode they were created with
 - Fixed a GUI mode-switch race where a stale startup `/api/health` response could render `mock` after the user clicked `Real`; invalid pipeline-mode JSON now returns a clear 400 response instead of a generic 500.
 - Documented native iOS transition criteria in `ARCHITECTURE.md`.

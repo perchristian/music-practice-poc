@@ -53,18 +53,10 @@ button {
 
 .topbar {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 22px;
-}
-
-.topbar-tools {
-  display: flex;
-  align-items: center;
-  justify-content: end;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 h1,
@@ -79,6 +71,75 @@ h1 {
   font-size: 1.6rem;
   line-height: 1.1;
   font-weight: 760;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app-info {
+  position: relative;
+  z-index: 30;
+}
+
+.app-info > summary {
+  display: grid;
+  width: 42px;
+  place-items: center;
+  list-style: none;
+  font-family: Georgia, serif;
+  font-weight: 700;
+}
+
+.app-info > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-info-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(280px, calc(100vw - 32px));
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.app-info-popover p {
+  font-size: 0.84rem;
+}
+
+.mode-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mode-links a {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  font-weight: 750;
+}
+
+.mode-links a.active {
+  border-color: var(--accent);
+  background: #dff4ef;
+  color: var(--accent-strong);
 }
 
 h2 {
@@ -206,8 +267,9 @@ h3 {
 }
 
 .search-field {
-  display: grid;
-  gap: 7px;
+  position: relative;
+  display: flex;
+  align-items: center;
   margin-top: 14px;
   color: var(--muted);
   font-size: 0.86rem;
@@ -220,7 +282,39 @@ h3 {
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  padding: 8px 10px;
+  padding: 8px 38px 8px 36px;
+  appearance: none;
+}
+
+.search-field input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  z-index: 1;
+  width: 17px;
+  height: 17px;
+  color: var(--muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.search-clear {
+  position: absolute;
+  right: 5px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.25rem;
 }
 
 .section-heading.compact {
@@ -397,6 +491,7 @@ h3 {
   width: 52px;
   aspect-ratio: 1;
   place-items: center;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #eef2f6;
@@ -487,6 +582,7 @@ h3 {
 
 .selected-art img,
 .song-art img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -545,6 +641,13 @@ h3 {
 .empty-detail,
 .processing-detail {
   min-height: 220px;
+}
+
+.empty-detail {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
 }
 
 .progress-copy {

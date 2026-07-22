@@ -426,6 +426,14 @@ Deliverables:
 - Remove duplicate selected-song eyebrow, duration/key/BPM metadata, and the visible `Learning status` label where the values already communicate their meaning.
 - Simplify the empty state and remove obsolete explanatory copy/card treatment.
 
+Verification:
+- `npm test` and `npm run test:gui`.
+- Focused browser coverage for stable/default mode URLs, compact backend information, search/clear behavior, persisted square thumbnails, and the simplified selected-song header.
+- Existing 1180 px, 820 px, and 390 px page-overflow coverage remains green.
+- Delete test-created jobs.
+
+Status: Complete on 2026-07-23. The library now renders clipped square persisted artwork and captures new video thumbnails as centered square crops. Search uses an icon and explicit clear action. The compact topbar moves stable Real/Mock URL links and backend details into an information popover; first visits choose Real, root visits remember the last mode, and mock/demo URLs remain explicit. The selected-song header and empty states no longer repeat pipeline, eyebrow, duration, key, BPM, learning-label, or instructional copy already communicated elsewhere.
+
 #### 19.2 Transport, Keyboard, Loop, and Mobile Harmony
 
 Deliverables:
@@ -441,7 +449,7 @@ Verification:
 - Check approximately 1180 px, 820 px, and 390 px widths with no horizontal overflow.
 - Delete test-created jobs.
 
-Status: Planned after the timing-map and normal-timeline work.
+Status: 19.1 complete; 19.2 is the next planned slice.
 
 ### 20. Phase 5B.4: Section Resize Handles and Color Coding
 
