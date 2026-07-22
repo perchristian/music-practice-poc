@@ -297,7 +297,7 @@ Constraints:
 - Keep evaluation dependencies and corpora outside the dependency-light mock-mode setup.
 - Do not tune on or replace the holdout set after seeing its results.
 
-Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. The dataset-backed benchmark and first isolated-beat smoothing experiment passed their locked development/holdout gate. The analyzer now persists the conservative `chords` layer separately from only the raw beats changed by smoothing in `suppressedChordSuggestions`; it does not duplicate the complete dense sequence. Harmony exposes those suggestions through an explicit review dialog, and adding one splits only the overlapping working chord while preserving surrounding beats. The user chart remains authoritative and persists normally. The next Phase 2J slice is a confirmed `Back to analysis` action with analysis-scoped one-step undo; the consumed holdout must not be tuned against.
+Status: Complete for the Phase 2J checkpoint on 2026-07-22. The Phase 3G.1 human checkpoint passed on `TeAmo.mov`; the dataset-backed benchmark and isolated-beat smoothing experiment passed their locked development/holdout gate. Immutable conservative `chords`, compact `suppressedChordSuggestions`, and the user-owned working chart are separate layers. Users can recover one hidden beat explicitly, return to the active conservative analysis after confirmation, and undo that whole-chart reset once while the same analysis remains active. Corrected-timing reanalysis uses the same analysis-scoped backup contract. The consumed holdout remains fixed and must not be tuned against; absolute chord accuracy and screen-recording domain validation remain documented risks rather than reasons for indefinite Phase 2J tuning.
 
 ### 16A. Cold-Start Metronome Initialization
 
@@ -492,9 +492,9 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Implement `Back to analysis` as a confirmed reset to the active conservative analyzer layer, plus one-step undo that restores the exact prior working chart only while the song and analysis identity remain unchanged. Cover corrected-timing analysis replacement and ordinary analyzer suggestions without adding multi-level history.
+Implement Phase 3G.3 unified bar timing and threshold-aware analysis. Evolve the existing tempo anchors into one versioned, meter-aware timing-event list, keep tempo derived from timed bar events, and establish the separate known-answer timing evaluation loop before downstream chord scoring.
 
-After that safety slice, implement Phase 3G.3 unified timing events and threshold-aware timing analysis before further chord heuristics or general undo history.
+After that timing checkpoint, implement Phase 3G.2 normal-playback timeline zoom and optional follow mode without expanding the timing model's first vertical slice.
 
 ## Parked Work
 

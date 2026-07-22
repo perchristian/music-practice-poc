@@ -53,6 +53,8 @@ Local filesystem storage
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
 - `PUT /api/jobs/:id/practice-state`: persists per-song learning status, stem state, playback/loop state, constant grid overrides, optional variable-tempo anchors, chord chart, sections, and view settings.
 - `POST /api/jobs/:id/reanalyze-harmony`: re-runs real-audio chord analysis against persisted corrected timing after explicit working-chart replacement confirmation.
+- `POST /api/jobs/:id/chord-chart/back-to-analysis`: after explicit confirmation, snapshots the user chart against the active analysis identity and returns to immutable conservative suggestions.
+- `POST /api/jobs/:id/chord-chart/undo-back-to-analysis`: restores that snapshot once only when the same analysis is still active and no newer working chart exists.
 - `PUT /api/jobs/:id/rename`: renames a processed song for the local library.
 - `DELETE /api/jobs/:id`: deletes a processed song and its local files.
 
@@ -236,7 +238,7 @@ The analyzer keeps three explicit chord layers:
 
 Corrected-timing reanalysis stores the same two immutable analyzer layers inside `metadata.correctedTimingAnalysis`; `effectiveMetadata` selects those together so suggestions cannot be mixed across analyzer timing versions. Already recovered suggestions are hidden by matching their musical position and label against the working chart.
 
-The future `Back to analysis` action must be distinct from adding one suggestion. It should require confirmation whenever a working chart exists, snapshot that exact chart with the active analysis identity and reason, then reset presentation to the current conservative analyzer layer. A one-step `Undo` should restore the snapshot only for the same song and unchanged analysis identity. Running a new corrected-timing reanalysis may create a new backup, but must never silently merge or train on user edits.
+`Back to analysis` is distinct from adding one suggestion. It requires confirmation whenever a working chart exists, snapshots that exact chart with the active analysis identity and reason, then resets presentation to the current conservative analyzer layer. `Undo reset` restores the snapshot once only when the song still has no newer working chart and the same analysis identity remains active. Corrected-timing reanalysis assigns a new identity and creates an undoable snapshot only when it actually displaces a working chart; stale backups are cleared rather than carried across analyses. Neither path merges or trains on user edits.
 
 Future analyzer work must keep analysis evidence separate from presentation policy. A denser candidate layer may support optional extra chord changes, comparison against user corrections, and an explicit `Back to analysis` action without silently overwriting the working chart. Any restore operation should require confirmation or undo. The exact conservative presentation rule is deferred until the same real-song fixtures and user corrections can be compared in a joint calibration loop.
 

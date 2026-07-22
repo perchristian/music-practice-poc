@@ -1,7 +1,7 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -432,6 +432,11 @@ describe("real-mode FFmpeg extraction", () => {
     const reanalyzedJob = await reanalysisResponse.json();
     assert.equal(reanalyzedJob.practiceState.chordChart, null);
     assert.equal(reanalyzedJob.practiceState.chordChartBackup.chordChart.chords[0].raw, "C");
+    assert.equal(reanalyzedJob.practiceState.chordChartBackup.reason, "corrected-timing-reanalysis");
+    assert.equal(
+      reanalyzedJob.practiceState.chordChartBackup.analysisIdentity,
+      reanalyzedJob.result.metadata.correctedTimingAnalysis.analysisIdentity
+    );
     assert.equal(reanalyzedJob.result.metadata.chords[0].source, "beat-aligned-chroma");
     assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v2");
     assert.ok(Array.isArray(reanalyzedJob.result.metadata.correctedTimingAnalysis.suppressedChordSuggestions));
@@ -446,6 +451,50 @@ describe("real-mode FFmpeg extraction", () => {
     assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.length >= 3);
     assert.ok(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords.every((chord) => chord.source === "corrected-timing-chroma"));
     assert.ok(Math.abs(reanalyzedJob.result.metadata.correctedTimingAnalysis.chords[0].start - 0.65) <= 0.01);
+
+    const staleJobId = "00000000-0000-4000-8000-000000000001";
+    const staleJobDir = join(extractionDataDir, "jobs", staleJobId);
+    await mkdir(staleJobDir, { recursive: true });
+    await writeFile(
+      join(staleJobDir, "job.json"),
+      JSON.stringify({
+        id: staleJobId,
+        status: "complete",
+        createdAt: new Date().toISOString(),
+        metadata: {
+          durationSeconds: 1,
+          analysisIdentity: "newer-analysis",
+          chords: []
+        },
+        practiceState: {
+          chordChart: null,
+          chordChartBackup: {
+            createdAt: new Date().toISOString(),
+            reason: "back-to-analysis",
+            analysisIdentity: "older-analysis",
+            chordChart: {
+              version: 1,
+              divisionsPerQuarter: 4,
+              chords: [{ id: "old-chart", bar: 1, offsetDiv: 0, durationDiv: 16, raw: "C" }]
+            }
+          }
+        }
+      })
+    );
+    const staleUndoResponse = await fetch(
+      `${extractionBaseUrl}/api/jobs/${staleJobId}/chord-chart/undo-back-to-analysis`,
+      { method: "POST" }
+    );
+    assert.equal(staleUndoResponse.status, 409);
+
+    const undoReanalysisResponse = await fetch(
+      `${extractionBaseUrl}/api/jobs/${completedJob.id}/chord-chart/undo-back-to-analysis`,
+      { method: "POST" }
+    );
+    assert.equal(undoReanalysisResponse.status, 200);
+    const restoredJob = await undoReanalysisResponse.json();
+    assert.equal(restoredJob.practiceState.chordChart.chords[0].raw, "C");
+    assert.equal(restoredJob.practiceState.chordChartBackup, null);
   });
 });
 

@@ -8,6 +8,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added confirmed `Back to analysis` and analysis-scoped one-step undo so users can compare conservative suggestions without losing their working chart.
 - Added a review dialog for chord changes hidden by conservative smoothing; users can restore one beat explicitly without replacing the rest of their working chart.
 - Added a compact immutable `suppressedChordSuggestions` analyzer layer instead of persisting a duplicate of every raw beat estimate.
 - Added a locked development/holdout checkpoint for conservative isolated-beat chord smoothing, including an explicit unsmoothed benchmark control.

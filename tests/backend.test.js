@@ -394,6 +394,43 @@ describe("mock backend", () => {
     assert.equal(longChartJob.practiceState.chordChart.chords.length, 160);
     assert.equal(longChartJob.practiceState.chordChart.chords.at(-1).bar, 160);
 
+    const unconfirmedResetResponse = await fetch(
+      `${baseUrl}/api/jobs/${completedJob.id}/chord-chart/back-to-analysis`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirm: false })
+      }
+    );
+    assert.equal(unconfirmedResetResponse.status, 400);
+
+    const resetResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/chord-chart/back-to-analysis`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirm: true })
+    });
+    assert.equal(resetResponse.status, 200);
+    const resetJob = await resetResponse.json();
+    assert.equal(resetJob.practiceState.chordChart, null);
+    assert.equal(resetJob.practiceState.chordChartBackup.reason, "back-to-analysis");
+    assert.ok(resetJob.practiceState.chordChartBackup.analysisIdentity);
+    assert.equal(resetJob.practiceState.chordChartBackup.chordChart.chords.length, 160);
+
+    const undoResetResponse = await fetch(
+      `${baseUrl}/api/jobs/${completedJob.id}/chord-chart/undo-back-to-analysis`,
+      { method: "POST" }
+    );
+    assert.equal(undoResetResponse.status, 200);
+    const undoResetJob = await undoResetResponse.json();
+    assert.equal(undoResetJob.practiceState.chordChart.chords.length, 160);
+    assert.equal(undoResetJob.practiceState.chordChartBackup, null);
+
+    const repeatedUndoResponse = await fetch(
+      `${baseUrl}/api/jobs/${completedJob.id}/chord-chart/undo-back-to-analysis`,
+      { method: "POST" }
+    );
+    assert.equal(repeatedUndoResponse.status, 400);
+
     const invalidTempoMapResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
       method: "PUT",
       headers: { "content-type": "application/json" },

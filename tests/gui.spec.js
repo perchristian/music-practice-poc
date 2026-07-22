@@ -1079,9 +1079,16 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
   });
   await page.route(`**/api/jobs/${jobId}/reanalyze-harmony`, async (route) => {
     expect(route.request().postDataJSON()).toEqual({ replaceWorkingChart: true });
+    job.practiceState.chordChartBackup = {
+      createdAt: new Date().toISOString(),
+      reason: "corrected-timing-reanalysis",
+      analysisIdentity: "corrected-analysis-1",
+      chordChart: job.practiceState.chordChart
+    };
     job.practiceState.chordChart = null;
     job.result.metadata.correctedTimingAnalysis = {
       createdAt: new Date().toISOString(),
+      analysisIdentity: "corrected-analysis-1",
       harmonySource: "real-audio-corrected-timing-v2",
       analysisSource: "source-audio.wav",
       key: { tonic: "C", mode: "major", confidence: 1, source: "user" },
@@ -1109,6 +1116,22 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
     job.practiceState = { ...job.practiceState, ...route.request().postDataJSON() };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
   });
+  await page.route(`**/api/jobs/${jobId}/chord-chart/back-to-analysis`, async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ confirm: true });
+    job.practiceState.chordChartBackup = {
+      createdAt: new Date().toISOString(),
+      reason: "back-to-analysis",
+      analysisIdentity: "corrected-analysis-1",
+      chordChart: job.practiceState.chordChart
+    };
+    job.practiceState.chordChart = null;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
+  });
+  await page.route(`**/api/jobs/${jobId}/chord-chart/undo-back-to-analysis`, async (route) => {
+    job.practiceState.chordChart = job.practiceState.chordChartBackup.chordChart;
+    job.practiceState.chordChartBackup = null;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
+  });
 
   await page.goto("/");
   await page.getByTestId(`song-row-${jobId}`).click();
@@ -1123,6 +1146,7 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
   await expect(page.getByTestId("key-select")).toHaveValue("C:major");
   await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
   await expect(page.getByTestId("chord-name-1")).toHaveValue("D");
+  await expect(page.getByTestId("undo-back-to-analysis")).toBeVisible();
   await expect(page.getByTestId("suppressed-suggestions")).toHaveText("Review 1 hidden chord");
 
   await page.getByTestId("suppressed-suggestions").click();
@@ -1141,6 +1165,27 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
   await expect(page.getByTestId("suppressed-suggestions")).toBeHidden();
   await expect(page.getByTestId("practice-save-status")).toHaveText("Saved");
   expect(job.practiceState.chordChart.chords.map((chord) => chord.raw)).toEqual(["G", "C", "G", "D"]);
+  await page.getByTestId("suppressed-suggestions-done").click();
+  await expect(page.getByTestId("suppressed-suggestions-dialog")).toBeHidden();
+  await expect(page.getByTestId("back-to-analysis")).toBeVisible();
+  await expect(page.getByTestId("undo-back-to-analysis")).toBeHidden();
+
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("kept for one-step undo");
+    dialog.accept();
+  });
+  await page.getByTestId("back-to-analysis").click();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-1")).toHaveValue("D");
+  await expect(page.getByTestId("undo-back-to-analysis")).toBeVisible();
+
+  await page.getByTestId("undo-back-to-analysis").click();
+  await expect(page.getByTestId("chord-name-0")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-1")).toHaveValue("C");
+  await expect(page.getByTestId("chord-name-2")).toHaveValue("G");
+  await expect(page.getByTestId("chord-name-3")).toHaveValue("D");
+  await expect(page.getByTestId("undo-back-to-analysis")).toBeHidden();
+  await expect(page.getByTestId("back-to-analysis")).toBeVisible();
 });
 
 test("waveform timing editor persists variable-tempo downbeats and keeps playback consumers aligned", async ({ page }) => {

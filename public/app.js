@@ -116,6 +116,8 @@ const tempoDouble = document.querySelector("#tempoDouble");
 const gridCorrection = document.querySelector("#gridCorrection");
 const meterSelect = document.querySelector("#meterSelect");
 const chordList = document.querySelector("#chordList");
+const backToAnalysisButton = document.querySelector("#backToAnalysisButton");
+const undoBackToAnalysisButton = document.querySelector("#undoBackToAnalysisButton");
 const reanalyzeHarmonyButton = document.querySelector("#reanalyzeHarmonyButton");
 const harmonyAnalysisStatus = document.querySelector("#harmonyAnalysisStatus");
 const suppressedSuggestionsButton = document.querySelector("#suppressedSuggestionsButton");
@@ -195,6 +197,7 @@ let selectedTimingAnchorBar = null;
 let timingDragState = null;
 let suppressTimelineClick = false;
 let harmonyReanalysisPending = false;
+let chordChartRecoveryPending = false;
 let timelineHoverClientX = null;
 const timingTouchPointers = new Map();
 let timingPinchState = null;
@@ -372,6 +375,7 @@ function effectiveMetadata(metadata) {
       ...metadata,
       harmonySource: correctedAnalysis.harmonySource,
       analysisSource: correctedAnalysis.analysisSource,
+      analysisIdentity: correctedAnalysis.analysisIdentity,
       key: correctedAnalysis.key,
       chords: correctedAnalysis.chords,
       suppressedChordSuggestions: correctedAnalysis.suppressedChordSuggestions || [],
@@ -1339,6 +1343,7 @@ function renderMetadata(metadata) {
   updateKeyControl();
   updateHarmonyViewControls();
   updateHarmonyReanalysisControls();
+  updateChordChartRecoveryControls();
   updateSuppressedSuggestionControls();
   updateTempoControl();
   updateGridCorrectionControls();
@@ -1353,7 +1358,7 @@ function updateHarmonyReanalysisControls(message = "") {
   const available = currentJob?.mode === "real" && Boolean(tempoMap);
   if (reanalyzeHarmonyButton) {
     reanalyzeHarmonyButton.hidden = !available;
-    reanalyzeHarmonyButton.disabled = harmonyReanalysisPending;
+    reanalyzeHarmonyButton.disabled = harmonyReanalysisPending || chordChartRecoveryPending;
     reanalyzeHarmonyButton.textContent = harmonyReanalysisPending ? "Analysing…" : "Reanalyse chords";
   }
   if (!harmonyAnalysisStatus) return;
@@ -1363,6 +1368,92 @@ function updateHarmonyReanalysisControls(message = "") {
     : "");
   harmonyAnalysisStatus.textContent = status;
   harmonyAnalysisStatus.hidden = !status;
+}
+
+function chordChartResetCanUndo() {
+  const backup = currentJob?.practiceState?.chordChartBackup;
+  return (
+    chordChart === null &&
+    Boolean(backup?.chordChart) &&
+    Boolean(backup?.analysisIdentity) &&
+    ["back-to-analysis", "corrected-timing-reanalysis"].includes(backup.reason)
+  );
+}
+
+function updateChordChartRecoveryControls() {
+  if (backToAnalysisButton) {
+    backToAnalysisButton.hidden = chordChart === null;
+    backToAnalysisButton.disabled = chordChartRecoveryPending || harmonyReanalysisPending;
+  }
+  if (undoBackToAnalysisButton) {
+    undoBackToAnalysisButton.hidden = !chordChartResetCanUndo();
+    undoBackToAnalysisButton.disabled = chordChartRecoveryPending || harmonyReanalysisPending;
+  }
+}
+
+function applyChordChartActionJob(job) {
+  currentJob = job;
+  chordChart = normalizedChordChart(job.practiceState);
+  renderMetadata(job.result.metadata);
+  updateSelectedSongMeta();
+  setPracticeSaveStatus("saved");
+}
+
+async function backToAnalysis() {
+  if (!currentJobId || chordChart === null || chordChartRecoveryPending) return;
+  const count = chordChart.chords?.length || 0;
+  const warning = `Return to the current analysis suggestions? Your working chart with ${count} chord events will be kept for one-step undo.`;
+  if (!window.confirm(warning)) return;
+  if (!(await flushPendingPracticeState())) return;
+
+  chordChartRecoveryPending = true;
+  let resultMessage = "";
+  updateChordChartRecoveryControls();
+  updateHarmonyReanalysisControls();
+  try {
+    const response = await fetch(`/api/jobs/${currentJobId}/chord-chart/back-to-analysis`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirm: true })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Could not return to analysis.");
+    applyChordChartActionJob(payload);
+    resultMessage = "Returned to analysis suggestions · Undo is available";
+    await loadLibrary();
+  } catch (error) {
+    console.error(error);
+    resultMessage = error.message || "Could not return to analysis.";
+  } finally {
+    chordChartRecoveryPending = false;
+    updateChordChartRecoveryControls();
+    updateHarmonyReanalysisControls(resultMessage);
+  }
+}
+
+async function undoBackToAnalysis() {
+  if (!currentJobId || !chordChartResetCanUndo() || chordChartRecoveryPending) return;
+  chordChartRecoveryPending = true;
+  let resultMessage = "";
+  updateChordChartRecoveryControls();
+  updateHarmonyReanalysisControls();
+  try {
+    const response = await fetch(`/api/jobs/${currentJobId}/chord-chart/undo-back-to-analysis`, {
+      method: "POST"
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Could not restore the working chart.");
+    applyChordChartActionJob(payload);
+    resultMessage = "Working chord chart restored";
+    await loadLibrary();
+  } catch (error) {
+    console.error(error);
+    resultMessage = error.message || "Could not restore the working chart.";
+  } finally {
+    chordChartRecoveryPending = false;
+    updateChordChartRecoveryControls();
+    updateHarmonyReanalysisControls(resultMessage);
+  }
 }
 
 function recoverableSuppressedSuggestions() {
@@ -1449,6 +1540,7 @@ async function reanalyzeHarmonyFromCorrectedTiming() {
   harmonyReanalysisPending = true;
   let failureMessage = "";
   updateHarmonyReanalysisControls("Analysing source audio with corrected bar boundaries…");
+  updateChordChartRecoveryControls();
   try {
     const response = await fetch(`/api/jobs/${currentJobId}/reanalyze-harmony`, {
       method: "POST",
@@ -1472,6 +1564,7 @@ async function reanalyzeHarmonyFromCorrectedTiming() {
   } finally {
     harmonyReanalysisPending = false;
     updateHarmonyReanalysisControls(failureMessage);
+    updateChordChartRecoveryControls();
   }
 }
 
@@ -3874,6 +3967,14 @@ tempoDisplay?.addEventListener("click", () => {
 
 reanalyzeHarmonyButton?.addEventListener("click", () => {
   void reanalyzeHarmonyFromCorrectedTiming();
+});
+
+backToAnalysisButton?.addEventListener("click", () => {
+  void backToAnalysis();
+});
+
+undoBackToAnalysisButton?.addEventListener("click", () => {
+  void undoBackToAnalysis();
 });
 
 suppressedSuggestionsButton?.addEventListener("click", openSuppressedSuggestionsDialog);

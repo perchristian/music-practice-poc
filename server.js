@@ -1074,6 +1074,7 @@ async function analyzeHarmonyFromAudio(
   const { tonicPitchClass, ...publicKey } = key;
 
   return {
+    analysisIdentity: randomUUID(),
     durationSeconds: extracted.durationSeconds || audio.durationSeconds,
     harmonySource: timingGrid ? "real-audio-corrected-timing-v2" : "real-audio-analysis-v2",
     analysisSource: "source-audio.wav",
@@ -1674,7 +1675,10 @@ function ensurePracticeState(job) {
     chordChartBackup: job.practiceState?.chordChartBackup?.chordChart
       ? {
           createdAt: String(job.practiceState.chordChartBackup.createdAt || ""),
-          reason: "corrected-timing-reanalysis",
+          reason: new Set(["back-to-analysis", "corrected-timing-reanalysis"]).has(job.practiceState.chordChartBackup.reason)
+            ? job.practiceState.chordChartBackup.reason
+            : "corrected-timing-reanalysis",
+          analysisIdentity: String(job.practiceState.chordChartBackup.analysisIdentity || "").slice(0, 256),
           chordChart: normalizeChordChart(job.practiceState.chordChartBackup.chordChart)
         }
       : null,
@@ -2530,6 +2534,78 @@ function correctedTimingGridForJob(job) {
   };
 }
 
+function activeChordAnalysisIdentity(job) {
+  const corrected = job.metadata?.correctedTimingAnalysis;
+  const source = corrected || job.metadata || {};
+  if (source.analysisIdentity) return String(source.analysisIdentity).slice(0, 256);
+  const scope = corrected ? "corrected" : "original";
+  const createdAt = corrected?.createdAt || job.createdAt || "unknown";
+  const harmonySource = source.harmonySource || "unknown";
+  const analyzer = source.analysis?.name || "unknown";
+  const chordCount = Array.isArray(source.chords) ? source.chords.length : 0;
+  return `legacy:${scope}:${createdAt}:${harmonySource}:${analyzer}:${chordCount}`.slice(0, 256);
+}
+
+async function handleBackToAnalysis(req, id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+  const payload = await readJsonBody(req);
+  if (payload.confirm !== true) {
+    badRequest(res, "Confirm replacement of the working chord chart with analysis suggestions.");
+    return;
+  }
+
+  const practiceState = ensurePracticeState(job);
+  if (!practiceState.chordChart) {
+    badRequest(res, "There is no working chord chart to reset.");
+    return;
+  }
+
+  practiceState.chordChartBackup = {
+    createdAt: new Date().toISOString(),
+    reason: "back-to-analysis",
+    analysisIdentity: activeChordAnalysisIdentity(job),
+    chordChart: practiceState.chordChart
+  };
+  practiceState.chordChart = null;
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
+async function handleUndoBackToAnalysis(id, res) {
+  const job = await readJobFromDisk(id);
+  if (!job || job.status !== "complete") {
+    notFound(res);
+    return;
+  }
+
+  const practiceState = ensurePracticeState(job);
+  const backup = practiceState.chordChartBackup;
+  const undoableReasons = new Set(["back-to-analysis", "corrected-timing-reanalysis"]);
+  if (
+    practiceState.chordChart ||
+    !backup?.chordChart ||
+    !undoableReasons.has(backup.reason)
+  ) {
+    badRequest(res, "There is no chord-chart reset available to undo.");
+    return;
+  }
+  if (!backup.analysisIdentity || backup.analysisIdentity !== activeChordAnalysisIdentity(job)) {
+    json(res, 409, { error: "The active chord analysis changed, so this reset can no longer be undone." });
+    return;
+  }
+
+  practiceState.chordChart = normalizeChordChart(backup.chordChart);
+  practiceState.chordChartBackup = null;
+  job.updatedAt = new Date().toISOString();
+  await saveJob(job);
+  json(res, 200, publicJob(job));
+}
+
 async function handleReanalyzeHarmony(req, id, res) {
   const job = await readJobFromDisk(id);
   if (!job || job.status !== "complete") {
@@ -2574,6 +2650,7 @@ async function handleReanalyzeHarmony(req, id, res) {
   const previousChordCount = job.practiceState?.chordChart?.chords?.length || 0;
   job.metadata.correctedTimingAnalysis = {
     createdAt: new Date().toISOString(),
+    analysisIdentity: analysis.analysisIdentity,
     harmonySource: analysis.harmonySource,
     analysisSource: analysis.analysisSource,
     key: analysis.key,
@@ -2590,9 +2667,10 @@ async function handleReanalyzeHarmony(req, id, res) {
     ? {
         createdAt: new Date().toISOString(),
         reason: "corrected-timing-reanalysis",
+        analysisIdentity: analysis.analysisIdentity,
         chordChart: normalizeChordChart(job.practiceState.chordChart)
       }
-    : job.practiceState?.chordChartBackup || null;
+    : null;
   job.practiceState.chordChart = null;
   job.updatedAt = new Date().toISOString();
   await saveJob(job);
@@ -2848,6 +2926,16 @@ async function route(req, res) {
   const reanalyzeHarmonyMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/reanalyze-harmony$/);
   if (req.method === "POST" && reanalyzeHarmonyMatch) {
     await handleReanalyzeHarmony(req, reanalyzeHarmonyMatch[1], res);
+    return;
+  }
+  const backToAnalysisMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/chord-chart\/back-to-analysis$/);
+  if (req.method === "POST" && backToAnalysisMatch) {
+    await handleBackToAnalysis(req, backToAnalysisMatch[1], res);
+    return;
+  }
+  const undoBackToAnalysisMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/chord-chart\/undo-back-to-analysis$/);
+  if (req.method === "POST" && undoBackToAnalysisMatch) {
+    await handleUndoBackToAnalysis(undoBackToAnalysisMatch[1], res);
     return;
   }
   const renameJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/rename$/);
