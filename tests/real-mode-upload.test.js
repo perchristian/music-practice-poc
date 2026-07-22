@@ -329,8 +329,8 @@ describe("real-mode FFmpeg extraction", () => {
     assert.ok(completedJob.result.metadata.separator.durationMs >= 0);
     assert.equal(completedJob.result.metadata.separator.outputs.length, 2);
     assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
-    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
-    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v2");
+    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");
+    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v3");
     assert.equal(completedJob.result.metadata.analysis.sources.fullMix, "source-audio.wav");
     assert.ok(completedJob.result.metadata.beatGrid.bpm > 0);
     assert.ok(completedJob.result.metadata.beatGrid.bars.length >= 1);
@@ -380,7 +380,7 @@ describe("real-mode FFmpeg extraction", () => {
     const completedJob = await waitForComplete(createdJob.id, extractionBaseUrl);
     const metadata = completedJob.result.metadata;
 
-    assert.equal(metadata.harmonySource, "real-audio-analysis-v1");
+    assert.equal(metadata.harmonySource, "real-audio-analysis-v2");
     assert.equal(metadata.analysisSource, "source-audio.wav");
     assert.equal(metadata.beatGrid.beatsPerBar, 4);
     assert.ok(metadata.beatGrid.confidence >= 0.1);
@@ -428,7 +428,7 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(reanalyzedJob.practiceState.chordChart, null);
     assert.equal(reanalyzedJob.practiceState.chordChartBackup.chordChart.chords[0].raw, "C");
     assert.equal(reanalyzedJob.result.metadata.chords[0].source, "beat-aligned-chroma");
-    assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v1");
+    assert.equal(reanalyzedJob.result.metadata.correctedTimingAnalysis.harmonySource, "real-audio-corrected-timing-v2");
     assert.deepEqual(reanalyzedJob.result.metadata.correctedTimingAnalysis.key, {
       tonic: "C",
       mode: "major",
@@ -543,8 +543,8 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
     assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
     assert.equal(completedJob.result.metadata.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
-    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v1");
-    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v2");
+    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");
+    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v3");
 
     const jobDir = join(demucsDataDir, "jobs", createdJob.id);
     for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {

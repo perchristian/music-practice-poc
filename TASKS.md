@@ -297,7 +297,7 @@ Constraints:
 - Keep evaluation dependencies and corpora outside the dependency-light mock-mode setup.
 - Do not tune on or replace the holdout set after seeing its results.
 
-Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. Research on 2026-07-21 replaced song-by-song manual transcription as the main calibration method with a top-down dataset benchmark. The benchmark harness, optional isolated `mir_eval` environment, exact-archive extractor, dependency-free contract tests, and fixed 8-development/4-holdout RWC-P manifest are implemented. The pilot combines standardized chord density, entropy, vocabulary, tempo, duration, and instrumentation features. The two eight-song development baselines are complete: oracle timing reached 58.6% MajMin and analyzer timing reached 53.7%, while both substantially over-segmented. The holdout remains unrun. The next experiment is one conservative temporal sequence/smoothing change, followed by the locked development/holdout decision gate.
+Status: In progress. The Phase 3G.1 human checkpoint passed on `TeAmo.mov` with 16 timing anchors; corrected-timing reanalysis produced 279 cues using the user's authoritative C-major key while backing up 95 prior working events. The dataset-backed benchmark, optional isolated `mir_eval` environment, exact-archive extractor, dependency-free contract tests, and fixed 8-development/4-holdout RWC-P manifest are implemented. The first isolated-beat smoothing experiment passed its locked gate: development MajMin improved from 58.6% to 60.8% with oracle timing and 53.7% to 55.7% with analyzer timing, while false-extra boundaries and cue density fell. The opened holdout improved 0.9 points with oracle timing and regressed 0.3 points with analyzer timing, within the one-point limit. The holdout is now consumed and must not be tuned against. Next define how raw candidates and conservative presentation coexist before adding any restore/insert workflow.
 
 ### 16A. Cold-Start Metronome Initialization
 
@@ -423,7 +423,7 @@ Status: Planned after chord multi-selection.
 
 ## Next Task
 
-Run one conservative temporal sequence/smoothing experiment against the locked development baseline. Retain it only for a >=2-point MajMin gain or a material false-boundary reduction without score/median/majority regression; then run the protected holdout checkpoint. After two failed local experiments, compare Chordino instead of continuing parameter tweaks.
+Define and prototype the smallest separation between raw analyzer candidates and the conservative default chart. Preserve the user-owned working chart, expose recovery of plausible short changes only through an explicit action, and specify confirmation/undo for `Back to analysis` before implementation expands further.
 
 ## Parked Work
 

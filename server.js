@@ -982,6 +982,23 @@ function sameChord(left, right) {
   return left.root === right.root && left.quality.label === right.quality.label;
 }
 
+function smoothIsolatedChordDrafts(chordDrafts) {
+  return chordDrafts.map((chord, index) => {
+    const previous = chordDrafts[index - 1];
+    const next = chordDrafts[index + 1];
+    if (!previous || !next || sameChord(chord, previous) || !sameChord(previous, next)) {
+      return { ...chord };
+    }
+
+    return {
+      ...chord,
+      root: previous.root,
+      quality: previous.quality,
+      confidence: Number(Math.min(previous.confidence, next.confidence).toFixed(2))
+    };
+  });
+}
+
 function mergeAdjacentChordDrafts(chordDrafts) {
   const merged = [];
 
@@ -998,7 +1015,11 @@ function mergeAdjacentChordDrafts(chordDrafts) {
   return merged;
 }
 
-async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = null, fixedKey = null } = {}) {
+async function analyzeHarmonyFromAudio(
+  extracted,
+  separation,
+  { timingGrid = null, fixedKey = null, sequenceSmoothing = "isolated" } = {}
+) {
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
   const stemAudios = await loadAnalysisStemAudios(extracted, separation);
@@ -1016,7 +1037,10 @@ async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = nul
     chordDrafts.push({ ...segment, ...estimated });
   }
 
-  const mergedChordDrafts = mergeAdjacentChordDrafts(chordDrafts);
+  const sequenceChordDrafts = sequenceSmoothing === "none"
+    ? chordDrafts
+    : smoothIsolatedChordDrafts(chordDrafts);
+  const mergedChordDrafts = mergeAdjacentChordDrafts(sequenceChordDrafts);
   const aggregateMax = Math.max(...aggregateChroma);
   const normalizedAggregate = aggregateMax > 0
     ? aggregateChroma.map((value) => value / aggregateMax)
@@ -1037,17 +1061,18 @@ async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = nul
 
   return {
     durationSeconds: extracted.durationSeconds || audio.durationSeconds,
-    harmonySource: timingGrid ? "real-audio-corrected-timing-v1" : "real-audio-analysis-v1",
+    harmonySource: timingGrid ? "real-audio-corrected-timing-v2" : "real-audio-analysis-v2",
     analysisSource: "source-audio.wav",
     key: publicKey,
     chords,
     melody: [],
     beatGrid,
     analysis: {
-      name: timingGrid ? "beat-aware-chroma-corrected-timing-v1" : "beat-aware-chroma-v2",
+      name: timingGrid ? "beat-aware-chroma-corrected-timing-v2" : "beat-aware-chroma-v3",
       available: true,
       durationMs: Date.now() - startedAt,
       keySource: key.source === "user" ? "user-override" : "estimated",
+      sequenceSmoothing,
       sources: {
         fullMix: SOURCE_AUDIO_FILENAME,
         stems: separation.outputs?.map((stem) => stem.id) || []
@@ -1066,7 +1091,7 @@ async function analyzeHarmonyFromAudio(extracted, separation, { timingGrid = nul
         timingGrid
           ? "Bar and beat boundaries come from the user-corrected timing map."
           : "Beat, downbeat, meter, and bar positions are estimated from broad onset energy, not a dedicated tempo model.",
-        "Chord labels are scored on beat-aligned segments and adjacent repeated labels are merged within each bar.",
+        "Chord labels are scored on beat-aligned segments; isolated one-beat changes between matching neighbors are smoothed before adjacent repeated labels are merged within each bar.",
         "The first pass favors useful conservative labels over precise extensions."
       ]
     }
@@ -2850,7 +2875,13 @@ async function route(req, res) {
   notFound(res);
 }
 
-export { analyzeHarmonyFromAudio, chordSegmentsForTimingGrid, estimateBeatGrid, readPcm16WavFromFile };
+export {
+  analyzeHarmonyFromAudio,
+  chordSegmentsForTimingGrid,
+  estimateBeatGrid,
+  readPcm16WavFromFile,
+  smoothIsolatedChordDrafts
+};
 
 async function startServer() {
   await ensureBaseDirs();

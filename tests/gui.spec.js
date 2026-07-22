@@ -1082,14 +1082,14 @@ test("corrected timing can drive a guarded chord reanalysis", async ({ page }) =
     job.practiceState.chordChart = null;
     job.result.metadata.correctedTimingAnalysis = {
       createdAt: new Date().toISOString(),
-      harmonySource: "real-audio-corrected-timing-v1",
+      harmonySource: "real-audio-corrected-timing-v2",
       analysisSource: "source-audio.wav",
       key: { tonic: "C", mode: "major", confidence: 1, source: "user" },
       chords: [
         { bar: 1, beat: 1, start: 0, end: 5, name: "G", roman: "V", source: "corrected-timing-chroma" },
         { bar: 2, beat: 1, start: 5, end: 10, name: "D", roman: "II", source: "corrected-timing-chroma" }
       ],
-      analysis: { name: "beat-aware-chroma-corrected-timing-v1" }
+      analysis: { name: "beat-aware-chroma-corrected-timing-v2" }
     };
     await route.fulfill({ contentType: "application/json", body: JSON.stringify(job) });
   });

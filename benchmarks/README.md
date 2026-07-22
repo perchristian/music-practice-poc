@@ -53,6 +53,13 @@ Run the eight development tracks with reference timing first:
 npm run benchmark:chords -- --timing oracle
 ```
 
+The application default uses conservative isolated-beat smoothing. Reproduce
+the pre-smoothing control explicitly with:
+
+```sh
+npm run benchmark:chords -- --timing both --smoothing none
+```
+
 Development is the default split. Use `--track` with the corresponding
 `--split` for a single diagnostic track. A complete checkpoint may run both
 timing modes over all 12 tracks:

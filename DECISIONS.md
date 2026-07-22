@@ -607,3 +607,26 @@ High for the benchmark boundary and dependency isolation; medium for how well RW
 
 Date:
 2026-07-21
+
+## Decision 27
+
+Decision:
+Retain isolated one-beat `A-B-A` smoothing as the conservative default in `beat-aware-chroma-v3`, while keeping the unsmoothed analyzer available only as an explicit benchmark control.
+
+Reason:
+The locked eight-track development benchmark showed the same excessive change density that made the corrected `TeAmo.mov` result difficult to read. Replacing only a single disagreeing beat when both neighbors have the same root and quality improved development MajMin from 58.6% to 60.8% with oracle timing and from 53.7% to 55.7% with analyzer timing. Both medians and a majority of tracks improved, while false-extra boundaries fell materially. The four-track holdout was opened only after this gate passed: oracle MajMin improved 0.9 points and analyzer-timing MajMin regressed 0.3 points, within the locked one-point limit.
+
+Alternatives considered:
+- Keep every beat-level estimate. This preserves maximum recall but leaves cue density at roughly twice the development reference and creates a noisy learning chart.
+- Smooth all short cues by duration. This could remove more false changes but is less conservative because a short real chord need not appear in an `A-B-A` pattern.
+- Add transition penalties or a full Viterbi decoder. This may model harmonic continuity better but changes more than one variable and needs a clearer raw-candidate model.
+- Continue chord-template tuning. The baseline specifically indicated that over-segmentation should be addressed before another template tweak.
+
+Tradeoffs:
+The rule is transparent, dependency-free, and reduces false changes, but it can remove a real one-beat chord when timing or neighboring estimates are wrong. The holdout estimated-timing boundary F1 fell from 44.2% to 42.5% even as false extras fell, showing a precision/recall tradeoff. Raw analyzer evidence and conservative presentation should therefore become separate layers before adding more sequence logic or recovery controls. The consumed holdout remains fixed and must not be used to tune this rule.
+
+Confidence:
+Medium. The benchmark gate passed, but absolute holdout accuracy remains too low to treat automatic chords as authoritative, and screen-recording domain validation remains open.
+
+Date:
+2026-07-22

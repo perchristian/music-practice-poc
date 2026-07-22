@@ -98,6 +98,8 @@ Phase 2J benchmark harness implemented on 2026-07-21. `scripts/benchmark-chords.
 
 The initial Phase 2J development baseline completed on 2026-07-21 without inspecting the holdout. Over eight tracks selected from standardized chord density, entropy, vocabulary, tempo, duration, and instrumentation features, oracle timing scored 71.7% Root, 58.6% MajMin, 55.7% Triads, and 58.4% MIREX; analyzer-estimated timing scored 66.0%, 53.7%, 50.8%, and 54.6%. At 250 ms, boundary F1 was 53.1% oracle and 44.1% estimated. More importantly for the 279-cue problem, reference density was 30.2 changes/min versus 69.7 oracle and 57.2 estimated; adjacent equal labels are merged for that comparison. Oracle improves MajMin by 4.9 points, proving timing matters, but remains too weak to make timing the only target. Runtime is already about 0.01 real time. The committed aggregate is in `benchmarks/rwc-popular-development-baseline.md`; detailed JSON/Markdown stays ignored. The next experiment is one conservative temporal sequence/smoothing layer, not another small template tweak. No application jobs were created and the three existing intentional local jobs were unchanged.
 
+The first Phase 2J smoothing checkpoint completed on 2026-07-22. `beat-aware-chroma-v3` replaces only isolated one-beat `A-B-A` chord estimates before the existing within-bar merge; chord templates, timing, key, vocabulary, and stem evidence are unchanged. On development, oracle MajMin rose from 58.6% to 60.8% and estimated-timing MajMin from 53.7% to 55.7%; medians and a majority of tracks improved, while false-extra boundaries at 250 ms fell from 1503 to 1162 oracle and 1321 to 1079 estimated. The protected holdout was opened only after that gate passed. Holdout oracle MajMin improved from 48.1% to 49.0%; estimated MajMin moved from 40.2% to 39.9%, within the locked one-point limit, while false extras fell but missing estimated boundaries increased. The rule is retained as the conservative default, the unsmoothed benchmark remains reproducible with `--smoothing none`, and the now-consumed holdout must not be used for tuning. Aggregate evidence is committed in `benchmarks/rwc-popular-isolated-smoothing-checkpoint.md`; detailed artifacts remain ignored. Focused sequence/benchmark tests passed, `npm test` passed with 38 tests and one optional local calibration skipped, all 28 Playwright tests passed, `git diff --check` passed, and no test-created jobs remained. No application jobs were created by the benchmark, no agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -332,11 +334,11 @@ Local web POC:
 
 ## In Progress
 
-- Phase 2J analyzer calibration is in progress; the harness, fixed pilot, and two development baselines are complete. Holdout is still protected.
+- Phase 2J analyzer calibration is in progress; the first conservative smoothing experiment passed development and holdout gates. The holdout is now consumed and fixed.
 
 ## Next Recommended Task
 
-Implement one conservative temporal sequence/smoothing experiment and compare it with the locked Phase 2J development baseline. Use the decision gates in `benchmarks/rwc-popular-development-baseline.md`; keep holdout protected until the regression checkpoint.
+Define the raw-candidate versus conservative-chart contract, then prototype explicit recovery of plausible short analyzer changes without overwriting the user-owned working chart.
 
 ## Skills Used
 

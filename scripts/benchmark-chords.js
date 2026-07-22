@@ -27,7 +27,7 @@ const defaults = {
 
 function usage() {
   return `Usage:
-  npm run benchmark:chords -- --timing oracle|estimated|both [--split development|holdout|all] [--limit N]
+  npm run benchmark:chords -- --timing oracle|estimated|both [--split development|holdout|all] [--smoothing isolated|none] [--limit N]
   npm run benchmark:chords -- --create-manifest
 
 Options:
@@ -38,13 +38,23 @@ Options:
   --python PATH        Python with requirements-eval.txt installed
   --track RWC_Pxxx     run one manifest track
   --split NAME         defaults to development, protecting the holdout
+  --smoothing NAME     isolated (product default) or none (baseline control)
   --limit N            run the first N selected tracks
   --dry-run            validate manifest, annotations, and audio only
 `;
 }
 
 function parseArgs(argv) {
-  const result = { ...defaults, timing: "oracle", split: "development", limit: null, track: null, dryRun: false, createManifest: false };
+  const result = {
+    ...defaults,
+    timing: "oracle",
+    split: "development",
+    smoothing: "isolated",
+    limit: null,
+    track: null,
+    dryRun: false,
+    createManifest: false
+  };
   const pathKeys = new Set(["annotations", "audio", "manifest", "output", "python"]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -58,7 +68,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = argument.startsWith("--") ? argument.slice(2) : null;
-    if (![...pathKeys, "timing", "split", "limit", "track"].includes(key)) throw new Error(`Unknown argument: ${argument}`);
+    if (![...pathKeys, "timing", "split", "smoothing", "limit", "track"].includes(key)) throw new Error(`Unknown argument: ${argument}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${argument}`);
     index += 1;
@@ -66,6 +76,7 @@ function parseArgs(argv) {
   }
   if (!new Set(["oracle", "estimated", "both"]).has(result.timing)) throw new Error(`Invalid timing mode: ${result.timing}`);
   if (!new Set(["development", "holdout", "all"]).has(result.split)) throw new Error(`Invalid split: ${result.split}`);
+  if (!new Set(["isolated", "none"]).has(result.smoothing)) throw new Error(`Invalid smoothing mode: ${result.smoothing}`);
   if (result.limit !== null) {
     result.limit = Number(result.limit);
     if (!Number.isInteger(result.limit) || result.limit < 1) throw new Error("--limit must be a positive integer.");
@@ -165,7 +176,7 @@ function markdownReport(report, jsonFilename) {
   const lines = [
     `# RWC-P ${report.timing} ${report.split} report`,
     "",
-    `Tracks: ${report.trackCount} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
+    `Tracks: ${report.trackCount} · smoothing: ${report.smoothing} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
     "",
     "| Metric | Duration weighted | Track median | OOV seconds |",
     "| --- | ---: | ---: | ---: |",
@@ -229,7 +240,10 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
     const result = await analyzeHarmonyFromAudio(
       { path: audioPath, durationSeconds: audio.durationSeconds },
       { outputs: [] },
-      timing === "oracle" ? { timingGrid: buildOracleTimingGrid(track) } : {}
+      {
+        ...(timing === "oracle" ? { timingGrid: buildOracleTimingGrid(track) } : {}),
+        sequenceSmoothing: options.smoothing
+      }
     );
     predictions.push({
       trackId: track.trackId,
@@ -251,13 +265,14 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
     createdAt: new Date().toISOString(),
     timing,
     split: options.split,
+    smoothing: options.smoothing,
     manifest: options.manifest,
     dataset: manifest.dataset,
     trackCount: predictions.length,
     evaluation
   };
   await mkdir(options.output, { recursive: true });
-  const filename = `rwc-popular-${timing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  const filename = `rwc-popular-${timing}-${options.smoothing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   const outputPath = join(options.output, filename);
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   const markdownPath = outputPath.replace(/\.json$/, ".md");

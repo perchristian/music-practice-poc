@@ -8,6 +8,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a locked development/holdout checkpoint for conservative isolated-beat chord smoothing, including an explicit unsmoothed benchmark control.
 - Added a dataset-backed chord benchmark that runs the application analyzer directly on a locked 8-development/4-holdout RWC-P v2 pilot without creating library jobs.
 - Added separate oracle-timing and estimated-timing runs with standard duration-weighted chord scores, boundary errors, cue density, OOV duration, runtime, and compact failure diagnostics.
 - Added an optional pinned evaluation environment and checksum-verified extraction of only the selected pilot WAV files; benchmark media and detailed results remain outside Git.
@@ -20,6 +21,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Real harmonic analysis now suppresses isolated one-beat chord changes when both neighboring beats agree, reducing development cue density and false boundaries while preserving the user-owned working chart.
 - Displayed BPM now follows the active tempo-map segment, and segment edits move only its next anchored downbeat.
 - Timeline markers, metronome clicks, chord timing, loops, Harmony overlays, and count-in now use the same invertible musical-time map.
 - Bar 1 timing now uses the same correction editor as every other anchor; nudge actions are compact icon buttons and the playhead is visually distinct from downbeats.
