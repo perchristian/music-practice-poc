@@ -416,7 +416,7 @@ Status: Complete for the original slider/Fit/Follow slice on 2026-07-22. Normal 
 Goal: Make timeline navigation predictable across trackpad, mouse, touchscreen, and keyboard without changing playback time accidentally or allowing `Follow` to fight direct navigation.
 
 Product contract:
-- Implement the normative behavior in `UX_FLOOR_PLANS.md` under `Timeline Trackpad, Mouse, Touch, and Keyboard Contract`.
+- Implement the normative behavior in `TIMELINE_INTERACTION_CONTRACT.md`.
 - Treat the contract as input-mechanism based rather than detecting a Mac, Windows, touch-only, or mouse-only device.
 - Keep the dependency-light mock journey fully usable through visible Zoom, `Fit`, scrubber, and scrollbar controls even when a hardware gesture is unavailable.
 

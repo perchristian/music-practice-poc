@@ -137,7 +137,7 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 12. Mute the piano stem so the non-piano backing remains while the piano drops out.
 13. Solo the piano stem and confirm other stems drop out.
 14. Confirm mute and solo cannot remain active at the same time on the piano stem.
-15. Confirm the timeline shows beat/bar markers. Increase normal playback `Zoom` with the slider, seek through the song, and try `Follow`; the playhead should remain near the left-center while the timeline moves. Manually pan the timeline and confirm Follow turns off. Select `Fit`, reload, and confirm the saved Zoom/Follow preference returns. Follow intentionally defaults to off. Trackpad pinch is pending human-approved behavior; see `UX_FLOOR_PLANS.md` and use the slider for the reliable demo path.
+15. Confirm the timeline shows beat/bar markers. Increase normal playback `Zoom` with the slider, seek through the song, and try `Follow`; the playhead should remain near the left-center while the timeline moves. Manually pan the timeline and confirm Follow turns off. Select `Fit`, reload, and confirm the saved Zoom/Follow preference returns. Follow intentionally defaults to off. Trackpad pinch is pending human-approved behavior; see `TIMELINE_INTERACTION_CONTRACT.md` and use the slider for the reliable demo path.
 16. Unmute the `Grid click` mixer row, play the song, and listen for whether the click feels aligned with the music.
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
 18. Click the displayed BPM, type a corrected tempo, and press Enter to audition the updated grid.
