@@ -48,6 +48,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Fixed
 
+- Restored two-finger pinch zoom on the shared timeline in both normal playback and timing edit, while preserving one-finger horizontal panning and vertical page scrolling.
+- Prevented rapid pinch updates from applying stale zoom anchors after a newer zoom level was already rendered.
 - Fixed chord remapping after timing corrections: corrected-analysis cues now use snapshot-to-current mapping, and explicit bar/beat positions override rounded waveform seconds at boundaries.
 - Fixed enabled loops resuming from arbitrary playhead positions instead of always relocating to the loop start before direct playback or count-in.
 - Fixed Demucs startup after moving the repository by invoking the module through the relocated virtualenv Python; added dependency-free command-resolution coverage and kept explicit interpreter/entrypoint overrides.

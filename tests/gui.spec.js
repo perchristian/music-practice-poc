@@ -42,6 +42,33 @@ async function setPlaybackPosition(page, seconds) {
   }, seconds);
 }
 
+async function pinchTimeline(page, { startDistance = 80, endDistance = 180 } = {}) {
+  await page.getByTestId("timeline-viewport").evaluate((viewport, distances) => {
+    const rect = viewport.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dispatch = (type, pointerId, clientX, isPrimary = false) => {
+      viewport.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId,
+        pointerType: "touch",
+        isPrimary,
+        buttons: type === "pointerup" ? 0 : 1,
+        clientX,
+        clientY: centerY
+      }));
+    };
+
+    dispatch("pointerdown", 31, centerX - distances.startDistance / 2, true);
+    dispatch("pointerdown", 32, centerX + distances.startDistance / 2);
+    dispatch("pointermove", 31, centerX - distances.endDistance / 2, true);
+    dispatch("pointermove", 32, centerX + distances.endDistance / 2);
+    dispatch("pointerup", 31, centerX - distances.endDistance / 2, true);
+    dispatch("pointerup", 32, centerX + distances.endDistance / 2);
+  }, { startDistance, endDistance });
+}
+
 async function waitForLibraryJob(page, filename) {
   return expect
     .poll(async () => {
@@ -822,6 +849,11 @@ test("playback timeline zoom and follow persist, track seeks and loops, and yiel
 
   await expect(page.getByTestId("playback-timeline-controls")).toBeVisible();
   await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("timeline-viewport")).toHaveCSS("touch-action", "pan-y");
+  await pinchTimeline(page);
+  await expect
+    .poll(async () => Number(await page.getByTestId("playback-timeline-zoom").inputValue()))
+    .toBeGreaterThan(1);
   await setPlaybackPosition(page, 32);
   await page.getByTestId("playback-timeline-zoom").fill("4");
   await expect
@@ -873,11 +905,17 @@ test("playback timeline zoom and follow persist, track seeks and loops, and yiel
 
   await page.getByTestId("edit-timing").click();
   await expect(page.getByTestId("playback-timeline-controls")).not.toBeVisible();
+  await expect(page.getByTestId("timing-zoom")).toHaveValue("1");
+  await pinchTimeline(page);
+  await expect
+    .poll(async () => Number(await page.getByTestId("timing-zoom").inputValue()))
+    .toBeGreaterThan(1);
   const editScroll = await page.getByTestId("timeline-viewport").evaluate((element) => element.scrollLeft);
   await setPlaybackPosition(page, 8);
   await expect(page.getByTestId("timeline-viewport")).toHaveJSProperty("scrollLeft", editScroll);
   await page.getByTestId("timing-done").click();
   await expect(page.getByTestId("playback-timeline-follow")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("playback-timeline-zoom")).toHaveValue("4");
 
   await page.getByTestId("loop-enabled").check();
   await page.getByTestId("loop-start").fill("5");

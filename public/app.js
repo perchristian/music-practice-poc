@@ -230,10 +230,12 @@ let suppressTimelineClick = false;
 let harmonyReanalysisPending = false;
 let chordChartRecoveryPending = false;
 let timelineHoverClientX = null;
-const timingTouchPointers = new Map();
+const timelineTouchPointers = new Map();
 let timingPinchState = null;
 let timelinePanPointer = null;
+let timelineTouchPanState = null;
 let programmaticTimelineScrollUntil = 0;
+let timelineResizeFrame = null;
 let persistTimer = null;
 let pendingPracticeStatePersist = null;
 let practicePersistVersion = 0;
@@ -2499,7 +2501,9 @@ function updateTimelineTrackSize({ anchorRatio = null, viewportX = null } = {}) 
       ? (timelineViewport.scrollLeft + resolvedViewportX) / previousWidth
       : 0;
   timelineTrack.style.width = `${effectiveTimelineZoom() * 100}%`;
-  requestAnimationFrame(() => {
+  if (timelineResizeFrame !== null) cancelAnimationFrame(timelineResizeFrame);
+  timelineResizeFrame = requestAnimationFrame(() => {
+    timelineResizeFrame = null;
     setTimelineScrollLeft(resolvedAnchorRatio * timelineTrack.clientWidth - resolvedViewportX);
     drawWaveform();
     if (currentMetadata) renderGridTimeline(currentMetadata);
@@ -2516,6 +2520,7 @@ function setTimelineZoom(nextZoom, { clientX = timelineHoverClientX } = {}) {
     ? (timelineViewport.scrollLeft + viewportX) / Math.max(1, timelineTrack.clientWidth)
     : timelinePercent(transportTime()) / 100;
   const zoom = Math.min(24, Math.max(1, Math.round(Number(nextZoom) || 1)));
+  if (zoom === effectiveTimelineZoom()) return;
   if (timingEditMode) {
     timingZoomFactor = zoom;
     if (timingZoom) timingZoom.value = String(zoom);
@@ -4060,37 +4065,74 @@ gridTimeline?.addEventListener("keydown", (event) => {
 });
 
 timelineViewport?.addEventListener("pointerenter", (event) => {
-  timelineHoverClientX = event.clientX;
+  if (event.pointerType !== "touch") timelineHoverClientX = event.clientX;
 });
 timelineViewport?.addEventListener("pointerleave", () => {
   timelineHoverClientX = null;
 });
 timelineViewport?.addEventListener("pointermove", (event) => {
-  timelineHoverClientX = event.clientX;
+  if (event.pointerType !== "touch") timelineHoverClientX = event.clientX;
   if (
+    event.pointerType !== "touch" &&
     timelinePanPointer?.pointerId === event.pointerId &&
     Math.abs(event.clientX - timelinePanPointer.startX) >= 6
   ) {
     timelinePanPointer = null;
     setPlaybackTimelineFollow(false);
   }
-  if (event.pointerType !== "touch" || !timingTouchPointers.has(event.pointerId)) return;
-  timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (timingTouchPointers.size < 2 || !timingPinchState) return;
-  const [first, second] = [...timingTouchPointers.values()];
-  const distance = Math.hypot(second.x - first.x, second.y - first.y);
-  const centerX = (first.x + second.x) / 2;
+  if (event.pointerType !== "touch" || !timelineTouchPointers.has(event.pointerId)) return;
+  timelineTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (timelineTouchPointers.size >= 2 && timingPinchState) {
+    const [first, second] = [...timelineTouchPointers.values()];
+    const distance = Math.hypot(second.x - first.x, second.y - first.y);
+    const centerX = (first.x + second.x) / 2;
+    event.preventDefault();
+    setTimelineZoom(timingPinchState.zoom * distance / Math.max(1, timingPinchState.distance), { clientX: centerX });
+    return;
+  }
+  if (timelineTouchPanState?.pointerId !== event.pointerId) return;
+  const deltaX = timelineTouchPanState.startX - event.clientX;
+  if (Math.abs(deltaX) < 3 && !timelineTouchPanState.moved) return;
   event.preventDefault();
-  setTimelineZoom(timingPinchState.zoom * distance / Math.max(1, timingPinchState.distance), { clientX: centerX });
+  timelineTouchPanState.moved = true;
+  setTimelineScrollLeft(timelineTouchPanState.startScrollLeft + deltaX);
+  if (!timingEditMode) setPlaybackTimelineFollow(false);
 });
 timelineViewport?.addEventListener("pointerdown", (event) => {
-  if (!timingEditMode) {
+  if (!timingEditMode && event.pointerType !== "touch") {
     timelinePanPointer = { pointerId: event.pointerId, startX: event.clientX };
   }
   if (event.pointerType !== "touch") return;
-  timingTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (timingTouchPointers.size === 2) {
-    const [first, second] = [...timingTouchPointers.values()];
+  timelineTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (timelineTouchPointers.size === 1) {
+    const timingMarkerTouch = timingEditMode && Boolean(event.target.closest?.(".grid-marker.downbeat"));
+    timelineTouchPanState = timingMarkerTouch
+      ? null
+      : {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startScrollLeft: timelineViewport.scrollLeft,
+          moved: false
+        };
+    if (!timingMarkerTouch) {
+      try {
+        timelineViewport.setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic events and older browsers may not expose an active pointer.
+      }
+    }
+  }
+  if (timelineTouchPointers.size === 2) {
+    const [first, second] = [...timelineTouchPointers.values()];
+    timelineTouchPanState = null;
+    timingDragState = null;
+    for (const pointerId of timelineTouchPointers.keys()) {
+      try {
+        timelineViewport.setPointerCapture(pointerId);
+      } catch {
+        // The gesture still works while both pointers remain over the viewport.
+      }
+    }
     timingPinchState = {
       distance: Math.hypot(second.x - first.x, second.y - first.y),
       zoom: effectiveTimelineZoom()
@@ -4099,8 +4141,26 @@ timelineViewport?.addEventListener("pointerdown", (event) => {
 });
 function finishTimingTouch(event) {
   if (timelinePanPointer?.pointerId === event.pointerId) timelinePanPointer = null;
-  timingTouchPointers.delete(event.pointerId);
-  if (timingTouchPointers.size < 2) timingPinchState = null;
+  timelineTouchPointers.delete(event.pointerId);
+  try {
+    if (timelineViewport?.hasPointerCapture(event.pointerId)) {
+      timelineViewport.releasePointerCapture(event.pointerId);
+    }
+  } catch {
+    // Pointer capture may already have ended.
+  }
+  if (timelineTouchPointers.size < 2) timingPinchState = null;
+  if (timelineTouchPointers.size === 1) {
+    const [pointerId, pointer] = [...timelineTouchPointers.entries()][0];
+    timelineTouchPanState = {
+      pointerId,
+      startX: pointer.x,
+      startScrollLeft: timelineViewport?.scrollLeft || 0,
+      moved: false
+    };
+  } else if (timelineTouchPointers.size === 0) {
+    timelineTouchPanState = null;
+  }
 }
 timelineViewport?.addEventListener("pointerup", finishTimingTouch);
 timelineViewport?.addEventListener("pointercancel", finishTimingTouch);

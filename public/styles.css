@@ -872,14 +872,14 @@ audio {
   background:
     linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(37, 99, 235, 0.04)),
     #fff;
-  touch-action: pan-x;
+  touch-action: pan-y;
 }
 
 .timeline-viewport.editing {
   height: 164px;
   overflow-x: auto;
   cursor: crosshair;
-  touch-action: pan-x;
+  touch-action: pan-y;
 }
 
 .timeline-track {
