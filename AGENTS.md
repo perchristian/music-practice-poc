@@ -383,6 +383,44 @@ Each epic should reduce technical uncertainty or improve the demo.
 
 ---
 
+## Work ownership and GitHub issues
+
+GitHub Issues are the source of truth for executable work. `TASKS.md` keeps the
+roadmap, work-package dependencies, and durable task contracts; `STATUS.md` keeps
+only the current issue pointers and blocking state.
+
+Every open issue must carry exactly one ownership label:
+
+- `owner:codex` for work Codex can execute autonomously
+- `owner:per` for a product-owner action or decision
+- `owner:shared` when Codex prepares evidence and Per reviews or decides
+
+Use `state:ready`, `state:waiting`, and `state:deferred` to distinguish current
+work from queued or intentionally parked work.
+
+Human review must never be buried inside implementation prose:
+
+- create an `owner:per` issue only when its review packet is ready
+- keep at most one `owner:per` issue in `state:ready`
+- state exactly what to inspect, the steps, requested answer, pass/fail meaning,
+  and what the answer unblocks
+- historical, superseded, and future review notes do not belong in the active
+  human queue
+
+Every meaningful handoff should state:
+
+```text
+Completed by Codex:
+- ...
+
+Your action now:
+- None
+```
+
+or link one ready human issue and give its required response format.
+
+---
+
 ## Prioritization
 
 Always prioritize in this order:

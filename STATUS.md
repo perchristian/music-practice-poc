@@ -10,6 +10,8 @@ Chord-analysis strategy review added on 2026-07-23. `CHORD_ANALYSIS_STRATEGY.md`
 
 Chord Reliability Validation Gate committed on 2026-07-23. Product review concluded that reliable chord analysis is core alongside stem separation and must be proven good enough before unrelated feature work resumes. `research/chord-reliability-validation-plan.md` records the MIR research, current failure analysis, accompaniment-first evidence model, reliability-gated bass fallback for no-bass mixes, ornament-resistant comp evidence, repetition-aware pooling, locked evaluation contract, provisional usability thresholds, seven milestones, and terminal GO/ADJUST/COMPARE/STOP decisions. `TASKS.md` now orders CR0-CR6 as the committed sequence; prior work packages are deferred. `RISKS.md` elevates chord reliability to a high-likelihood/high-impact core blocker, `DECISIONS.md` records the prioritization, and `CHORD_ANALYSIS_STRATEGY.md` links the forward plan. This planning iteration changed no runtime behavior and created no songs or jobs. No agents were delegated, and no model switch or skill was used.
 
+GitHub work ownership established on 2026-07-23. The `Chord Reliability Gate` milestone and stable ownership/state/review labels now separate Codex execution from product-owner decisions. Shared gate [#1](https://github.com/perchristian/piano-practice-poc/issues/1) tracks CR0-CR6; active Codex issue [#2](https://github.com/perchristian/piano-practice-poc/issues/2) prepares the CR0 validation contract and approval packet. No `owner:per` issue is ready, so the current human action is explicitly `None`. `AGENTS.md` now requires executable work in GitHub Issues, one ownership label per issue, just-in-time human review packets, and explicit handoffs. No runtime code, tests, songs, or jobs changed. No agents were delegated, and no model switch was used.
+
 Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening pass, and Phase 3 are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings and manual listening for metronome alignment are still required.
 
 Phase 3D replaced the seconds-first `practiceState.chordEdits` model with a clean-break grid-first `practiceState.chordChart` model on 2026-07-07. Backward compatibility with old local POC songs was intentionally not added. Phase 3E introduced the beat-aligned chord chart UI, and Phase 3F compacted it after product review by removing split/merge/arrow controls and moving add/move/delete onto the grid. A follow-up on 2026-07-07 added beat-snapped right-edge resizing for chord cards so users can shorten a spanning chord and reveal `+` cells for inserting another chord inside the same bar. Manual listening on varied real recordings is still needed to judge whether the Phase 3 Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later. Manual testing also found that clips with a short pause before the first downbeat are easier to inspect than clips where the first beat happens just before the recording starts; `DEMO.md` now recommends pre-roll for demos. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
@@ -370,6 +372,15 @@ Local web POC:
   - `practiceState.harmonyView` stores `barsPerRow` and `chordDisplay`.
   - The requested chord preview button and generated chord-instrument stem were deliberately split into a later task because they require audio synthesis/playback integration, not only chart UI.
 
+## Active Work Ownership
+
+- Shared gate:
+  [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
+- Current Codex task:
+  [#2 — Prepare the CR0 contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2)
+- Current human action: None
+- Blocked by human action: No
+
 ## In Progress
 
 - No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; the holdout is consumed and fixed. The new Chord Reliability Validation Gate is committed and starts with CR0.
@@ -378,12 +389,21 @@ Local web POC:
 
 ## Next Recommended Task
 
-Complete CR0 from `TASKS.md`: lock the new chord-reliability validation manifest,
-target recordings, reference-review process, metrics, and thresholds before any
-analyzer behavior changes.
+Complete
+[#2](https://github.com/perchristian/piano-practice-poc/issues/2): lock the new
+chord-reliability validation manifest, target recordings, reference-review
+process, metrics, and thresholds, then produce the human approval packet.
 
 ## Skills Used
 
+- Used Codex skill `github:github` on 2026-07-23 to inspect the empty repository
+  tracker and establish the approved issue-based ownership workflow.
+  - Purpose: separate Codex execution from product-owner actions and keep human
+    review requests visible and actionable.
+  - Result: created the `Chord Reliability Gate` milestone, ownership/state/review
+    labels, shared gate issue #1, and active Codex issue #2.
+  - Reproducibility: the labels, milestone, and issue bodies are visible in
+    GitHub and the workflow rules are version-controlled in `AGENTS.md`.
 - Used Codex skill `openai-docs` on 2026-07-06 to verify current Codex guidance for custom prompts/slash commands before creating personal prompt `~/.codex/prompts/commit.md`.
   - Purpose: decide whether a personal `/commit`-style workflow should be implemented as a Codex custom prompt.
   - Result: personal command should be invoked as `/prompts:commit`; custom prompts are documented as deprecated in favor of skills, but remain practical for this local workflow.

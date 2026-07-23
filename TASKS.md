@@ -2,10 +2,21 @@
 
 ## Next Task
 
-Complete Chord Reliability task CR0: lock the validation contract, new
-development/holdout data, target screen-recording scenarios, reference process,
-metrics, and “good enough” thresholds described in
-`research/chord-reliability-validation-plan.md`.
+Complete GitHub issue
+[#2 — CR0: Prepare locked chord-validation contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2).
+
+## Active Work Ownership
+
+- Shared gate:
+  [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
+- Current Codex task:
+  [#2 — Prepare the CR0 contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2)
+- Current human action: None
+- Blocked by human action: No
+
+GitHub Issues are the source of truth for executable work. This file retains the
+roadmap, ordering, dependencies, and durable contracts. A human review issue is
+created only when its review packet is ready.
 
 ## Purpose
 
@@ -34,6 +45,12 @@ Product-owner decision on 2026-07-23:
 - use the bounded research and milestone contract in
   `research/chord-reliability-validation-plan.md`;
 - retain editable charts and immutable analyzer provenance throughout.
+
+GitHub tracking:
+- Shared gate:
+  [#1](https://github.com/perchristian/piano-practice-poc/issues/1)
+- Active CR0 implementation:
+  [#2](https://github.com/perchristian/piano-practice-poc/issues/2)
 
 The tasks below are in committed priority order. A task may stop the sequence at
 its milestone gate. Do not skip directly to automatic repeat detection or combine
@@ -73,7 +90,9 @@ Verify:
 Milestone:
 - Milestone 0 passes exactly as defined in the research plan.
 
-Status: Next implementation/research task.
+Status: Active as
+[#2](https://github.com/perchristian/piano-practice-poc/issues/2). The human
+action remains `None` until Codex produces the approval packet.
 
 ### CR1: Add evidence diagnostics and failure fixtures
 
