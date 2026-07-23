@@ -240,3 +240,53 @@ The smallest useful implementation should:
 - Show active upload and processing jobs in the same list as completed songs.
 
 Do not redesign the audio engine, backend storage, or harmonic cue model as part of this UX change.
+
+## Timeline Trackpad, Mouse, and Touch Contract
+
+Status: Proposed for product review on 2026-07-23. This section defines the expected interaction before another implementation attempt. It does not describe behavior that has passed human review.
+
+The timeline uses the same navigation gestures during ordinary playback and `Edit timing`. Timing edit adds bar-line editing, but should not change how users pan or zoom the timeline.
+
+### Mac trackpad
+
+- Moving one finger moves the mouse pointer only. It must not pan or zoom the timeline.
+- Moving two fingers horizontally pans the timeline left or right.
+- A pinch gesture zooms the timeline in or out.
+- Pinch must work immediately from the fully zoomed-out `Fit`/minimum state. The user must not need to move the Zoom slider first.
+- Pinch should continue working throughout the complete zoom range and after repeatedly zooming in and out.
+- Zoom stays anchored around the trackpad gesture's location over the timeline when the browser provides one; otherwise it uses the visible playhead as the stable fallback.
+- Two-finger horizontal panning must not change the zoom level.
+- Manual two-finger panning turns `Follow` off so automatic scrolling does not fight the gesture.
+
+### Mouse
+
+- Moving the mouse only moves the pointer.
+- Dragging timing bar lines is available only in `Edit timing`.
+- The visible Zoom slider and `Fit` button are the reliable mouse zoom controls.
+- Horizontal-wheel input pans when the mouse or external device provides it.
+- Ordinary vertical page scrolling should not unexpectedly zoom the timeline.
+
+### Touchscreen
+
+- A one-finger horizontal drag over the timeline pans it.
+- A two-finger pinch zooms it.
+- A one-finger drag on a timing bar line moves that line only in `Edit timing`; it must not simultaneously pan the viewport.
+- Vertical page scrolling remains available outside a clearly horizontal timeline gesture.
+
+### State rules
+
+- Ordinary-playback zoom persists per song in `practiceState.timelineView.zoom`.
+- Timing-edit zoom is temporary and separate from ordinary-playback zoom.
+- Entering or leaving `Edit timing` must not overwrite the saved ordinary-playback zoom.
+- `Fit` returns the active mode to minimum zoom and the left boundary without disabling future pinch gestures.
+- Zoom remains bounded by the same minimum and maximum as the visible slider.
+
+### Current observed behavior
+
+Human review on 2026-07-23 found that the implementation does not yet meet this contract:
+
+- Trackpad pinch sometimes begins working only after the Zoom slider has first moved to roughly 30%.
+- Pinch can stop working again after zooming back out.
+- Automated synthetic pointer coverage does not reproduce the real Mac trackpad behavior because trackpad pan/pinch normally arrives through wheel gesture events rather than touchscreen-style pointer events.
+
+Until a fix passes human trackpad review, use the visible Zoom slider and `Fit` controls as the reliable zoom path. The next implementation should test real or browser-faithful trackpad wheel events at minimum zoom, after slider zoom, after `Fit`, and after repeated pinch-in/pinch-out cycles.
