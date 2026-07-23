@@ -2,7 +2,7 @@
 
 ## Next Task
 
-Implement Phase 5D compact practice shell and touch accessibility, starting with the library/app-shell cleanup in Phase 5D.1.
+Implement Phase 3G.2A timeline input-contract hardening, then return to Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
 
 ## Purpose
 
@@ -409,7 +409,62 @@ Verification:
 - Viewport checks around 1180 px, 820 px, and 390 px with no horizontal page overflow.
 - Manual playback review on a long song before enabling Follow by default; default to off unless evidence supports otherwise.
 
-Status: Complete for slider/Fit/Follow behavior on 2026-07-22. Normal playback exposes persisted per-song Zoom, Fit, and optional Follow on the same timeline viewport. Follow targets 37.5% of the viewport, clamps at the song boundaries, updates through paused seeks, playback-speed changes, and loop relocation, and turns off on direct pan input. Timing edit keeps its own ephemeral zoom and suppresses Follow without changing the saved playback preference. Focused browser coverage verifies anchoring, reload, loop entry, manual-pan cancellation, and no page overflow at 1180, 820, and 390 px. Trackpad pinch remains open: the 2026-07-23 pointer-based fix passed synthetic automation but failed human Mac trackpad review because pinch may require prior slider zoom and can stop again at minimum zoom. `UX_FLOOR_PLANS.md` now defines the pending trackpad/mouse/touch contract. Do not close pinch until real trackpad review passes from `Fit`, after slider zoom, and across repeated zoom cycles. Follow remains off by default until a long-song manual review provides evidence to change that default.
+Status: Complete for the original slider/Fit/Follow slice on 2026-07-22. Normal playback exposes persisted per-song Zoom, Fit, and optional Follow on the same timeline viewport. The original behavior targets 37.5% of the viewport, clamps at song boundaries, reacts to paused seeks, playback-speed changes, and loop relocation, and turns off on direct pan input. Timing edit currently keeps its own minimum-first ephemeral zoom and suppresses Follow without changing the saved playback preference. Focused browser coverage verifies anchoring, reload, loop entry, manual-pan cancellation, and no page overflow at 1180, 820, and 390 px. Product review on 2026-07-23 superseded two details: `Follow` should move the viewport only while playback is running, and timing edit should inherit then restore the ordinary viewport. Trackpad pinch also remains open because the pointer-based fix passed synthetic automation but failed human Mac trackpad review. Phase 3G.2A tracks the corrective interaction slice. Follow remains off by default until a long-song manual review provides evidence to change that default.
+
+### 18A. Phase 3G.2A: Timeline Input-Contract Hardening
+
+Goal: Make timeline navigation predictable across trackpad, mouse, touchscreen, and keyboard without changing playback time accidentally or allowing `Follow` to fight direct navigation.
+
+Product contract:
+- Implement the normative behavior in `UX_FLOOR_PLANS.md` under `Timeline Trackpad, Mouse, Touch, and Keyboard Contract`.
+- Treat the contract as input-mechanism based rather than detecting a Mac, Windows, touch-only, or mouse-only device.
+- Keep the dependency-light mock journey fully usable through visible Zoom, `Fit`, scrubber, and scrollbar controls even when a hardware gesture is unavailable.
+
+Current gaps to correct:
+- Trackpad pinch can require prior slider movement and can stop again at `Fit`.
+- `followPlaybackTimeline` can reposition the viewport while playback is paused, including when Follow is enabled or a paused seek occurs.
+- Ordinary mouse/trackpad wheel handling can turn `Follow` off even when the input only scrolls the page.
+- Ordinary-playback click-to-seek and true primary-button drag-to-pan do not yet share one explicit click/drag arbitration path.
+- Touch panning uses horizontal movement directly instead of relying as far as practical on browser `touch-action` arbitration for native vertical page scrolling.
+- The native overflow area is not presented as an explicit keyboard panning path.
+- Entering timing edit resets to minimum zoom rather than copying the ordinary viewport, and leaving does not restore a captured ordinary viewport.
+
+Implementation sequence:
+1. Centralize timeline viewport mutations behind small pan, zoom, seek, and Follow helpers. Distinguish programmatic Follow scrolling from deliberate user scrolling so only intentional manual pan disables `Follow`.
+2. Gate Follow scrolling on active playback. Enabling Follow, paused scrubber changes, paused timeline seeks, zoom, and `Fit` must not reposition the viewport; playback start or resume may scroll to reveal the advancing playhead. Follow must never call a transport-seek path.
+3. Implement the shared zoom-anchor rules. Pointer-located pinch uses its gesture position; slider and keyboard zoom use the visible playhead only during active followed playback and otherwise use viewport center; `Fit` shows the whole song from time zero.
+4. Replace device-specific gesture assumptions with browser-faithful wheel handling. Consume horizontal deltas for timeline pan, leave unrelated vertical deltas available for page scroll, recognize browser trackpad pinch separately, normalize supported wheel delta modes, and keep pinch operational at both zoom bounds and after repeated direction changes.
+5. Add one primary-pointer interaction state for empty timeline space. Release within the drag threshold seeks; movement beyond the threshold pans and suppresses the release seek; cancellation performs neither. Timing-marker anchors and explicit controls take precedence.
+6. Keep `touch-action` configured for native vertical page scrolling while handling horizontal one-finger timeline pan and two-finger pinch. Adding a second touch cancels any pending tap or pan, and marker manipulation remains isolated from viewport pan.
+7. Make horizontal overflow an explicit navigation control whenever zoom is greater than `Fit`. Use the platform scrollbar where practical, expose the viewport in keyboard focus order with a visible focus state and accessible label, reveal an overlay scrollbar on hover/focus/active pan, and verify that keyboard panning changes viewport position without seeking.
+8. Capture ordinary zoom and horizontal position on entry to `Edit timing`, initialize the temporary editor viewport from that snapshot, and restore the unchanged ordinary viewport on exit. Persist only ordinary zoom and the Follow preference; keep horizontal positions and the edit viewport transient.
+9. Preserve keyboard operation of the scrubber, Zoom slider, `Fit`, and timing anchors. Confirm that marker press/drag/cancel never also seeks or pans and that all interactive hit areas remain touch-usable.
+10. Update the focused GUI test around the new Follow policy and split it into browser-faithful cases for Follow, click/drag arbitration, wheel axes, zoom anchoring, touch, edit-viewport restoration, and keyboard scrolling. Avoid relying on synthetic touchscreen pointer events as proof of real trackpad pinch.
+
+Verification:
+- Run `npm test` and `npm run test:gui`.
+- At approximately 1180 px, 820 px, and 390 px, verify no horizontal page overflow and no loss of vertical page scrolling over the timeline.
+- Verify paused Follow enable, paused scrubber seek, paused timeline seek, slider zoom, and `Fit` do not move the viewport through Follow.
+- Verify playback start/resume, speed changes, and loop relocation keep the advancing playhead visible without changing its song time.
+- Verify click seeks on release, drag pans without seeking, pointer cancellation performs neither, and every manual-pan mechanism turns Follow off.
+- Verify keyboard scrubber seeking, keyboard Zoom/`Fit`, keyboard scrollbar panning without seeking, visible focus, and timing-marker activation.
+- Verify touch tap, horizontal pan, vertical page scroll, pinch, second-finger conversion, and timing-marker precedence on a real or browser-faithful touchscreen.
+- Manually verify a real Mac trackpad from `Fit`, after slider zoom, after `Fit`, at both zoom bounds, and through repeated pinch-in/pinch-out cycles. If Windows support becomes a POC target, repeat the wheel/pinch checks on a Windows Precision Touchpad without changing the product contract.
+- Delete every song/job created by automated or manual verification, retaining only documented intentional demo, fixture, or calibration jobs.
+- Run `git diff --check` and update `CHANGELOG.md`, `STATUS.md`, and this task status in the implementation commit.
+
+Acceptance criteria:
+- `Follow` changes viewport position only while playback is running and never changes playback position.
+- Paused seeking and viewport navigation remain independent even when the saved Follow preference is enabled.
+- Trackpad pinch works immediately from `Fit`, after slider use, after returning to `Fit`, and across repeated zoom cycles.
+- Mouse, trackpad, touch, scrollbar, and keyboard panning do not accidentally seek; seeking does not accidentally pan.
+- Vertical page scrolling remains available and does not disable Follow when no timeline pan occurred.
+- All zoom paths share the same bounds and preserve the specified anchor, subject only to song-boundary clamping.
+- Timing edit inherits the current ordinary viewport, cannot overwrite it, and restores it on exit.
+- A keyboard user can seek with the scrubber and inspect another timeline region with the scrollbar without changing playback time.
+- Existing timing-marker editing, loop behavior, persisted ordinary zoom/Follow preference, mock mode, and narrow layouts remain regression-safe.
+
+Status: Planned next from the product-reviewed contract on 2026-07-23.
 
 ### 19. Phase 5D: Compact Practice Shell and Touch Accessibility
 

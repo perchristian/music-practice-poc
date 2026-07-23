@@ -126,6 +126,8 @@ Phase 5D task 19.1 was implemented on 2026-07-23. The compact shell now presents
 
 Shared timeline pinch follow-up attempted on 2026-07-23 but did not pass human Mac trackpad review. The pointer-based implementation reserves horizontal touch gestures for the viewport, captures synthetic pinch pointers across rerenders, keeps timing-edit zoom separate, and passed focused synthetic Playwright coverage plus the full automated suites. Human review then found the real behavior remains intermittent: trackpad pinch may begin only after moving the slider to roughly 30% and can stop again after returning to minimum zoom. The automated test models touchscreen-style `PointerEvent` input, while a Mac trackpad normally reports two-finger pan and pinch through wheel gesture events, so the test did not validate the actual input path. `UX_FLOOR_PLANS.md` now separates the pending Mac trackpad, mouse, and touchscreen contract. The reliable current path is the Zoom slider plus `Fit`; no additional implementation was made during this documentation review. No agents were delegated, and no model switch or skill was used.
 
+Timeline interaction product review completed on 2026-07-23. `UX_FLOOR_PLANS.md` now defines one input-mechanism-based contract for trackpad, mouse, touchscreen, and keyboard navigation, including click/drag arbitration, browser-managed vertical touch scrolling, zoom anchors, an accessible horizontal scrollbar, timing-marker precedence, and edit-viewport restoration. The agreed Follow policy now affects viewport position only while playback is running and never changes playback time; this intentionally supersedes Phase 3G.2's paused-seek behavior. `TASKS.md` adds Phase 3G.2A as the next corrective implementation slice with browser-faithful automation and a required real Mac trackpad gate, after which work returns to Phase 5D.2. This was a documentation-only planning iteration: no runtime code, tests, songs, or jobs changed. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -365,7 +367,7 @@ Local web POC:
 
 ## Next Recommended Task
 
-Implement Phase 5D compact practice shell and touch accessibility, beginning with Phase 5D.1 library and app-shell cleanup.
+Implement Phase 3G.2A timeline input-contract hardening, then return to Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
 
 ## Skills Used
 
