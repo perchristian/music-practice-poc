@@ -32,6 +32,7 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Increased the real-mode upload limit from 150 MB to 650 MB so five-minute screen recordings at the observed capture bitrate can be added.
 - Compacted the app shell, selected-song header, and empty state by removing duplicate pipeline, song metadata, and field-label copy.
 - Video thumbnails are now captured as square crops, while persisted artwork is clipped into square list and header surfaces.
 - The macOS demo launcher now opens the stable URL matching its configured pipeline mode.

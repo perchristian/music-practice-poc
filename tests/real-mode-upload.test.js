@@ -11,7 +11,7 @@ const port = Number(process.env.REAL_BACKEND_TEST_PORT || 3211);
 const baseUrl = `http://127.0.0.1:${port}`;
 const extractionPort = Number(process.env.REAL_EXTRACTION_TEST_PORT || 3212);
 const extractionBaseUrl = `http://127.0.0.1:${extractionPort}`;
-const maxUploadBytes = 150 * 1024 * 1024;
+const maxUploadBytes = 650 * 1024 * 1024;
 const maxUploadRequestBytes = maxUploadBytes + 1024 * 1024;
 let server;
 let extractionServer;
@@ -263,12 +263,12 @@ describe("real-mode upload contract with missing FFmpeg", () => {
     assert.match(listedFailure.error, /FFmpeg was not found/);
   });
 
-  it("rejects real-mode multipart uploads larger than 150 MB", async () => {
+  it("rejects real-mode multipart uploads larger than 650 MB", async () => {
     const response = await postDeclaredOversizedUpload();
 
     assert.equal(response.statusCode, 413);
     const payload = JSON.parse(response.body);
-    assert.match(payload.error, /150 MB/);
+    assert.match(payload.error, /650 MB/);
   });
 });
 
