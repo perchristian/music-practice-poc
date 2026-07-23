@@ -130,6 +130,8 @@ Timeline interaction product review completed on 2026-07-23. `TIMELINE_INTERACTI
 
 Documentation organization follow-up completed on 2026-07-23. The product-reviewed timeline interaction contract moved out of `UX_FLOOR_PLANS.md` into the focused `TIMELINE_INTERACTION_CONTRACT.md`; task and demo references now point to the new file, while `UX_FLOOR_PLANS.md` remains scoped to the unified song workspace layouts and links to the contract. No runtime behavior, tests, songs, or jobs changed. No agents were delegated, and no model switch or skill was used.
 
+Project retrospective and AI-context review completed on 2026-07-23. `RETROSPECTIVES.md` now provides an append-only home for dated reports. `AI_TOKEN_OPTIMIZATION.md` was revised from a static, estimate-led proposal into a measurement-first plan covering current-context condensation, stable codebase orientation, symbol-based task contracts, active-seam module extraction, boundary-focused JSDoc, and before/after context recovery. `TASKS.md` now pauses implementation for product-owner backlog grooming and sprint planning and groups remaining work into provisional technically sequenced work packages. This planning order intentionally favors dependency, technical risk, and reversibility for grooming and must be rebalanced against learning value before a sprint is selected. No runtime code, tests, songs, or jobs changed. No agents were delegated, and no model switch or skill was used.
+
 ## Current Architecture
 
 Local web POC:
@@ -366,10 +368,12 @@ Local web POC:
 
 - No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; the holdout is consumed and fixed.
 - Phase 3G.3 is complete for automated and human verification across the required changing-tempo and late-start recordings; a general undo history remains deferred.
+- Backlog grooming and sprint planning with the product owner is the active planning gate.
 
 ## Next Recommended Task
 
-Implement Phase 3G.2A timeline input-contract hardening, then return to Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
+Run backlog grooming and sprint planning against the provisional work packages in
+`TASKS.md`; select one bounded sprint before resuming implementation.
 
 ## Skills Used
 

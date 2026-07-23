@@ -2,7 +2,8 @@
 
 ## Next Task
 
-Implement Phase 3G.2A timeline input-contract hardening, then return to Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
+Run backlog grooming and sprint planning with the product owner. Review the
+provisional work packages below before selecting the next implementation sprint.
 
 ## Purpose
 
@@ -20,6 +21,193 @@ Unscheduled, conditional, or temporarily parked work lives in `IDEAS.md`. Moving
 4. Simplicity
 5. Implementation effort
 6. Future scalability
+
+## Provisional Work Packages for Backlog Grooming
+
+These packages group the existing backlog by technical dependency, risk, and
+reversibility. Their order is deliberately technical-first at the product owner's
+request and temporarily departs from the default prioritization order above.
+Backlog grooming must rebalance them against learning value and user-testing
+needs before a sprint is committed.
+
+Do not start implementation from this list until grooming and sprint planning are
+complete.
+
+### WP0: Backlog Grooming and Sprint Planning
+
+Purpose:
+- Review completed capability, known risks, current evidence, and remaining
+  feature ideas from the broader product perspective.
+- Decide which work is necessary before product-owner-led piano-player testing.
+- Select one bounded sprint and explicitly defer or park the rest.
+
+Inputs:
+- `RETROSPECTIVES.md`
+- `AI_TOKEN_OPTIMIZATION.md`
+- current planned phases in this file
+- `RISKS.md`, `STATUS.md`, and `IDEAS.md`
+
+Output:
+- one agreed sprint goal
+- selected tasks with symbol-based file anchors, preserved contracts, non-goals,
+  verification, and human gates
+- explicit deferred and conditional work
+
+Status: Next planning task.
+
+### WP1: AI Execution Baseline and Context Foundations
+
+Technical rationale:
+- Measurement must precede optimization.
+- Smaller current-context documents and stable routing information reduce repeated
+  exploration for every later package.
+- This is documentation and process work with low runtime regression risk.
+
+Tasks:
+1. Capture comparable frontend, backend/analysis, and documentation task baselines
+   using the metrics in `AI_TOKEN_OPTIMIZATION.md`.
+2. Condense `STATUS.md` to current state and move dated verification history to an
+   archive.
+3. Keep active and near-future work in `TASKS.md`; archive completed phase detail
+   without losing traceability.
+4. Add a compact stable codebase quick reference to `AGENTS.md`, excluding line
+   numbers, fixed test totals, and volatile current state.
+5. Adopt the symbol-based task contract from `AI_TOKEN_OPTIMIZATION.md`.
+6. Perform and record the required simulated or fresh context recovery review.
+7. Repeat comparable task samples after the changes and retain only improvements
+   that preserve quality.
+
+Dependencies:
+- WP0 chooses the baseline tasks and decides whether this is part of the first
+  sprint or a short enabling package.
+
+Status: Proposed.
+
+### WP2: Timeline Input Correctness and Frontend Seam
+
+Technical rationale:
+- Phase 3G.2A contains a known real-hardware failure and conflicting input paths.
+- Timeline viewport, Follow, seek, pan, zoom, touch, and timing-marker behavior
+  share state inside the largest integration file.
+- Correctness should be established before further transport or Harmony gestures
+  build on the same interaction surface.
+
+Tasks:
+1. Implement the Phase 3G.2A contract in
+   `TIMELINE_INTERACTION_CONTRACT.md`.
+2. Centralize viewport mutation and input arbitration.
+3. Extract timeline viewport/input state from `public/app.js` only if the active
+   change exposes a cohesive, testable seam; avoid a broad frontend rewrite.
+4. Add focused tests around the extracted contract plus full browser regression
+   coverage.
+5. Pass the required real Mac trackpad and narrow-screen gates.
+
+Dependencies:
+- WP0 confirms this remains a pre-user-test blocker.
+- WP1 baseline should capture this task before context or code organization is
+  changed if practical.
+
+Maps to:
+- Phase 3G.2A.
+
+Status: Proposed highest-priority runtime package.
+
+### WP3: User-Test Readiness Stabilization
+
+Technical rationale:
+- This package closes visible transport and mobile interaction gaps without
+  expanding the underlying song model.
+- It creates a stable handoff for product-owner-led piano-player testing.
+
+Tasks:
+1. Complete Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
+2. Run the complete mock and real demo journeys using `DEMO.md`.
+3. Resolve or explicitly preserve the malformed local `job.json` recorded in
+   `STATUS.md`; do not delete ambiguous user data without approval.
+4. Confirm clean test-job state, known demo fixtures, and reproducible setup.
+5. Prepare a short user-test readiness note containing known limitations and
+   suggested observation points, without inferring product success.
+
+Dependencies:
+- WP2 interaction correctness unless grooming explicitly accepts the current
+  slider/`Fit` fallback for early testing.
+
+Maps to:
+- Phase 5D.2.
+- Existing demo-readiness and cleanup requirements.
+
+Status: Proposed.
+
+### WP4: Boundary Contracts and Opportunistic Backend Modularization
+
+Technical rationale:
+- Shared data shapes are cheaper and safer to document before extracting backend
+  modules.
+- Broad refactoring of stable analysis or job code would add regression risk
+  without improving the immediate user-test journey.
+
+Tasks:
+1. Add reusable JSDoc typedefs for practice state, timing events, chord events,
+   analyzer metadata, waveform metadata, and job/API payloads.
+2. Apply those types to exported and cross-module functions.
+3. When harmonic analysis is next changed, extract beat and harmony analysis from
+   `server.js` without rewriting algorithms.
+4. When persistence is next changed, extract job storage/lifecycle operations
+   from HTTP route wiring.
+5. Measure whether each extraction reduces relevant exploration without
+   increasing failed tests or rework.
+
+Dependencies:
+- WP1 establishes the measurement and task-contract method.
+- Extraction tasks remain dormant until their subsystem is active.
+
+Status: Proposed enabling/debt package; not a pre-user-test blocker by default.
+
+### WP5: Evidence-Driven Feature Backlog
+
+Technical rationale:
+- Section resizing, chord multi-selection, copy/paste, and loop-from-selection
+  build on interaction and state foundations from earlier packages.
+- Implementing them before grooming or user evidence risks deepening secondary
+  complexity.
+
+Candidate tasks:
+- Phase 5B.4 section resize handles and color coding
+- Phase 5B.5 chord multi-selection
+- Phase 5B.6 chord copy/paste and loop from selection
+- parked ideas promoted by product-owner-led testing
+
+Dependencies:
+- WP2 and WP3 are stable.
+- Backlog grooming or user evidence demonstrates that the capability improves the
+  learning workflow enough to justify its interaction and persistence cost.
+
+Status: Conditional; do not schedule as one large package.
+
+## Task Contract for Newly Groomed Work
+
+Use this compact shape for tasks selected from the work packages:
+
+```md
+### Task: Short title
+
+Files and symbols:
+- `path/to/file`: `relevantSymbol`
+
+Goal:
+- User or engineering outcome.
+
+Contracts to preserve:
+- State, API, provenance, and interaction invariants.
+
+Non-goals:
+- Nearby behavior that must remain out of scope.
+
+Verify:
+- Focused test
+- Full regression suite
+- Required human or hardware gate
+```
 
 ## Completed Work — Chronological
 
@@ -209,9 +397,11 @@ Verification:
 
 Status: Complete.
 
-## Planned Work — Execution Order
+## Detailed Backlog — Existing Phase Records
 
-Do not start a later item merely because an earlier item requires human review. Record the blocker and ask whether to continue with the next independent item.
+The provisional work packages above now govern backlog grooming. The phase records
+below preserve existing detail and previous ordering until grooming explicitly
+reclassifies, parks, or selects them.
 
 ### 15. Phase 3G.1: Waveform Timing Editor and Variable-Tempo Grid
 

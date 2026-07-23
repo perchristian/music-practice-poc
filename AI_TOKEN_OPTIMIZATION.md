@@ -1,131 +1,201 @@
-# Reduce Token Usage Per AI Task
+# AI Task Token Optimization
 
-## Context
+## Objective
 
-This project uses Claude Code to implement tasks defined in TASKS.md. The goal of this document is to reduce the number of tokens Claude consumes per task — which means reducing how much Claude needs to *explore* before it can act. Quality (accuracy of the implementation) must stay the same.
+Reduce the context, exploration, and inference required for Claude Code, Codex, or
+another coding agent to complete a project task without reducing implementation
+quality, verification depth, or product learning.
 
-Token waste in Claude Code sessions comes from three main sources:
-1. **Architecture re-discovery** — Claude reads README, ARCHITECTURE, STATUS, etc. at the start of every session to orient itself
-2. **Code search overhead** — `server.js` is 2876 lines and `app.js` is 4192 lines; Claude reads large portions just to find the relevant 50 lines
-3. **Type/signature inference** — Claude reads function bodies to understand what arguments functions take because there are no type annotations
+Token reduction is not itself the product goal. An optimization is successful only
+when it preserves or improves:
 
----
+- implementation accuracy
+- regression safety
+- time to a verified outcome
+- clarity for the next developer or agent
 
-## Recommendations (Priority Order)
+## Review Baseline
 
-### 1. Extend `AGENTS.md` with a Quick-Orientation Section — Biggest ROI
+The first version of this document correctly identified three recurring costs:
 
-`AGENTS.md` is already loaded by both Claude Code and Codex at the start of every session. It currently covers mission, principles, and process well, but lacks a fast-lookup reference for the codebase itself. Adding one eliminates the architecture exploration phase (reading README, ARCHITECTURE, STATUS, etc.) without duplicating those docs.
+1. architecture and status rediscovery
+2. search across large integration files
+3. inference of undocumented data shapes and function contracts
 
-**Add a new `## Codebase quick reference` section to `AGENTS.md`:**
+The review on 2026-07-23 found that the original recommendations were directionally
+useful but too dependent on volatile facts:
+
+- source line numbers and function signatures had already moved
+- fixed test counts had become stale
+- `practiceState.tempoMap` had been replaced by version-2
+  `practiceState.timingMap`
+- estimated token savings had no measured baseline
+- the proposed split focused on `server.js` even though `public/app.js` had become
+  the larger and more immediately active integration file
+
+Static line numbers, test totals, and current-state details must therefore stay out
+of automatically loaded orientation text.
+
+## Optimization Principles
+
+1. Measure before claiming savings.
+2. Keep automatically loaded context short and stable.
+3. Point to symbols and contracts, not line numbers.
+4. Separate current state from historical evidence.
+5. Extract cohesive seams when their subsystem is already being changed.
+6. Document shared boundary shapes before annotating internal implementation.
+7. Preserve focused and full regression verification.
+
+## Actions in Priority Order
+
+### 1. Establish a Repeatable Baseline
+
+Before restructuring context or code, record at least three representative AI
+tasks:
+
+- one frontend interaction task
+- one backend or analysis task
+- one documentation-only task
+
+For each task, capture what the available tooling exposes:
+
+- input and output tokens
+- number of file reads or search/tool calls before the first relevant edit
+- elapsed time to the first relevant edit and to verified completion
+- failed tests, regressions, or material rework
+- files read versus files ultimately changed
+
+The sample does not need laboratory precision. It must be consistent enough to
+compare later sessions and must not incentivize skipping necessary context.
+
+### 2. Condense Current-Context Documents
+
+The primary context files have accumulated completed history and detailed
+verification logs. Reorganize them without losing evidence:
+
+- keep `STATUS.md` focused on current architecture, current checkpoint, active
+  work, next task, blockers, and known local state
+- keep active and near-future execution work in `TASKS.md`
+- move completed task detail and dated verification history to clearly named
+  archives
+- retain `CHANGELOG.md` as the curated outcome history
+- keep `DECISIONS.md` authoritative for irreversible choices
+
+The target is not an arbitrary line count. A fresh session should be able to
+orient itself by reading the current sections without scanning chronological
+implementation history.
+
+### 3. Add a Small, Stable Codebase Quick Reference
+
+Add or replace content in `AGENTS.md` with a compact quick reference only after
+the baseline has been recorded. It should contain:
+
+- stable file or module responsibilities
+- current runtime entry points
+- critical state/provenance invariants
+- canonical development commands without test totals
+- pointers to `STATUS.md`, `TASKS.md`, `ARCHITECTURE.md`, and `DECISIONS.md`
+
+Keep the reference short enough that automatically loading it is always cheaper
+than rediscovering the same information. Do not copy current task status,
+implementation line numbers, or volatile data-model versions into it.
+
+### 4. Use Symbol-Based Task Contracts
+
+New task descriptions should use this shape:
 
 ```md
-## Codebase quick reference
+### Task: Short title
 
-### Key files
+Files and symbols:
+- `public/app.js`: `followPlaybackTimeline`, timeline pointer/wheel handlers
+- `tests/gui.spec.js`: focused timeline interaction coverage
 
-| File | Responsibility |
-|---|---|
-| `server.js` | HTTP API + all DSP analysis (beat detection, chord scoring, key detection) |
-| `public/app.js` | Entire browser UI (playback, mixer, grid editor, waveform, chord chart) |
-| `public/chord-chart.js` | Chord data model — pure functions, no DOM |
-| `public/tempo-map.js` | Beat↔time conversion — pure functions |
+Goal:
+- One sentence describing the user or engineering outcome.
 
-### Pipeline mode
+Contracts to preserve:
+- Relevant persisted-state, API, provenance, and interaction invariants.
 
-`PIPELINE_MODE=mock` (default) — no ML deps, simulated stems and analysis  
-`PIPELINE_MODE=real` — requires Demucs + FFmpeg
+Non-goals:
+- Nearby behavior that must not expand in this task.
 
-### Dev commands
-
-| Command | Purpose |
-|---|---|
-| `npm start` | Start local server |
-| `npm test` | Backend unit tests (28 passing) |
-| `npm run test:gui` | Playwright browser tests |
-
-### Critical invariants
-
-- `job.result.metadata` is **immutable** — original analyzer output, never overwritten
-- User edits live in `practiceState.chordChart` (chord corrections) and `practiceState.tempoMap` (timing corrections)
-- `public/chord-chart.js` and `public/tempo-map.js` are pure — no side effects, safe to unit test in isolation
+Verify:
+- Focused test command
+- Full regression command
+- Required human or hardware gate
 ```
 
-**Savings:** Eliminates reading ~5 long markdown files per session. Estimated savings: 3,000–8,000 tokens per session.
+Symbol names are search anchors. Line numbers may be used in temporary notes
+during one session but must not become maintained planning metadata.
 
----
+### 5. Extract Modules at Active Seams
 
-### 2. Add File + Line Anchors to Task Descriptions in `TASKS.md`
+Avoid a broad monolith rewrite whose only justification is token reduction.
+Extract a module when all of these are true:
 
-When a task says "fix chord detection," Claude must search the codebase to find where chord detection lives. When it says "fix `estimateChord()` in `server.js` around line 829," Claude goes directly there.
+- its responsibility can be named precisely
+- its inputs, outputs, and side effects can be tested
+- the current work already touches that subsystem
+- the extraction reduces the scope future tasks must inspect
 
-**Pattern to adopt for every future task:**
+Current candidates:
 
-```
-### Task: [Short title]
-**Files:** server.js (estimateChord ~line 829), tests/backend.test.js
-**Goal:** [One sentence — what should change and why]
-**Do not touch:** [list anything nearby that should stay the same]
-**Verify:** npm test should pass
-```
+1. During timeline input-contract hardening, separate timeline viewport and input
+   state from `public/app.js` if a coherent, regression-safe seam is available.
+2. When harmonic analysis is next changed, move beat and harmony analysis from
+   `server.js` into focused modules without rewriting the algorithms.
+3. When job persistence is next changed, separate job storage and lifecycle
+   operations from HTTP route wiring.
 
-**Savings:** Eliminates code search and exploratory file reads. Estimated savings: 1,000–5,000 tokens per task depending on complexity.
+Pure transformation modules should be preferred. DOM, transport, filesystem, and
+process-launch side effects should remain explicit at integration boundaries.
 
----
+### 6. Add Boundary-Focused JSDoc
 
-### 3. Split `server.js` Into Focused Modules
+Start with reusable data contracts rather than annotating every private helper:
 
-The 2876-line monolith forces Claude to read large spans of unrelated code. Splitting it means Claude reads only the relevant file for each task.
+- persisted practice state
+- version-2 timing events
+- chord-chart events
+- analyzer metadata and provenance
+- job/API request and response shapes
+- waveform envelope metadata
 
-**Proposed split (move existing code, don't rewrite):**
+Annotate exported or cross-module functions using those shared typedefs. Keep
+comments synchronized with runtime validation and tests. Do not add incorrect
+one-line signatures merely to increase annotation coverage.
 
-| New file | Moved from server.js | Approx lines |
-|---|---|---|
-| `lib/beat-detection.js` | `estimateBeatGrid`, onset functions (lines 373–667) | ~300 |
-| `lib/harmonic-analysis.js` | chroma, chord scoring, key detection, `analyzeHarmonyFromAudio` (lines 670–1074) | ~400 |
-| `lib/job-manager.js` | job creation, listing, persistence (scattered) | ~300 |
-| `server.js` | HTTP route wiring only | ~200 |
+### 7. Validate Context Recovery and Real Savings
 
-**Savings:** When a task is about chord detection, Claude reads `lib/harmonic-analysis.js` (~400 lines) instead of all of `server.js` (~2876 lines). Estimated savings: 2,000–6,000 tokens per DSP-related task.
+After the context changes:
 
----
+1. perform the required simulated or fresh-session context recovery review using
+   only `STATUS.md`, `TASKS.md`, `DECISIONS.md`, and `ARCHITECTURE.md`
+2. repeat comparable frontend, backend, and documentation tasks
+3. compare tokens, exploratory reads, time, and rework with the baseline
+4. retain only changes that improve efficiency without weakening outcomes
 
-### 4. Add JSDoc to Key Function Signatures
+## Acceptance Criteria
 
-Without type annotations, Claude reads entire function bodies to understand what arguments to pass and what shapes objects have. JSDoc solves this without needing TypeScript.
+- A fresh session identifies the current architecture, completed checkpoint,
+  next task, and important invariants without reading historical verification
+  logs.
+- Task descriptions route an agent to relevant files and symbols without brittle
+  line anchors.
+- No automatically loaded quick reference contains fixed test counts or volatile
+  implementation state.
+- At least one before/after sample exists for frontend, backend, and
+  documentation work.
+- Focused and full regression verification remain part of implementation tasks.
+- The context recovery review passes after documentation is reorganized.
+- Module extraction is justified by an active subsystem change and verified
+  behavior, not by speculative token savings alone.
 
-**Priority functions to annotate (one-liners each):**
+## Explicit Non-Goals
 
-```js
-/** @param {Float32Array} pcm @param {number} sr @returns {{ bpm: number, meter: number, downbeatOffset: number, confidence: number }} */
-function estimateBeatGrid(pcm, sr) { ... }
-
-/** @param {number[]} chroma 12-element normalized pitch-class energy @returns {{ root: string, quality: string, confidence: number }} */
-function estimateChord(chroma) { ... }
-```
-
-**Files to annotate:** DSP functions in `server.js`, `public/tempo-map.js`, `public/chord-chart.js`.
-
-**Savings:** Eliminates body-reading when Claude needs to call or compose these functions. Estimated savings: 500–2,000 tokens per task that touches the DSP pipeline.
-
----
-
-## Files to Create / Modify
-
-| File | Action | Priority |
-|---|---|---|
-| `AGENTS.md` | Add `## Codebase quick reference` section | High |
-| `TASKS.md` | Update format — add file+line anchors to future tasks | High |
-| `lib/beat-detection.js` | Create (move from server.js lines 373–667) | Medium |
-| `lib/harmonic-analysis.js` | Create (move from server.js lines 670–1074) | Medium |
-| `lib/job-manager.js` | Create (move from server.js job routes) | Medium |
-| `server.js` | Shrink to HTTP routing only | Medium |
-
----
-
-## Verification
-
-After each change:
-1. `npm test` — all 28 backend tests still pass
-2. `npm run test:gui` — all Playwright GUI tests still pass
-3. Start a new Claude Code session with a sample TASKS.md task and observe whether Claude reads multiple files before acting (token waste) or goes directly to the right location (efficient)
+- migrating the project to TypeScript only for AI efficiency
+- splitting every large file in one refactor
+- minimizing tokens by skipping architecture, safety, or verification context
+- optimizing for one agent product at the expense of reproducibility
+- treating estimated token reduction as evidence without measurement
