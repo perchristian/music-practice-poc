@@ -355,7 +355,8 @@ testing the value of an editable harmonic practice view. The available evidence
 does not support describing it as a reliable way to find the correct chords
 automatically.
 
-The next accuracy decision should be based on a small, fixed set of
-representative iOS screen recordings with independently reviewed chord and
-timing references. Failures should be classified before changing another
-weight, template, smoothing rule, or dependency.
+Reliable chord analysis is now a committed validation gate before unrelated
+feature work resumes. The research, proposed accompaniment/bass/repetition
+evidence model, locked evaluation contract, milestones, and terminal decisions
+are defined in
+[`research/chord-reliability-validation-plan.md`](./research/chord-reliability-validation-plan.md).

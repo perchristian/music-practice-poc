@@ -698,3 +698,57 @@ High that one bar-line interaction is the correct product model and that timing 
 
 Date:
 2026-07-22
+
+## Decision 30
+
+Decision:
+Make reliable chord analysis the next bounded product-validation gate, ahead of
+unrelated interaction polish and feature backlog work. Evaluate
+accompaniment-first melody suppression, reliability-gated bass fallback,
+ornament-resistant comp evidence, and repeated-section evidence pooling as
+separate hypotheses before combining them.
+
+Reason:
+Useful stem separation and a reliable harmonic chart are both core to the
+piano-learning experience. Current holdout scores and human review show that the
+analyzer is not yet trustworthy enough: corrected timing can align wrong chord
+names, but cannot make them harmonically correct. Research supports separating
+or attenuating vocals before chord features, modeling bass separately from chord
+quality, using stable segment evidence instead of treating every note equally,
+and combining aligned evidence across repeated song sections. The product owner
+has therefore chosen chord reliability as the next learning-value and risk gate.
+
+Alternatives considered:
+- Continue with timeline and mobile interaction cleanup before returning to
+  harmony. This would improve usability around an unvalidated core result and
+  risks making a polished workflow for misleading chords.
+- Rely on manual chord correction for user testing. This keeps implementation
+  small but transfers transcription work to the learner and may invalidate the
+  intended speed advantage.
+- Replace the analyzer immediately with Chordino or another external engine.
+  This may improve accuracy, but without target-domain evidence and shared
+  metrics the project cannot tell whether replacement solves melody, missing
+  bass, ornaments, timing, or repetition.
+- Tune several stem weights and sequence heuristics together. This is fast to
+  implement but makes gains and regressions uninterpretable and encourages
+  overfitting.
+- Force repeated sections to share copied labels. This improves visual
+  consistency but propagates the first error and destroys legitimate variations.
+
+Tradeoffs:
+Unrelated UI work pauses, and the new target-domain references require human
+review. Demucs-assisted benchmark runs add processing cost. In return, the
+project gets an explicit definition of “good enough,” isolates major musical
+failure classes, and has terminal GO, ADJUST ONCE, COMPARE/REPLACE, and
+STOP/REFRAME decisions that prevent indefinite heuristic tuning. Automatic repeat
+detection is conditional on manually known repeat groups first proving useful.
+Analyzer evidence remains immutable and user charts remain authoritative.
+
+Confidence:
+High that chord reliability must be resolved before broader user testing; high
+for melody suppression and repeat pooling as evidence-backed experiments; medium
+for the exact bass-reliability, ornament-persistence, and automatic-repeat
+methods until the locked target-domain baseline is reviewed.
+
+Date:
+2026-07-23

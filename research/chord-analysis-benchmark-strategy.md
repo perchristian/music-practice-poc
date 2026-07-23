@@ -2,6 +2,13 @@
 
 Dato: 2026-07-21
 
+Statusoppdatering 2026-07-23: Denne rapporten definerte Phase 2J-piloten, som nå
+er gjennomført og har en konsumert holdout. Den nye prioriterte
+Chord Reliability Validation Gate, med en ny datasplitt, målrettede
+skjermopptak, stemme-/bass-/ornamenthypoteser og repeterte seksjoner, er definert
+i [`chord-reliability-validation-plan.md`](./chord-reliability-validation-plan.md).
+Den opprinnelige holdouten skal ikke gjenbrukes til tuning.
+
 ## Konklusjon
 
 Den manuelle arbeidsflyten med å laste opp tilfeldige sanger og lage en egen

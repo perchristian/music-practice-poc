@@ -2,8 +2,10 @@
 
 ## Next Task
 
-Run backlog grooming and sprint planning with the product owner. Review the
-provisional work packages below before selecting the next implementation sprint.
+Complete Chord Reliability task CR0: lock the validation contract, new
+development/holdout data, target screen-recording scenarios, reference process,
+metrics, and “good enough” thresholds described in
+`research/chord-reliability-validation-plan.md`.
 
 ## Purpose
 
@@ -22,16 +24,277 @@ Unscheduled, conditional, or temporarily parked work lives in `IDEAS.md`. Moving
 5. Implementation effort
 6. Future scalability
 
-## Provisional Work Packages for Backlog Grooming
+## Committed Chord Reliability Validation Gate
+
+Product-owner decision on 2026-07-23:
+
+- reliable chord analysis is a core capability alongside useful stem separation;
+- current chord quality is not yet validated as good enough;
+- prove or disprove chord reliability before resuming unrelated feature work;
+- use the bounded research and milestone contract in
+  `research/chord-reliability-validation-plan.md`;
+- retain editable charts and immutable analyzer provenance throughout.
+
+The tasks below are in committed priority order. A task may stop the sequence at
+its milestone gate. Do not skip directly to automatic repeat detection or combine
+several unproven heuristics in one experiment.
+
+### CR0: Lock the chord-reliability validation contract
+
+Files and symbols:
+- `research/chord-reliability-validation-plan.md`: Evaluation contract and
+  Milestone 0
+- `scripts/chord-benchmark-lib.js`: existing RWC adapter and metrics contract
+- `scripts/benchmark-chords.js`: benchmark CLI
+- `benchmarks/README.md`: corpus and artifact instructions
+
+Goal:
+- Freeze a new development/holdout split, target screen-recording scenarios,
+  reference-review process, metrics, artifact paths, and “good enough” thresholds
+  before analyzer behavior changes.
+
+Contracts to preserve:
+- The consumed Phase 2J holdout remains fixed and unavailable for tuning.
+- Corpus audio and detailed run artifacts stay outside Git and outside
+  application jobs.
+- Reference/corrected timing and end-to-end timing are reported separately.
+
+Non-goals:
+- Analyzer tuning.
+- New UI.
+- Automatic section detection.
+
+Verify:
+- Manifest checksum and selected-track availability checks.
+- Reference interval validation.
+- Dry-run commands do not create library jobs.
+- Human approval of target recordings, scenarios, and thresholds.
+
+Milestone:
+- Milestone 0 passes exactly as defined in the research plan.
+
+Status: Next implementation/research task.
+
+### CR1: Add evidence diagnostics and failure fixtures
+
+Files and symbols:
+- `server.js`: `analyzeHarmonyFromAudio`, `chromaEvidenceForBar`,
+  `pitchClassEnergyDetails`
+- `scripts/generate-phase2a-test-media.js`: generated known-answer media
+- `scripts/chord-benchmark-lib.js`: diagnostic result adapters
+- `tests/harmony-analysis.test.js`: known-answer analysis coverage
+
+Goal:
+- Expose per-beat, per-source chroma, low-note candidates, bass reliability,
+  persistence/chordality features, raw candidate scores, and the evidence that
+  changed the winner without changing public chord output.
+- Add fixtures for vocal melody, no dedicated bass, piano/guitar bass fallback,
+  ornaments, repeated accompaniment with different melodies, and a legitimate
+  repeated-section variation.
+
+Contracts to preserve:
+- Mock mode remains dependency-light.
+- Public analyzer output and immutable provenance remain unchanged.
+- Diagnostics stay in benchmark artifacts unless a later task explicitly
+  defines a bounded persisted subset.
+
+Non-goals:
+- Changing stem weights or chord labels.
+- Product-facing diagnostic UI.
+
+Verify:
+- Semantic before/after analyzer-output comparison.
+- Focused fixture tests.
+- Current full-mix and Demucs-assisted baselines.
+- Review of dominant error classes before CR2.
+
+Milestone:
+- Milestone 1 passes.
+
+Status: Planned after CR0.
+
+### CR2: Validate accompaniment-first melody suppression
+
+Files and symbols:
+- analyzer module containing `loadAnalysisStemAudios`,
+  `chromaEvidenceForBar`, and `estimateChord` after the smallest justified
+  extraction from `server.js`
+- `tests/harmony-analysis.test.js`
+- chord benchmark scripts and result report
+
+Goal:
+- Make stable comp instruments primary chord-quality evidence, prevent vocal or
+  melody-like evidence from independently creating chord labels or boundaries,
+  and make full mix a reliability-gated fallback.
+
+Contracts to preserve:
+- Bass evidence remains separate from chord-quality evidence.
+- Full mix remains available when separation is missing or unreliable.
+- Every tested variant is individually selectable and benchmarked.
+
+Non-goals:
+- Bass fallback changes.
+- Ornament persistence changes.
+- Repeated-section pooling.
+
+Verify:
+- Melody-heavy generated fixtures.
+- New locked development gate, then untouched holdout only after it passes.
+- Target screen-recording listening/chart review.
+- False-extra and missing-change comparison.
+
+Milestone:
+- Milestone 2 passes or the project follows its external-analyzer comparison
+  escape rule.
+
+Status: Planned after CR1.
+
+### CR3: Validate bass fallback and ornament-resistant comp evidence
+
+Files and symbols:
+- harmony analyzer: bass reliability, lowest-persistent-note fallback, subframe
+  persistence, and robust comp aggregation
+- `tests/harmony-analysis.test.js`
+- chord benchmark scripts and result report
+
+Goal:
+- Use dedicated bass only when reliable; otherwise derive confidence-weighted
+  bass evidence from the lowest reliable persistent note in non-melodic comp
+  stems. Make stable chord tones outweigh brief ornaments without deleting real
+  short chords.
+
+Contracts to preserve:
+- Lowest note is evidence, never a forced root.
+- Inversions remain valid.
+- Vocal, lead-melody, and drum stems are excluded from default bass fallback.
+- H2 and H3 are evaluated independently before their accepted changes combine.
+
+Non-goals:
+- Slash-chord display or broad vocabulary expansion.
+- Repetition-aware analysis.
+
+Verify:
+- No-bass, inversion, pedal-tone, passing-bass, ornament, and genuine-short-chord
+  fixtures.
+- Bass-present and no-bass scenario metrics.
+- Locked development/holdout and target-domain review.
+
+Milestone:
+- Milestone 3 passes.
+
+Status: Planned after CR2.
+
+### CR4: Validate repeated-section evidence pooling with known groups
+
+Files and symbols:
+- chord benchmark manifest: reference repeat-group contract
+- harmony analyzer: robust evidence pooling before final scoring
+- `public/section-ranges.js`: preserve user-owned Flat Section semantics
+- focused harmony and benchmark tests
+
+Goal:
+- Pool corresponding raw evidence across manually/reference-grouped repeated
+  section instances and preserve strongly supported local variations.
+
+Contracts to preserve:
+- Do not copy the first section's labels.
+- Do not silently alter user-owned Flat Sections or chord charts.
+- Repeat grouping and analyzer provenance remain distinguishable.
+
+Non-goals:
+- Automatic repeat detection.
+- Linked-section editing.
+
+Verify:
+- Repeated-melody and legitimate-variation fixtures.
+- Known-group accuracy, repeat disagreement, false forced equality, and correction
+  burden.
+- Locked development/holdout results.
+
+Milestone:
+- Milestone 4 passes; failure ends repetition work for this POC.
+
+Status: Planned after CR3.
+
+### CR5: Evaluate automatic repeat suggestions
+
+Entry condition:
+- CR4 passed.
+
+Files and symbols:
+- new pure structure-analysis module for beat-synchronous self-similarity and
+  equal-length repeat candidates
+- benchmark repeat-group evaluator
+- backend provenance contract
+- browser confirmation flow only if offline evaluation first passes
+
+Goal:
+- Recover enough of the known-group benefit automatically to justify a
+  reviewable repeated-section suggestion flow.
+
+Contracts to preserve:
+- Suggestions never mutate user timing, Flat Sections, or chord charts silently.
+- Strong local variations remain independent.
+
+Non-goals:
+- General hierarchical form analysis.
+- Automatic verse/chorus naming.
+
+Verify:
+- Repeat-group precision/recall.
+- Retained chord benefit versus known groups.
+- False grouping and missed-variation review.
+- Human confirmation-flow check on representative songs.
+
+Milestone:
+- Milestone 5 passes.
+
+Status: Conditional on CR4.
+
+### CR6: Integrated chord-reliability checkpoint
+
+Files and symbols:
+- benchmark reports and aggregate checkpoint
+- `CHORD_ANALYSIS_STRATEGY.md`
+- `STATUS.md`, `RISKS.md`, `DECISIONS.md`, and `DEMO.md`
+
+Goal:
+- Run the best independently validated changes together and make an explicit
+  GO, ADJUST ONCE, COMPARE/REPLACE, or STOP/REFRAME decision.
+
+Contracts to preserve:
+- Automatic analysis remains immutable suggestion provenance.
+- The user's working chart remains authoritative.
+- Passing technical metrics does not claim product validation.
+
+Non-goals:
+- Continuing to tune after the declared terminal decision.
+- Resuming the feature backlog without recording the gate result.
+
+Verify:
+- Target-domain holdout and grouped metrics.
+- Runtime and memory measurement.
+- Three-minute-song correction-time review.
+- Human chart-usability assessment.
+- Full mock/real regressions and cleanup of all test-created jobs.
+
+Milestone:
+- Milestone 6 closes the gate and selects the next project direction.
+
+Status: Planned after the last entered experimental milestone.
+
+## Deferred Work Packages
+
+The product-owner decision above completes the previous grooming choice. The
+packages below remain useful, but are deferred until CR6 or an earlier terminal
+decision closes the chord-reliability gate.
 
 These packages group the existing backlog by technical dependency, risk, and
 reversibility. Their order is deliberately technical-first at the product owner's
 request and temporarily departs from the default prioritization order above.
-Backlog grooming must rebalance them against learning value and user-testing
-needs before a sprint is committed.
 
-Do not start implementation from this list until grooming and sprint planning are
-complete.
+Do not start implementation from this list while the chord-reliability gate is
+active.
 
 ### WP0: Backlog Grooming and Sprint Planning
 
@@ -53,7 +316,8 @@ Output:
   verification, and human gates
 - explicit deferred and conditional work
 
-Status: Next planning task.
+Status: Superseded by the committed Chord Reliability Validation Gate; retain as
+historical grooming context.
 
 ### WP1: AI Execution Baseline and Context Foundations
 

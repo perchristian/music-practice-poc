@@ -105,10 +105,13 @@ Candidate scope:
 - Accepted suggestions create ordinary independent Flat Sections.
 
 Why parked:
-- Direct Flat Section workflows and selection still need completion and user validation.
+- General section-label assistance remains parked. Chord Reliability tasks CR4
+  and conditional CR5 now own the narrower experiment of pooling known repeated
+  sections and evaluating automatic repeat groups for chord accuracy.
 
 Promotion trigger:
-- Users repeatedly spend time finding and labeling repeated regions manually.
+- CR5 passes its chord-reliability gate, or later users repeatedly spend time
+  finding and labeling repeated regions manually for a different workflow.
 
 ### Linked Section Templates
 
