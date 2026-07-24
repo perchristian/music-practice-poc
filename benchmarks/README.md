@@ -6,6 +6,38 @@ change density, unique labels, label entropy, vocabulary coverage, tempo,
 duration, and available instrumentation metadata. It does not create songs or
 jobs in the application library.
 
+## CR0 chord-reliability contract
+
+The current gate is locked by:
+
+- `chord-reliability-contract-v1.json`: component checksums, metrics, exact
+  thresholds, artifact roots, and holdout policy;
+- `chord-reliability-rwc-v1.json`: a new 8-development/4-holdout RWC-P split
+  that excludes every consumed Phase 2J pilot track;
+- `chord-reliability-target-v1.json`: checksum inventory, proposed development
+  scenarios, and two required untouched target-domain holdout slots.
+
+Run the complete checksum/availability/reference/dry-run isolation check:
+
+```sh
+npm run verify:chord-contract
+```
+
+This extracts selected RWC WAVs only into
+`.benchmark-data/chord-reliability-rwc-audio`, never into `data/jobs`. It checks
+both development and holdout availability without producing analyzer results.
+Detailed target references belong under
+`.benchmark-data/chord-reliability-target/references` and must pass:
+
+```sh
+node scripts/validate-chord-reliability-contract.js \
+  --require-target-references
+```
+
+Do not use `--allow-holdout` until a precommitted milestone gate. The full CR0
+contract and review process are documented in
+`research/chord-reliability-cr0-contract.md`.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:
@@ -65,13 +97,14 @@ Development is the default split. Use `--track` with the corresponding
 timing modes over all 12 tracks:
 
 ```sh
-npm run benchmark:chords -- --timing both --split all
+npm run benchmark:chords -- --timing both --split all --allow-holdout
 ```
 
 Detailed JSON is written under ignored `benchmark-results/`. Reports contain
 Root, MajMin, Triads, and MIREX duration-weighted scores, boundary
 precision/recall/F1, cue density, OOV duration, and runtime. Do not tune against
-the four holdout tracks.
+the four holdout tracks. For CR0 and later, `--allow-holdout` is permitted only
+at a precommitted gate; use `--dry-run` for ordinary availability checks.
 
 The chord timelines usually extend roughly two seconds beyond the released v2
 WAV. The adapter uses the official metadata duration, verifies it against the

@@ -1,0 +1,250 @@
+{
+  "version": 2,
+  "benchmark": "RWC Popular Music Database v2 chord reliability gate",
+  "dataset": {
+    "record": "https://zenodo.org/records/18656623",
+    "audioArchive": "RWC-P.zip",
+    "audioMd5": "960a11a2d7fb603ad0dae8428f53d4f0",
+    "license": "CC BY-NC 4.0",
+    "annotations": "https://github.com/rwc-music/rwc-annotations",
+    "annotationCommit": "0a1a6c31dbe73a7f5d44f7caef8cd0999402a4c2"
+  },
+  "selection": {
+    "method": "Weighted standardized chord-density, vocabulary, entropy, tempo, duration, and instrumentation features; three equal complexity strata with 4 deterministic quantile samples each.",
+    "policy": "8 development tracks and 4 untouched holdout tracks. Do not tune against holdout results.",
+    "excludedManifest": "benchmarks/rwc-popular-pilot.json",
+    "excludedTrackIds": [
+      "RWC_P005",
+      "RWC_P022",
+      "RWC_P026",
+      "RWC_P047",
+      "RWC_P050",
+      "RWC_P056",
+      "RWC_P063",
+      "RWC_P068",
+      "RWC_P070",
+      "RWC_P079",
+      "RWC_P087",
+      "RWC_P090"
+    ],
+    "exclusionReason": "The Phase 2J pilot and its holdout were consumed before CR0 and are unavailable for tuning or a new holdout."
+  },
+  "tracks": [
+    {
+      "trackId": "RWC_P006",
+      "title": "Funky Life",
+      "artist": "Oriken",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 8,
+        "changesPerMinute": 13.494,
+        "complexDurationRatio": 0.9657,
+        "oovDurationRatio": 0.0195,
+        "labelEntropy": 1.7607,
+        "tempo": 120,
+        "durationSeconds": 204.538,
+        "instrumentCount": 1,
+        "score": -5.1327
+      }
+    },
+    {
+      "trackId": "RWC_P096",
+      "title": "Weekend",
+      "artist": "Betty",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 14,
+        "changesPerMinute": 28.492,
+        "complexDurationRatio": 0.2507,
+        "oovDurationRatio": 0.0133,
+        "labelEntropy": 3.3365,
+        "tempo": 130,
+        "durationSeconds": 277.971,
+        "instrumentCount": 0,
+        "score": -3.8349
+      }
+    },
+    {
+      "trackId": "RWC_P024",
+      "title": "it's all right",
+      "artist": "Hisayoshi Kazato",
+      "split": "holdout",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 20,
+        "changesPerMinute": 27.957,
+        "complexDurationRatio": 0.412,
+        "oovDurationRatio": 0.0716,
+        "labelEntropy": 3.5149,
+        "tempo": 130,
+        "durationSeconds": 238.222,
+        "instrumentCount": 0,
+        "score": -2.4892
+      }
+    },
+    {
+      "trackId": "RWC_P029",
+      "title": "One Two STEP",
+      "artist": "Kazuo Nishi",
+      "split": "development",
+      "stratum": "low",
+      "complexity": {
+        "uniqueLabels": 18,
+        "changesPerMinute": 24.218,
+        "complexDurationRatio": 0.7356,
+        "oovDurationRatio": 0.0661,
+        "labelEntropy": 3.6008,
+        "tempo": 103,
+        "durationSeconds": 213.062,
+        "instrumentCount": 1,
+        "score": -1.5841
+      }
+    },
+    {
+      "trackId": "RWC_P060",
+      "title": "Kumorizora",
+      "artist": "Yuzu Iijima",
+      "split": "development",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 12,
+        "changesPerMinute": 20.871,
+        "complexDurationRatio": 0.8218,
+        "oovDurationRatio": 0.0135,
+        "labelEntropy": 3.1345,
+        "tempo": 148,
+        "durationSeconds": 241.479,
+        "instrumentCount": 3,
+        "score": -1.3859
+      }
+    },
+    {
+      "trackId": "RWC_P036",
+      "title": "over and over",
+      "artist": "Kazuo Nishi",
+      "split": "holdout",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 21,
+        "changesPerMinute": 31.125,
+        "complexDurationRatio": 0.1936,
+        "oovDurationRatio": 0.1787,
+        "labelEntropy": 3.4176,
+        "tempo": 135,
+        "durationSeconds": 314.221,
+        "instrumentCount": 3,
+        "score": -0.423
+      }
+    },
+    {
+      "trackId": "RWC_P051",
+      "title": "Modoranai natsu",
+      "artist": "Hiroshi Sekiya",
+      "split": "development",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 20,
+        "changesPerMinute": 27.428,
+        "complexDurationRatio": 0.2778,
+        "oovDurationRatio": 0.1639,
+        "labelEntropy": 3.4601,
+        "tempo": 104,
+        "durationSeconds": 365.326,
+        "instrumentCount": 5,
+        "score": 0.4146
+      }
+    },
+    {
+      "trackId": "RWC_P002",
+      "title": "Magic in your eyes",
+      "artist": "Hiromi Yoshii",
+      "split": "holdout",
+      "stratum": "medium",
+      "complexity": {
+        "uniqueLabels": 28,
+        "changesPerMinute": 33.172,
+        "complexDurationRatio": 0.7014,
+        "oovDurationRatio": 0.1627,
+        "labelEntropy": 3.8054,
+        "tempo": 100,
+        "durationSeconds": 220.669,
+        "instrumentCount": 2,
+        "score": 1.3732
+      }
+    },
+    {
+      "trackId": "RWC_P004",
+      "title": "Spice of Life",
+      "artist": "Hisayoshi Kazato",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 35,
+        "changesPerMinute": 28.195,
+        "complexDurationRatio": 0.8885,
+        "oovDurationRatio": 0.2558,
+        "labelEntropy": 3.715,
+        "tempo": 86,
+        "durationSeconds": 240.467,
+        "instrumentCount": 1,
+        "score": 1.9778
+      }
+    },
+    {
+      "trackId": "RWC_P027",
+      "title": "stay",
+      "artist": "Shingo Katsuta",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 33,
+        "changesPerMinute": 23.893,
+        "complexDurationRatio": 0.7517,
+        "oovDurationRatio": 0.3533,
+        "labelEntropy": 4.0835,
+        "tempo": 124,
+        "durationSeconds": 316.411,
+        "instrumentCount": 1,
+        "score": 2.6272
+      }
+    },
+    {
+      "trackId": "RWC_P075",
+      "title": "Toui machi e",
+      "artist": "Hiromi Yoshii",
+      "split": "holdout",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 40,
+        "changesPerMinute": 30.909,
+        "complexDurationRatio": 0.6129,
+        "oovDurationRatio": 0.2956,
+        "labelEntropy": 4.8633,
+        "tempo": 108,
+        "durationSeconds": 199.939,
+        "instrumentCount": 1,
+        "score": 3.1969
+      }
+    },
+    {
+      "trackId": "RWC_P083",
+      "title": "Doing That Thing",
+      "artist": "Jeff Manning",
+      "split": "development",
+      "stratum": "high",
+      "complexity": {
+        "uniqueLabels": 36,
+        "changesPerMinute": 54.045,
+        "complexDurationRatio": 0.6567,
+        "oovDurationRatio": 0.3332,
+        "labelEntropy": 4.2264,
+        "tempo": 140,
+        "durationSeconds": 215.374,
+        "instrumentCount": 1,
+        "score": 5.5266
+      }
+    }
+  ]
+}

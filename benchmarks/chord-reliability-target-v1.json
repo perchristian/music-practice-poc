@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "contractId": "cr0-target-v1",
+  "mediaRoot": "test-media",
+  "referenceRoot": ".benchmark-data/chord-reliability-target/references",
+  "artifactRoot": "benchmark-results/chord-reliability-target",
+  "policy": {
+    "mediaAndReferences": "Local-only. Do not commit, copy into data/jobs, or distribute.",
+    "rights": "Every selected recording requires product-owner confirmation that it may be used locally for non-commercial evaluation.",
+    "holdout": "Existing recordings have already been used during product development and cannot serve as an untouched target-domain holdout.",
+    "analyzerBlindness": "Reference reviewers must not inspect analyzer labels, suppressed suggestions, confidence, or diagnostics until the reference is locked."
+  },
+  "candidates": [
+    {
+      "id": "changes-part-1",
+      "path": "Changes part 1.mov",
+      "sha256": "838e34d054af3921eb2acd3641a1d31504c2a1877838cd37f4c7a066c958e930",
+      "bytes": 11014562,
+      "durationSeconds": 21.038333,
+      "audio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "rightsStatus": "product-owner-confirmation-required",
+      "priorUse": "Consumed during timing/chord-chart development; development-only.",
+      "proposedScenarios": [
+        "no-dedicated-bass",
+        "piano-or-guitar-and-vocal",
+        "melody-prominent"
+      ]
+    },
+    {
+      "id": "changes-part-2",
+      "path": "Changes part 2.mov",
+      "sha256": "9ecaaf5efb368a02b4996e7487c787525f3cc833717b9830cba716541d35ab26",
+      "bytes": 8049632,
+      "durationSeconds": 17.18,
+      "audio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "rightsStatus": "product-owner-confirmation-required",
+      "priorUse": "Candidate inventory only; too short to be the representative correction-burden track.",
+      "proposedScenarios": [
+        "no-dedicated-bass",
+        "piano-or-guitar-and-vocal",
+        "melody-prominent"
+      ]
+    },
+    {
+      "id": "make-you-feel-my-love-part-2",
+      "path": "MakeYouFeelMyLovePart2.mov",
+      "sha256": "1ad96e4c01ba9ae76d78ca2b74a5f6a513831bcce954eb32b65408d81e0cca60",
+      "bytes": 4397132,
+      "durationSeconds": 23.066667,
+      "audio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "rightsStatus": "product-owner-confirmation-required",
+      "priorUse": "Consumed during separation bakeoff and play-along review; development-only.",
+      "proposedScenarios": [
+        "full-band-with-bass",
+        "compressed-screen-recording"
+      ]
+    },
+    {
+      "id": "shape-of-my-heart",
+      "path": "ShapeOfMyHeart.mov",
+      "sha256": "bfdb6584f46db5ed0dbcac0729661b16032f734d4e8cb5c7c41e3e44b77fbc46",
+      "bytes": 62318301,
+      "durationSeconds": 47.126667,
+      "audio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "rightsStatus": "product-owner-confirmation-required",
+      "priorUse": "Consumed during corrected-timing and chord-quality review; development-only.",
+      "proposedScenarios": [
+        "full-band-with-bass",
+        "melody-prominent",
+        "ornament-heavy",
+        "repeated-sections-with-legitimate-variation"
+      ]
+    },
+    {
+      "id": "te-amo",
+      "path": "TeAmo.mov",
+      "sha256": "9c16e17784a18b5d4bf95905e795f3260eb653403786e7b8c9afd27021cce4d1",
+      "bytes": 111415939,
+      "durationSeconds": 228.041678,
+      "audio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "rightsStatus": "product-owner-confirmation-required",
+      "priorUse": "Consumed during timing correction and corrected-harmony review; development-only.",
+      "proposedScenarios": [
+        "full-band-with-bass",
+        "melody-prominent",
+        "repeated-sections-with-legitimate-variation",
+        "representative-three-minute-correction"
+      ]
+    }
+  ],
+  "proposedDevelopmentIds": [
+    "changes-part-1",
+    "make-you-feel-my-love-part-2",
+    "shape-of-my-heart",
+    "te-amo"
+  ],
+  "requiredUntouchedHoldoutSlots": [
+    {
+      "id": "target-holdout-full-band-repeat",
+      "minimumDurationSeconds": 120,
+      "requiredScenarios": [
+        "full-band-with-bass",
+        "repeated-sections-with-legitimate-variation",
+        "compressed-screen-recording"
+      ]
+    },
+    {
+      "id": "target-holdout-no-bass-melody",
+      "minimumDurationSeconds": 120,
+      "requiredScenarios": [
+        "no-dedicated-bass",
+        "piano-or-guitar-and-vocal",
+        "melody-prominent",
+        "ornament-heavy",
+        "compressed-screen-recording"
+      ]
+    }
+  ]
+}

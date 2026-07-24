@@ -2,17 +2,18 @@
 
 ## Next Task
 
-Complete GitHub issue
-[#2 — CR0: Prepare locked chord-validation contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2).
+Complete the product-owner review in
+[#3 — CR0: Approve locked chord-validation contract](https://github.com/perchristian/piano-practice-poc/issues/3).
 
 ## Active Work Ownership
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Current Codex task:
-  [#2 — Prepare the CR0 contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2)
-- Current human action: None
-- Blocked by human action: No
+- Current Codex task: None
+- Current human action:
+  [#3 — Approve the CR0 contract](https://github.com/perchristian/piano-practice-poc/issues/3)
+- Blocked by human action: Yes; no baseline or target-reference work starts
+  before `PASS`, `CHANGES`, or `DISCUSS`.
 
 GitHub Issues are the source of truth for executable work. This file retains the
 roadmap, ordering, dependencies, and durable contracts. A human review issue is
@@ -49,8 +50,10 @@ Product-owner decision on 2026-07-23:
 GitHub tracking:
 - Shared gate:
   [#1](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Active CR0 implementation:
+- CR0 Codex preparation:
   [#2](https://github.com/perchristian/piano-practice-poc/issues/2)
+- Ready CR0 product review:
+  [#3](https://github.com/perchristian/piano-practice-poc/issues/3)
 
 The tasks below are in committed priority order. A task may stop the sequence at
 its milestone gate. Do not skip directly to automatic repeat detection or combine
@@ -90,9 +93,16 @@ Verify:
 Milestone:
 - Milestone 0 passes exactly as defined in the research plan.
 
-Status: Active as
-[#2](https://github.com/perchristian/piano-practice-poc/issues/2). The human
-action remains `None` until Codex produces the approval packet.
+Status: Codex preparation complete in
+[#2](https://github.com/perchristian/piano-practice-poc/issues/2). The locked
+8/4 RWC split excludes all consumed Phase 2J tracks; five local target candidates
+are checksum-inventoried for development; two new untouched target holdout slots,
+the blind two-reviewer reference process, metrics, paths, thresholds, and dry-run
+commands are defined. `npm run verify:chord-contract` passed without changing
+the nine existing application job directories. Milestone 0 remains open pending
+the single ready product review
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3), two untouched
+holdout files, and independently approved target references.
 
 ### CR1: Add evidence diagnostics and failure fixtures
 

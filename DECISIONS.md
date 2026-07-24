@@ -752,3 +752,59 @@ methods until the locked target-domain baseline is reviewed.
 
 Date:
 2026-07-23
+
+## Decision 31
+
+Decision:
+Lock chord-reliability evaluation before inspecting a new baseline: use a fresh
+stratified 8-development/4-holdout RWC-P split excluding all consumed Phase 2J
+tracks; treat all existing screen recordings as development-only; require two
+new full-length target holdouts; use analyzer-blind transcription plus a
+different musician's verification; and freeze exact usability, accuracy,
+regression, runtime, and memory thresholds in a checksum-linked CR0 contract.
+
+Reason:
+The project cannot distinguish a real harmony improvement from corpus
+overfitting, timing leakage, or reviewer bias if data identities, reference
+construction, and success thresholds move after results are seen. Existing
+screen recordings have all influenced implementation or review, so calling one
+an untouched target holdout would invalidate the gate. A machine-readable
+contract and guarded holdout flag make accidental result inspection harder while
+keeping availability checks reproducible.
+
+Alternatives considered:
+- Reuse the Phase 2J holdout. Advantages: no additional media extraction or
+  references. Disadvantages: its results are already known and influenced the
+  current plan, so it cannot detect tuning overfit. Effort is low, validity risk
+  is unacceptable, and expected evidence quality is low.
+- Treat one existing screen recording as target holdout. Advantages: immediate
+  target-domain scoring. Disadvantages: every current candidate has already
+  influenced separation, timing, harmony, or chart work. Effort is low,
+  leakage risk is high, and expected evidence quality is misleading.
+- Use only RWC-P. Advantages: official chord/beat references and cheap repeatable
+  scoring. Disadvantages: it does not represent compressed iOS capture,
+  separation leakage, missing bass, or the correction workflow. Effort is low,
+  domain risk is high, and expected product evidence is incomplete.
+- Set thresholds after the baseline. Advantages: thresholds could match observed
+  difficulty. Disadvantages: the gate would reward the current implementation
+  rather than define user-test fitness. Effort is low, decision bias is high,
+  and expected learning value is poor.
+- Have one reviewer correct analyzer output. Advantages: fastest reference
+  creation. Disadvantages: analyzer mistakes anchor the reference and repeated
+  sections may be made artificially consistent. Effort is low, reference bias
+  is high, and expected benchmark quality is poor.
+
+Tradeoffs:
+CR0 pauses on product-owner confirmation, two new recordings, and access to a
+second musician. The target set remains small, and the fixed numeric thresholds
+may prove too strict. In return, later GO/ADJUST/COMPARE/STOP decisions have
+stable evidence, reference-timed and end-to-end failures stay separable, and no
+commercial audio or detailed artifact enters Git or the application library.
+
+Confidence:
+High for excluding consumed data, blind independent reference review, and
+locking thresholds before results; medium for the exact numeric thresholds and
+two-recording holdout size until product-owner review.
+
+Date:
+2026-07-24

@@ -8,6 +8,14 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a checksum-locked CR0 chord-reliability contract with a fresh
+  8-development/4-holdout RWC-P split, target screen-recording inventory,
+  independent reference process, exact metrics, artifact paths, and
+  good-enough thresholds.
+- Added a single `npm run verify:chord-contract` dry run that validates corpus
+  and media identities, official chord/timing references, selected-track
+  availability, scenario coverage, and that benchmark preparation creates or
+  modifies no application jobs.
 - Added stable `?mode=real` and `?mode=mock` app URLs, with Real as the first-visit default and the last selected mode remembered for later root visits.
 - Added a compact app-information popover for processing-mode selection and backend readiness details.
 - Added an icon-led library search field with an explicit clear action.
@@ -32,6 +40,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Protected new benchmark holdouts behind an explicit `--allow-holdout` result
+  gate while still permitting checksum and availability dry runs.
 - Increased the real-mode upload limit from 150 MB to 650 MB so five-minute screen recordings at the observed capture bitrate can be added.
 - Compacted the app shell, selected-song header, and empty state by removing duplicate pipeline, song metadata, and field-label copy.
 - Video thumbnails are now captured as square crops, while persisted artwork is clipped into square list and header surfaces.

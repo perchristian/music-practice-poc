@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "contractId": "chord-reliability-cr0-v1",
+  "lockedOn": "2026-07-24",
+  "components": {
+    "rwc": {
+      "manifest": "benchmarks/chord-reliability-rwc-v1.json",
+      "sha256": "cb93a6545e04e5dbc0a8dd717683b8fd25d5e05aed6590af24f57fad2878f2a1"
+    },
+    "target": {
+      "manifest": "benchmarks/chord-reliability-target-v1.json",
+      "sha256": "ed7b59bd0730f8c0d32e8248e7b94608da322ea3e9399c6444aae36f25f7112d"
+    }
+  },
+  "paths": {
+    "rwcArchive": ".benchmark-data/RWC-P.zip",
+    "rwcAnnotations": ".benchmark-data/rwc-annotations",
+    "rwcAudio": ".benchmark-data/chord-reliability-rwc-audio",
+    "targetReferences": ".benchmark-data/chord-reliability-target/references",
+    "targetDerivedAudio": ".benchmark-data/chord-reliability-target/derived-audio",
+    "developmentArtifacts": "benchmark-results/chord-reliability/development",
+    "holdoutArtifacts": "benchmark-results/chord-reliability/holdout"
+  },
+  "metrics": {
+    "chords": [
+      "rootWcsr",
+      "majMinWcsr",
+      "triadsWcsr",
+      "mirexWcsr"
+    ],
+    "boundaries": {
+      "toleranceMilliseconds": 250,
+      "report": [
+        "precision",
+        "recall",
+        "f1",
+        "falseExtraCount",
+        "missingCount"
+      ]
+    },
+    "sequence": [
+      "chordChangesPerMinute",
+      "suppressedCandidateCount",
+      "repeatedSectionDisagreementRate",
+      "falseForcedEqualityCount"
+    ],
+    "diagnostics": [
+      "perTrackResults",
+      "largestRegressions",
+      "bassScenarioGroups",
+      "melodyProminenceGroups",
+      "ornamentDensityGroups",
+      "repeatPresenceGroups",
+      "analyzerRuntime",
+      "peakResidentMemoryEstimate",
+      "musicianCorrectionBurden"
+    ]
+  },
+  "thresholds": {
+    "targetHoldoutReferenceOrCorrectedTiming": {
+      "rootWcsrMinimum": 0.8,
+      "majMinWcsrMinimum": 0.7,
+      "triadsWcsrMinimum": 0.65,
+      "mirexWcsrMinimum": 0.7,
+      "boundaryF1Minimum": 0.65,
+      "scenarioMajMinWcsrMinimum": 0.55
+    },
+    "targetHoldoutEndToEndTiming": {
+      "rootWcsrMinimum": 0.7,
+      "majMinWcsrMinimum": 0.6,
+      "boundaryF1Minimum": 0.55
+    },
+    "sequence": {
+      "repeatedSectionDisagreementMaximum": 0.1,
+      "falseForcedEqualityMaximum": 0,
+      "missingBoundaryIncreaseMaximum": {
+        "absoluteCount": 2,
+        "relativeToLockedBaseline": 0.1,
+        "rule": "Fail when both limits are exceeded."
+      }
+    },
+    "retainedExperiment": {
+      "rwcDevelopmentTracksImprovedMinimum": 5,
+      "targetDevelopmentTracksImprovedMinimum": 3,
+      "targetDevelopmentAggregateMajMinAbsoluteGainMinimum": 0.02,
+      "alternativeCorrectionTimeRelativeReductionMinimum": 0.1,
+      "rule": "Meet both majority-of-track requirements and either the aggregate MajMin gain or correction-time reduction without exceeding regression tolerances."
+    },
+    "untouchedHoldoutRegressionTolerance": {
+      "rootWcsrAbsolute": 0.02,
+      "majMinWcsrAbsolute": 0.02,
+      "triadsWcsrAbsolute": 0.02,
+      "mirexWcsrAbsolute": 0.02,
+      "boundaryF1Absolute": 0.03
+    },
+    "correctionBurden": {
+      "representativeDurationSecondsMinimum": 180,
+      "correctionTimeSecondsMaximum": 300,
+      "usabilityRatingMinimumOutOfFive": 4,
+      "mustNotRequireCheckingEveryBeat": true
+    },
+    "performance": {
+      "harmonyAnalyzerRealTimeFactorMaximum": 0.5,
+      "peakResidentMemoryBytesMaximum": 1610612736
+    }
+  },
+  "holdoutAccess": {
+    "rwc": "Dry-run availability checks are permitted. Analyzer results require --allow-holdout and may be produced only at a precommitted milestone gate.",
+    "target": "Do not run analyzer output or inspect references for the two new holdout recordings before the integrated gate."
+  }
+}

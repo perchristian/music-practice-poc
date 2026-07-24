@@ -12,6 +12,7 @@ import {
   validateAudioFilename,
   validateIntervals
 } from "../scripts/chord-benchmark-lib.js";
+import { assertHoldoutAccess, lockedHoldoutIndexes } from "../scripts/benchmark-chords.js";
 import { selectArchiveMembers } from "../scripts/extract-rwc-pilot.js";
 
 describe("RWC chord benchmark contract", () => {
@@ -88,5 +89,19 @@ describe("RWC chord benchmark contract", () => {
       selectArchiveMembers("RWC-P/RWC_P001.wav\nRWC-P/notes.txt\nRWC-P/RWC_P002.wav\n", ["RWC_P002"]),
       [{ trackId: "RWC_P002", member: "RWC-P/RWC_P002.wav" }]
     );
+  });
+
+  it("distributes the locked 8/4 split across all complexity strata", () => {
+    assert.deepEqual([...lockedHoldoutIndexes(12, 4)], [2, 5, 7, 10]);
+  });
+
+  it("allows holdout availability checks but guards analyzer results", () => {
+    const tracks = [{ trackId: "RWC_P024", split: "holdout" }];
+    assert.doesNotThrow(() => assertHoldoutAccess(tracks, { dryRun: true, allowHoldout: false }));
+    assert.throws(
+      () => assertHoldoutAccess(tracks, { dryRun: false, allowHoldout: false }),
+      /Holdout analyzer results are locked/
+    );
+    assert.doesNotThrow(() => assertHoldoutAccess(tracks, { dryRun: false, allowHoldout: true }));
   });
 });

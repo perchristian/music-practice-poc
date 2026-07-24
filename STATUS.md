@@ -12,6 +12,8 @@ Chord Reliability Validation Gate committed on 2026-07-23. Product review conclu
 
 GitHub work ownership established on 2026-07-23. The `Chord Reliability Gate` milestone and stable ownership/state/review labels now separate Codex execution from product-owner decisions. Shared gate [#1](https://github.com/perchristian/piano-practice-poc/issues/1) tracks CR0-CR6; active Codex issue [#2](https://github.com/perchristian/piano-practice-poc/issues/2) prepares the CR0 validation contract and approval packet. No `owner:per` issue is ready, so the current human action is explicitly `None`. `AGENTS.md` now requires executable work in GitHub Issues, one ownership label per issue, just-in-time human review packets, and explicit handoffs. No runtime code, tests, songs, or jobs changed. No agents were delegated, and no model switch was used.
 
+CR0 Codex preparation completed on 2026-07-24. `benchmarks/chord-reliability-contract-v1.json` checksum-locks a fresh stratified 8-development/4-holdout RWC-P split that excludes all 12 consumed Phase 2J tracks, five local target candidate identities, exact reference/corrected and end-to-end metrics, artifact paths, accuracy/usability/regression/performance thresholds, and holdout access rules. No current screen recording qualifies as untouched full-length target holdout: four proposed files have already influenced the POC and the remaining alternate is only 17 seconds with unconfirmed prior-review status. The contract therefore reserves two new full-length untouched target holdout slots covering full-band/bass/repeat variation and no-bass/melody/ornaments. `research/chord-reliability-cr0-contract.md` defines analyzer-blind timing, chord, and section transcription followed by verification from a different musician. The benchmark CLI now requires `--allow-holdout` to produce locked results, while `npm run verify:chord-contract` verifies manifest/media/archive checksums, annotation commit, selected members, official reference intervals, target media properties, both dry-run timing modes, and no application-job mutation. Verification passed with 55 automated tests and one optional calibration skipped; the CR0 dry run left all nine pre-existing job directories and their `job.json` content unchanged. No analyzer behavior or public output changed. Product-owner approval packet [#3](https://github.com/perchristian/piano-practice-poc/issues/3) is the only ready human action. No agents were delegated and no model switch was used; the `github:github` skill guided issue inspection and the just-in-time handoff.
+
 Phase 0, Phase 1, Phase 1B, Phase 2A through the Phase 2H beat-aware hardening pass, and Phase 3 are complete for automated verification. Human listening on `MakeYouFeelMyLovePart2.mov` found Demucs good enough for the core POC play-along use case: solo piano has crackle/artifacts, but removing piano works well enough to continue. Phase 2H harmonic analysis is verified on generated known-chord test media for pre-roll/downbeat placement, multiple chord changes inside 4/4 bars at 120 BPM, a five-bar 3/4 fixture at 90 BPM, and inversions where bass avoids the root. It is also verified on the local `f9e9cf9d-0998-494d-82cf-3dc89fcf4d76` calibration job, where the expected answer is 106 BPM, 4/4, and one chord per bar: C, Dm, Am, Am, C, Dm, Am, Am. Broader manual inspection on varied real screen recordings and manual listening for metronome alignment are still required.
 
 Phase 3D replaced the seconds-first `practiceState.chordEdits` model with a clean-break grid-first `practiceState.chordChart` model on 2026-07-07. Backward compatibility with old local POC songs was intentionally not added. Phase 3E introduced the beat-aligned chord chart UI, and Phase 3F compacted it after product review by removing split/merge/arrow controls and moving add/move/delete onto the grid. A follow-up on 2026-07-07 added beat-snapped right-edge resizing for chord cards so users can shorten a spanning chord and reveal `+` cells for inserting another chord inside the same bar. Manual listening on varied real recordings is still needed to judge whether the Phase 3 Bar 1/BPM/meter calibration is intuitive enough, or whether a waveform view should be added later. Manual testing also found that clips with a short pause before the first downbeat are easier to inspect than clips where the first beat happens just before the recording starts; `DEMO.md` now recommends pre-roll for demos. The default real-mode separator is now Demucs; the previous FFmpeg spectral split remains available with `REAL_SEPARATOR=ffmpeg-spectral`.
@@ -376,26 +378,35 @@ Local web POC:
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Current Codex task:
-  [#2 — Prepare the CR0 contract and approval packet](https://github.com/perchristian/piano-practice-poc/issues/2)
-- Current human action: None
-- Blocked by human action: No
+- Current Codex task: None
+- Current human action:
+  [#3 — Approve the CR0 contract](https://github.com/perchristian/piano-practice-poc/issues/3)
+- Blocked by human action: Yes; CR0 awaits `PASS`, `CHANGES`, or `DISCUSS`.
 
 ## In Progress
 
-- No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; the holdout is consumed and fixed. The new Chord Reliability Validation Gate is committed and starts with CR0.
+- No implementation phase is currently in progress. Phase 2J is complete for its bounded benchmark/presentation checkpoint; its holdout is consumed and fixed. CR0 Codex preparation is complete, but Milestone 0 awaits product-owner approval, two untouched target holdout recordings, and independently reviewed target references.
 - Phase 3G.3 is complete for automated and human verification across the required changing-tempo and late-start recordings; a general undo history remains deferred.
 - The prior backlog work packages are deferred until the chord-reliability gate reaches a terminal decision.
 
 ## Next Recommended Task
 
 Complete
-[#2](https://github.com/perchristian/piano-practice-poc/issues/2): lock the new
-chord-reliability validation manifest, target recordings, reference-review
-process, metrics, and thresholds, then produce the human approval packet.
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3) with `PASS`,
+`CHANGES: ...`, or `DISCUSS: ...`. A PASS unblocks checksum-locking the two new
+untouched target recordings and creating analyzer-blind references; it does not
+authorize holdout analyzer results.
 
 ## Skills Used
 
+- Used Codex skill `github:github` on 2026-07-24 to inspect CR0 issue #2 and its
+  parent gate, verify the human queue, and create approval issue #3.
+  - Purpose: execute the issue contract while keeping the product-owner review
+    as one explicit, just-in-time handoff.
+  - Result: CR0 Codex preparation is complete and #3 is the only
+    `owner:per`/`state:ready` issue.
+  - Reproducibility: all contract artifacts and commands are version-controlled;
+    GitHub is used only for ownership and the approval response.
 - Used Codex skill `github:github` on 2026-07-23 to inspect the empty repository
   tracker and establish the approved issue-based ownership workflow.
   - Purpose: separate Codex execution from product-owner actions and keep human
