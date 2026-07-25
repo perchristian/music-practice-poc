@@ -420,7 +420,10 @@ High.
 Date:
 2026-07-06
 
-## Decision 18
+## Decision 32
+
+Note:
+Renumbered from a duplicate `Decision 18` on 2026-07-25. The decision text, alternatives, tradeoffs, confidence, and original date are unchanged; only the identifier was made unique. The other `Decision 18` retains its number.
 
 Decision:
 Implement the first real harmonic-analysis spike as dependency-free downbeat/bar-aligned chroma analysis over `source-audio.wav`.
