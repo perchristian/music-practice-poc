@@ -135,9 +135,16 @@ highest-leverage observation in this note.
 
 ## A1. Replace the analyzer with a trained model
 
+> **Revised 2026-07-25** after the product owner challenged `madmom` as the lead
+> candidate. The challenge was correct: madmom's last release is 0.16.1 from
+> 2018. It was selected here for integration convenience, not capability, which
+> is the wrong basis for a candidate in a note about reaching a ceiling. The
+> revised candidate list and the corrected reasoning are below. See
+> "What has actually changed since 2018" for why the *expected outcome* moves
+> less than the candidate list does.
+
 **What it is:** substitute a trained chord recognizer behind the existing
-analyzer interface. Candidates: `madmom` (deep chroma + CRF chord recognition),
-open BTC/CRNN transformer checkpoints.
+analyzer interface.
 
 **Why it is architecturally cheap here:** the Python subprocess boundary already
 exists for Demucs, torch is already a real-mode dependency, and — most
@@ -158,17 +165,70 @@ pays off in A0.
 produces stable chord durations. Over-segmentation is not a separate problem to
 solve afterwards.
 
-**Blocking risk — commercial licensing.** `madmom` is, as I recall, licensed for
-academic and non-commercial use with commercial use requiring a separate
-agreement, and research checkpoints such as BTC frequently carry similar terms.
-**This must be verified before any commitment**, because a paid tier is part of
-the product concept. If the licensing does not permit commercial use, A1 becomes
-either "use it to establish the ceiling and inform a reimplementation" or
-"train/fine-tune on permissively licensed data" — a materially larger project.
+### Candidate list
 
-**Recommended framing:** run the spike as a *measurement*, explicitly not a
-commitment. Two sessions to learn where the ceiling actually is is the cheapest
-information available anywhere in this note.
+| Candidate | Year | Why it is on the list | Main unknown |
+|---|---|---|---|
+| **ACR_seq2seq** ([paper](https://arxiv.org/abs/2604.24386), [code](https://github.com/KimLeekyung/ACR_seq2seq)) | ICASSP 2026 | Reformulates ACR as segment-level seq2seq so chord changes are detected **only at segment boundaries**. Over-segmentation is the paper's headline contribution, not a side effect | Whether pretrained weights are released; repo README not readable when checked |
+| **ChordFormer** ([arXiv 2502.11840](https://arxiv.org/abs/2502.11840)) | Feb 2025 | Conformer architecture for **large-vocabulary** recognition with explicit class-imbalance reweighting. Targets the seventh/extension long tail | Weight availability, license |
+| **MERT / MusicFM + chord head** ([MERT](https://github.com/yizhilll/MERT), [MARBLE](https://arxiv.org/pdf/2306.10548)) | 2023–24, active | Music foundation models with open weights; MARBLE defines the chord-recognition evaluation protocol and publishes numbers. The "modern" path | Requires fine-tuning a head — more work than a drop-in |
+| **madmom / Chordino** | 2016–18 | **Demoted to sanity floor only.** Not a candidate | — |
+
+Keeping a 2010-era baseline is still worth one run: it tells you how much of the
+current gap is method versus implementation. That is also what CR6's existing
+escape rule already names.
+
+### What has actually changed since 2018
+
+This is the part that most affects the decision, and my original note got the
+emphasis wrong.
+
+**Headline MajMin accuracy has moved very little.** ChordFormer reports roughly
++2.3 % frame-wise and +6 % class-wise over prior state of the art — meaningful,
+but incremental. The plateau described earlier in this note is real and it is
+still there, for the reason given: the ground truth itself is contested. General
+AI progress since 2018 has been enormous; progress on *this specific metric* has
+not, and no amount of model scale fixes a disputed reference annotation.
+
+**But the progress that did happen went almost exactly where this project
+hurts.** Both recent papers above target, as their primary contributions:
+
+1. **Over-segmentation** — the ICASSP 2026 work exists specifically to stop
+   frame-wise models from fragmenting chord regions. That is the 279-vs-95
+   complaint, named as the problem to solve.
+2. **Non-triad and infrequent chords** — both papers target the long tail of
+   sevenths and extensions. That is the D7-vs-D9 layer.
+
+So the correct conclusion is not "newer models are more accurate, use one." It is
+**"the field spent eight years working on the two things you actually complained
+about, while the headline number stayed flat."** That makes A1 more attractive
+than my original note argued, but for different reasons — and it means the
+success criterion for the spike should be **segmentation quality and vocabulary
+behaviour**, not MajMin.
+
+### The caveat that cuts the other way
+
+Research code from 2025–2026 typically has no released weights, no packaging, no
+license clarity, and no maintenance. madmom's single genuine advantage was that
+it is a pip-installable thing that runs. That advantage is not nothing, and it is
+the reason the spike must not pick a winner on paper.
+
+**Blocking risk — commercial licensing.** madmom is, as I recall, non-commercial
+by default, and research checkpoints frequently carry similar terms. The ICASSP
+2026 *paper* is CC BY 4.0, which says nothing about the code or weights. **All of
+this must be verified per candidate before commitment**, because a paid tier is
+part of the product concept.
+
+### Revised spike design
+
+Do not select a model in advance. Run **two or three candidates plus the Chordino
+floor** through the existing benchmark harness, and treat practical availability
+— released weights, installability, license — as part of what is being measured
+rather than as a prerequisite. The harness makes each additional candidate cheap;
+that is the whole return on having completed CR0.
+
+Cost is unchanged at 1–2 sessions because the marginal cost per candidate is
+small once the adapter exists.
 
 ## A2. Transcription first, chords derived from notes
 
@@ -327,11 +387,41 @@ learning workflow. That judgment still holds. **Defer.**
 
 ---
 
+# Competitive datapoint: how Moises tiers its chord detection
+
+Assuming "Mosies" refers to [Moises](https://moises.ai/features/chord-finder/),
+its productised split is directly informative, because it is the same product
+category with the same pipeline shape (separation, chords, tempo, lyrics).
+
+**Moises does not tier on accuracy. It tiers on chord vocabulary complexity** —
+Easy, Medium, and Advanced detection modes, where Advanced exposes extended
+chords for jazz and bossa nova. The free/paid boundary is instead a usage limit:
+free users get chord detection for the first minute of a song.
+
+Two consequences for this project:
+
+1. It independently confirms the free-tier recommendation made earlier in this
+   note. The market leader's cheap mode is *simpler chords*, not *worse chords*.
+   Vocabulary is the dial they chose, and they chose it in a product that rates
+   well.
+2. It suggests the free/paid question is probably not "different models" at all.
+   One model with a confidence threshold and a vocabulary setting produces all
+   three of Moises' modes. That is dramatically cheaper than maintaining two
+   analysis paths, and it is the answer to open question 3 below unless there is
+   a reason to reject it.
+
+The same company operates Music.AI as a professional/API platform, which makes
+"buy instead of build" a real option for the analyzer. It also means depending on
+a direct competitor for a core capability — a strategic cost that is not
+reflected in any effort estimate in this note.
+
+---
+
 # Summary comparison
 
 | Option | Cost | Human gates | Benefit | Confidence |
 |---|---|---|---|---|
-| **A1 spike** (measure trained model) | 1–2 | 0 | Resolves the ceiling question | High |
+| **A1 spike** (measure 2–3 trained models) | 1–2 | 0 | Resolves the ceiling *and* the segmentation question | High |
 | **G2** transport/loop/mobile | 2 | 1 | Removes daily friction | High |
 | **G1** timeline input contract | 3–4 | 1–2 | Fixes known hardware defect | Highest |
 | **G3+G4** chart redesign + design system | 4–6 | Figma-led | Addresses stated bottleneck | High value, scope TBD |
@@ -353,11 +443,16 @@ determining whether ten sessions of committed work are worth starting.
 
 Suggested order:
 
-1. **A1 spike — 1–2 sessions, no human gate.** Measure a trained model through
-   the existing benchmark harness. This is information, not commitment. If it
-   reaches ~80 %, CR2–CR5 are largely obsolete and roughly eight sessions are
-   saved. If it does not, A0 is vindicated and can proceed with confidence.
-   Verify commercial licensing as part of the same spike.
+1. **A1 spike — 1–2 sessions, no human gate.** Measure two or three current
+   candidates plus the Chordino floor through the existing benchmark harness.
+   This is information, not commitment. Judge primarily on **cue density against
+   the reference rate and boundary quality**, secondarily on MajMin — the
+   segmentation behaviour is what the last eight years of research improved and
+   what the product complaint is about. If a candidate lands near the reference
+   chord-change rate, CR2–CR5 are largely obsolete and roughly eight sessions are
+   saved. If none does, A0 is vindicated and can proceed with confidence. Verify
+   weight availability and commercial licensing per candidate as part of the same
+   spike.
 
 2. **G1 — 3–4 sessions.** The known trackpad defect blocks user testing.
    Everything downstream of user testing depends on this being fixed.
@@ -396,7 +491,7 @@ scores better on some metrics.
 2. Is commercial use in scope soon enough that A1's licensing must be settled
    before the spike rather than after?
 3. Does the free/paid split you described mean *different models*, or *the same
-   model with a confidence threshold that suppresses uncertain chords*? These
-   have very different implementation costs and the second is much cheaper.
+   model with a confidence threshold and a vocabulary setting*? The Moises
+   evidence above suggests the second, which is dramatically cheaper.
 4. Should issue #1 be reframed or closed, given that the workflow was validated
    with corrected charts?
