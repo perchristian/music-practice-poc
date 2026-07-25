@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 
+// The suite runs against an isolated temporary DATA_DIR (see playwright.config.js),
+// so test jobs cannot reach the developer's library. Resetting the pipeline mode is
+// still required because it is server-session state. The name-based deletion below
+// is kept only as a safety net for runs that reuse an existing server.
 test.afterEach(async ({ request }) => {
   await request.put("/api/settings/pipeline-mode", { data: { mode: "mock" } });
   const testSongNames = [

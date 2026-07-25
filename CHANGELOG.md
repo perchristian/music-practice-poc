@@ -6,6 +6,15 @@ The project currently uses date-based development milestones rather than numbere
 
 ## Unreleased
 
+### Changed
+
+- Browser tests now run their server against a temporary `DATA_DIR` created per
+  run, so `npm run test:gui` can no longer write jobs into the local song
+  library and no longer depends on name-based cleanup.
+- `STATUS.md` is now a current-state document. Its dated history,
+  completed-work list, and verification log moved verbatim to a new
+  `STATUS_ARCHIVE.md`.
+
 ### Added
 
 - Added a checksum-locked CR0 chord-reliability contract with a fresh

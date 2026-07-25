@@ -113,6 +113,11 @@ during testing before considering the task complete. Test-created library entrie
 create noise for the next iteration; keep only intentional demo, fixture, or
 calibration jobs that are explicitly documented.
 
+This rule applies to manual browser sessions, scripts, and probes against a
+locally started server. The automated suites are isolated and do not need
+cleanup: `npm test` uses temporary data directories, and `npm run test:gui` runs
+its server against a temporary `DATA_DIR` created per run.
+
 ---
 
 ## Product Validation Goal
