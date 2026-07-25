@@ -102,7 +102,7 @@ Local web POC:
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Current Codex task: None open. CR1 is ready and needs an `owner:codex` issue
+- Current agent task: None open. CR1 is ready and needs an `owner:agent` issue
   when work begins.
 - Current human action: None ready.
 - Blocked by human action: No.

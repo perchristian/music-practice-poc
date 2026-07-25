@@ -292,7 +292,7 @@ them.
 
 ## CR0 completion rule
 
-Codex preparation is complete when the manifests, validator, dry run, docs, and
+Agent preparation is complete when the manifests, validator, dry run, docs, and
 approval packet are committed. Since the 2026-07-25 amendment, Milestone 0
 passes when:
 

@@ -7,14 +7,14 @@ CR1: add evidence diagnostics and failure fixtures against RWC-P.
 CR0 is amended and no longer blocks implementation. One product-owner input is
 still open — approving the proposed RWC primary gate thresholds — but it is only
 required before the RWC **holdout** is opened, not before CR1 starts. Create the
-`owner:codex` issue for CR1 when work begins, and an `owner:per` issue for the
+`owner:agent` issue for CR1 when work begins, and an `owner:per` issue for the
 threshold approval when the CR1 development results make it actionable.
 
 ## Active Work Ownership
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Current Codex task: None open; CR1 is ready to be picked up and needs an issue.
+- Current agent task: None open; CR1 is ready to be picked up and needs an issue.
 - Current human action: None ready.
 - Blocked by human action: No. CR0 was answered `CHANGES` in
   [#3](https://github.com/perchristian/piano-practice-poc/issues/3) on
@@ -72,7 +72,7 @@ The locked RWC split, exclusions, checksums, annotation commit, and
 GitHub tracking:
 - Shared gate:
   [#1](https://github.com/perchristian/piano-practice-poc/issues/1)
-- CR0 Codex preparation:
+- CR0 agent preparation:
   [#2](https://github.com/perchristian/piano-practice-poc/issues/2) — closed
 - CR0 product review:
   [#3](https://github.com/perchristian/piano-practice-poc/issues/3) — closed

@@ -124,7 +124,7 @@ its server against a temporary `DATA_DIR` created per run.
 
 This project is **not** product-validated until it has been demonstrated to real users.
 
-Codex cannot determine product success.
+An AI agent cannot determine product success.
 
 Instead, prepare the prototype for answering this question:
 
@@ -396,9 +396,13 @@ only the current issue pointers and blocking state.
 
 Every open issue must carry exactly one ownership label:
 
-- `owner:codex` for work Codex can execute autonomously
+- `owner:agent` for work an AI agent can execute autonomously
 - `owner:per` for a product-owner action or decision
-- `owner:shared` when Codex prepares evidence and Per reviews or decides
+- `owner:shared` when the agent prepares evidence and Per reviews or decides
+
+The ownership split is between AI and product owner. It does not record which
+model or tool executed the work; Codex, Claude, and any later agent all use
+`owner:agent`.
 
 Use `state:ready`, `state:waiting`, and `state:deferred` to distinguish current
 work from queued or intentionally parked work.
@@ -415,7 +419,7 @@ Human review must never be buried inside implementation prose:
 Every meaningful handoff should state:
 
 ```text
-Completed by Codex:
+Completed by the agent:
 - ...
 
 Your action now:
@@ -529,7 +533,7 @@ TASKS.md
 DECISIONS.md
 ```
 
-A new Codex session should be able to continue using only these files together with `ARCHITECTURE.md`.
+A new agent session should be able to continue using only these files together with `ARCHITECTURE.md`.
 
 ---
 
@@ -539,7 +543,7 @@ After approximately three completed epics, perform a context recovery review.
 
 Preferred method:
 
-Start a fresh Codex session and provide only:
+Start a fresh agent session and provide only:
 
 - `STATUS.md`
 - `TASKS.md`
