@@ -60,7 +60,8 @@ Project documentation:
 - [CHANGELOG.md](CHANGELOG.md) — notable additions, improvements, and fixes over time
 - [TASKS.md](TASKS.md) — completed work and the chronological execution plan
 - [IDEAS.md](IDEAS.md) — conditional or unscheduled product ideas
-- [STATUS.md](STATUS.md) — current technical status and verification evidence
+- [STATUS.md](STATUS.md) — current technical status, known limitations, and next task
+- [STATUS_ARCHIVE.md](STATUS_ARCHIVE.md) — dated status history, completed-work list, and verification log
 
 ## Verify
 
