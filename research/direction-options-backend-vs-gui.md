@@ -18,6 +18,36 @@ effort go into analyzer accuracy or into the interface?
 
 ---
 
+## Label legend — read this first
+
+**The `A…` and `G…` labels below are local to this note.** They exist only here,
+to let options be compared side by side. They are not project identifiers and
+must not be referenced from `TASKS.md`, issues, or commits. The project's real
+schemes are `CR0–CR6`, `WP0–WP5`, `Phase …` (all in `TASKS.md`) and
+`Decision N` (in `DECISIONS.md`).
+
+Two of these options are **new proposals with no existing task behind them** and
+are marked below. Everything else maps to work that already exists:
+
+| Note label | Corresponds to | Where |
+|---|---|---|
+| A0 | CR2–CR5 | [TASKS.md:171–309](TASKS.md#L171) |
+| A1 | **New.** Closest existing hook is CR6's external-analyzer escape rule | [TASKS.md:311](TASKS.md#L311) |
+| A2 | **New.** Nothing existing | — |
+| A3 | CR4 and CR5 | [TASKS.md:244–309](TASKS.md#L244) |
+| **A4** | **New. Nothing existing anywhere.** The leading backend proposal | — |
+| A5 | WP4 task 3, "extract beat and harmony analysis from `server.js`" | [TASKS.md:464](TASKS.md#L464) |
+| G1 | Phase 3G.2A, and WP2 | [TASKS.md:927](TASKS.md#L927), [TASKS.md:409](TASKS.md#L409) |
+| G2 | Phase 5D.2, and WP3 task 1 | [TASKS.md:1005](TASKS.md#L1005), [TASKS.md:438](TASKS.md#L438) |
+| **G3** | **New. Nothing existing anywhere.** The stated bottleneck | — |
+| G4 | "Broad Internal Design-System Pass" | `IDEAS.md`, Platform and UI Architecture |
+| G5 | Phase 5B.4–5B.6, and WP5 | [TASKS.md:1022–1071](TASKS.md#L1022) |
+
+If any option here is adopted, it should be rewritten into `TASKS.md` under the
+project's own scheme and these labels dropped.
+
+---
+
 ## The premise, as corrected by the product owner
 
 **Distribution:** the app will be open source and is not intended to be
