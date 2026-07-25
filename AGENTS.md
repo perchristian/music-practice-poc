@@ -386,6 +386,31 @@ Examples:
 
 Each epic should reduce technical uncertainty or improve the demo.
 
+### Task contract shape
+
+Use this compact shape for tasks written into `TASKS.md`:
+
+```md
+### Task: Short title
+
+Files and symbols:
+- `path/to/file`: `relevantSymbol`
+
+Goal:
+- User or engineering outcome.
+
+Contracts to preserve:
+- State, API, provenance, and interaction invariants.
+
+Non-goals:
+- Nearby behavior that must remain out of scope.
+
+Verify:
+- Focused test
+- Full regression suite
+- Required human or hardware gate
+```
+
 ---
 
 ## Work ownership and GitHub issues

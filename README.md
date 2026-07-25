@@ -58,7 +58,8 @@ See `DEMO.md` for the current demo flow and known limitations.
 Project documentation:
 
 - [CHANGELOG.md](CHANGELOG.md) — notable additions, improvements, and fixes over time
-- [TASKS.md](TASKS.md) — completed work and the chronological execution plan
+- [TASKS.md](TASKS.md) — the execution plan for pending work, with a status index
+- [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) — completed task records
 - [IDEAS.md](IDEAS.md) — conditional or unscheduled product ideas
 - [STATUS.md](STATUS.md) — current technical status, known limitations, and next task
 - [STATUS_ARCHIVE.md](STATUS_ARCHIVE.md) — dated status history, completed-work list, and verification log

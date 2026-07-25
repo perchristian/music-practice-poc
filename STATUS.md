@@ -105,7 +105,9 @@ Local web POC:
 - Current agent task: None open. CR1 is ready and needs an `owner:agent` issue
   when work begins.
 - Current human action: None ready.
-- Blocked by human action: No.
+- Blocked by human action: No. CR0 was answered `CHANGES` in
+  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) on
+  2026-07-24 and the contract is amended accordingly.
 - Deferred human input: approve or replace the proposed
   `thresholds.rwcPrimaryGate` values in
   `benchmarks/chord-reliability-contract-v1.json` before the RWC holdout is

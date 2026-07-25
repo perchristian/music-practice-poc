@@ -14,6 +14,9 @@ The project currently uses date-based development milestones rather than numbere
 - `STATUS.md` is now a current-state document. Its dated history,
   completed-work list, and verification log moved verbatim to a new
   `STATUS_ARCHIVE.md`.
+- `TASKS.md` now contains pending work only and opens with a status index.
+  Completed task records moved verbatim to a new `TASKS_ARCHIVE.md`, and the
+  task-contract template moved to `AGENTS.md`.
 
 ### Added
 
