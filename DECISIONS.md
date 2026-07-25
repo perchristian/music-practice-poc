@@ -811,3 +811,56 @@ two-recording holdout size until product-owner review.
 
 Date:
 2026-07-24
+
+## Decision 33
+
+Decision:
+Amend Decision 31 after the product-owner `CHANGES` verdict on
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3): run RWC-P as
+the primary benchmark first, using its aligned MIDI, beat, chord, structure,
+melody, and vocal annotations; do not require Logic-generated fixtures or two
+untouched target screen recordings before the RWC development and holdout
+evaluation; and once RWC results are satisfactory, manually check a small number
+of representative iOS screen recordings as a final domain check.
+
+Reason:
+Decision 31 made target-domain reference production a prerequisite for any
+analyzer work, which blocked CR1-CR6 on two new recordings, a second musician's
+availability, and optional Logic fixture authoring. RWC-P is already extracted,
+checksum-locked, and richly annotated, so it can produce the accuracy evidence
+that decides GO/ADJUST/COMPARE/STOP without that dependency. The target-domain
+question that RWC cannot answer — compressed iOS capture, separation leakage,
+missing bass, and correction burden — is preserved as a final manual check
+rather than a blocking precondition.
+
+Alternatives considered:
+- Keep Decision 31 unchanged. Advantages: strongest possible domain evidence and
+  a fully blind target holdout. Disadvantages: the gate stays blocked on media
+  and reviewer availability while the core accuracy question is answerable now.
+  Effort is high, schedule risk is high, and expected learning value arrives
+  late.
+- Drop target-domain evaluation entirely and gate on RWC alone. Advantages:
+  cheapest and fully reproducible. Disadvantages: RWC-P does not represent the
+  actual product input, so a passing gate could still fail on real screen
+  recordings. Effort is low, domain risk is high.
+- Keep the two untouched holdouts but allow RWC work to start in parallel.
+  Advantages: preserves a scored target holdout. Disadvantages: retains the
+  reference-production cost and the risk of a second blocking human queue for a
+  check the owner has decided should be manual. Effort is medium.
+
+Tradeoffs:
+The final domain check becomes a manual judgment on a few recordings instead of
+a scored, blind, two-reviewer holdout, so target-domain evidence is weaker and
+more subjective than Decision 31 intended. Accuracy conclusions will rest mainly
+on clean studio pop rather than compressed capture. In exchange, the gate can
+produce evidence immediately, the consumed-data and locked-split protections of
+Decision 31 remain intact, and the target recordings stay checksum-inventoried
+so a scored holdout can still be reinstated later.
+
+Confidence:
+High that this unblocks the gate without weakening the RWC protections; medium
+for whether a manual domain check is sufficient to authorize piano-player
+testing.
+
+Date:
+2026-07-25

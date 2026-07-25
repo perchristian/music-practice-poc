@@ -2,8 +2,60 @@
 
 Date: 2026-07-24
 
-Status: Codex preparation complete; product-owner approval and two untouched
-target recordings are required before CR0 can close.
+Amended: 2026-07-25
+
+Status: Amended after the product-owner `CHANGES` verdict on
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3). RWC-P is now
+the primary benchmark and runs first; the two untouched target recordings and
+any Logic-generated fixtures no longer block it. CR0 closes once the RWC primary
+gate thresholds are approved.
+
+## Amendment of 2026-07-25
+
+The product owner reviewed this contract in
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3) and responded
+`CHANGES`:
+
+> Use RWC-P as the primary benchmark first, including its aligned MIDI, beat,
+> chord, structure, melody, and vocal annotations. Do not require
+> Logic-generated fixtures or two untouched target recordings before running the
+> RWC development and holdout evaluation. Once RWC results are satisfactory,
+> manually test a small number of representative iOS screen recordings as a
+> final domain check.
+
+What this changes:
+
+- RWC-P is the primary accuracy benchmark and is evaluated first. Its aligned
+  MIDI, beat, chord, structure, melody, and vocal annotations are all available
+  as evidence sources and diagnostics.
+- The two untouched target holdout slots below are **no longer prerequisites**
+  for the RWC development and holdout evaluation. They remain defined for a
+  possible future scored holdout.
+- Logic-generated fixture authoring is optional and is not on the critical path.
+- The blind two-musician reference process is no longer required before CR1. It
+  applies only if a scored target holdout is reinstated later.
+- After RWC results are satisfactory, a small number of representative iOS
+  screen recordings are checked manually as the final domain check.
+
+What this deliberately does not change:
+
+- the locked RWC-P 8/4 split, its manifest checksum, and the exclusion of all
+  consumed Phase 2J tracks;
+- the pinned annotation commit;
+- `--allow-holdout` gating, now more important because the RWC holdout became
+  the primary gate;
+- the metrics, artifact paths, and target candidate checksums;
+- separate reference/corrected and end-to-end reporting.
+
+The amendment is recorded in `DECISIONS.md` Decision 33 and in the `amendments`
+block of `benchmarks/chord-reliability-contract-v1.json`.
+
+One product-owner input remains open: making the RWC holdout the primary gate
+left the terminal decision without an absolute accuracy bar, because the
+thresholds locked on 2026-07-24 describe the target-domain holdout only. A
+proposal is recorded under `thresholds.rwcPrimaryGate` with
+`status: proposed-awaiting-approval`. It must be approved or replaced before the
+RWC holdout is opened, and it may not change after holdout results are seen.
 
 ## Purpose
 
@@ -58,7 +110,9 @@ Shape of My Heart, and Te Amo. The product owner must confirm local evaluation
 rights and the scenario claims before these become references.
 
 No current file is eligible for untouched target holdout. CR0 therefore reserves
-two identities that must be filled before target baselines are inspected:
+two identities. Since the 2026-07-25 amendment these are **not** prerequisites
+for the RWC evaluation; they are held in reserve in case a scored target holdout
+is reinstated after the RWC gate:
 
 1. a full-length (at least two minutes) full-band screen recording with audible
    bass, repeated sections, and one legitimate repeat variation;
@@ -151,7 +205,25 @@ musician correction burden.
 
 ## Locked thresholds
 
-The exact numeric source of truth is the contract JSON. In summary:
+The exact numeric source of truth is the contract JSON.
+
+Since the 2026-07-25 amendment the primary gate is the RWC holdout. Its
+thresholds are **proposed, not locked**, and are recorded under
+`thresholds.rwcPrimaryGate`:
+
+- RWC holdout with reference/corrected timing: Root at least 75%, MajMin 65%,
+  Triads 60%, MIREX 65%, boundary F1 60%;
+- RWC holdout end-to-end: Root at least 65%, MajMin 55%, boundary F1 50%;
+- chord changes per minute at most 1.5x the reference rate after merging
+  adjacent equal labels, because over-segmentation was the original product
+  complaint.
+
+These require product-owner approval before the RWC holdout is opened, and may
+not change afterwards.
+
+The thresholds locked on 2026-07-24 describe the target-domain holdout. They are
+retained for a possible future scored target holdout and no longer gate CR6 on
+their own:
 
 - target holdout with reference/corrected timing: Root at least 80%, MajMin 70%,
   Triads 65%, MIREX 70%, and boundary F1 65%;
@@ -172,7 +244,10 @@ The exact numeric source of truth is the contract JSON. In summary:
 - harmony analysis alone must stay at or below 0.5 real-time factor and 1.5 GiB
   peak resident memory on the target M3 Mac.
 
-RWC-P remains a regression corpus, not a substitute for the target-domain gate.
+RWC-P is the primary accuracy corpus since the 2026-07-25 amendment. It is still
+not a substitute for target-domain evidence: it is cleaner than compressed iOS
+capture, so the final manual domain check remains required before declaring
+chords good enough for piano-player testing.
 
 ## Reproducible commands
 
@@ -210,18 +285,26 @@ npm run benchmark:chords -- \
   --output benchmark-results/chord-reliability/holdout
 ```
 
-CR1 adds the target-reference adapter and diagnostic artifact fields before
-either target split is analyzed. That adapter must consume this reference shape
-and threshold contract without changing them.
+CR1 adds diagnostic artifact fields and works against RWC-P. The target-reference
+adapter is only needed if a scored target holdout is reinstated; if it is added,
+it must consume this reference shape and threshold contract without changing
+them.
 
 ## CR0 completion rule
 
 Codex preparation is complete when the manifests, validator, dry run, docs, and
-approval packet are committed. Milestone 0 itself passes only after:
+approval packet are committed. Since the 2026-07-25 amendment, Milestone 0
+passes when:
 
-- the product owner approves the recordings, scenario claims, reference process,
-  and thresholds;
-- two untouched holdout files are supplied and added in a checksum-only manifest
-  revision before any v1 target result is inspected;
-- all selected development and holdout references receive independent approval
-  and pass `--require-target-references`.
+- the product owner approves or replaces the proposed `thresholds.rwcPrimaryGate`
+  values;
+- the scope of the final manual domain check is agreed, at least as a count of
+  recordings and the scenarios it must cover.
+
+The following are no longer part of the completion rule. They apply again only
+if a scored target holdout is reinstated:
+
+- supplying two untouched target holdout files;
+- independent blind approval of target references and
+  `--require-target-references`;
+- authoring a Logic-generated fixture pack.

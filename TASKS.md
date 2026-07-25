@@ -2,18 +2,26 @@
 
 ## Next Task
 
-Complete the product-owner review in
-[#3 — CR0: Approve locked chord-validation contract](https://github.com/perchristian/piano-practice-poc/issues/3).
+CR1: add evidence diagnostics and failure fixtures against RWC-P.
+
+CR0 is amended and no longer blocks implementation. One product-owner input is
+still open — approving the proposed RWC primary gate thresholds — but it is only
+required before the RWC **holdout** is opened, not before CR1 starts. Create the
+`owner:codex` issue for CR1 when work begins, and an `owner:per` issue for the
+threshold approval when the CR1 development results make it actionable.
 
 ## Active Work Ownership
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
-- Current Codex task: None
-- Current human action:
-  [#3 — Approve the CR0 contract](https://github.com/perchristian/piano-practice-poc/issues/3)
-- Blocked by human action: Yes; no baseline or target-reference work starts
-  before `PASS`, `CHANGES`, or `DISCUSS`.
+- Current Codex task: None open; CR1 is ready to be picked up and needs an issue.
+- Current human action: None ready.
+- Blocked by human action: No. CR0 was answered `CHANGES` in
+  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) on
+  2026-07-24 and the contract is amended accordingly.
+- Deferred human input: approve or replace `thresholds.rwcPrimaryGate` in
+  `benchmarks/chord-reliability-contract-v1.json` before the RWC holdout is
+  opened, and agree the scope of the final manual domain check.
 
 GitHub Issues are the source of truth for executable work. This file retains the
 roadmap, ordering, dependencies, and durable contracts. A human review issue is
@@ -47,13 +55,28 @@ Product-owner decision on 2026-07-23:
   `research/chord-reliability-validation-plan.md`;
 - retain editable charts and immutable analyzer provenance throughout.
 
+Product-owner amendment on 2026-07-24, answered in
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3) and recorded as
+`DECISIONS.md` Decision 33:
+
+- run RWC-P as the primary benchmark first, using its aligned MIDI, beat, chord,
+  structure, melody, and vocal annotations;
+- do not require Logic-generated fixtures or two untouched target recordings
+  before the RWC development and holdout evaluation;
+- once RWC results are satisfactory, manually check a small number of
+  representative iOS screen recordings as the final domain check.
+
+The locked RWC split, exclusions, checksums, annotation commit, and
+`--allow-holdout` rule are unchanged.
+
 GitHub tracking:
 - Shared gate:
   [#1](https://github.com/perchristian/piano-practice-poc/issues/1)
 - CR0 Codex preparation:
-  [#2](https://github.com/perchristian/piano-practice-poc/issues/2)
-- Ready CR0 product review:
-  [#3](https://github.com/perchristian/piano-practice-poc/issues/3)
+  [#2](https://github.com/perchristian/piano-practice-poc/issues/2) — closed
+- CR0 product review:
+  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) — closed
+  with `CHANGES`
 
 The tasks below are in committed priority order. A task may stop the sequence at
 its milestone gate. Do not skip directly to automatic repeat detection or combine
@@ -93,16 +116,18 @@ Verify:
 Milestone:
 - Milestone 0 passes exactly as defined in the research plan.
 
-Status: Codex preparation complete in
-[#2](https://github.com/perchristian/piano-practice-poc/issues/2). The locked
-8/4 RWC split excludes all consumed Phase 2J tracks; five local target candidates
-are checksum-inventoried for development; two new untouched target holdout slots,
-the blind two-reviewer reference process, metrics, paths, thresholds, and dry-run
-commands are defined. `npm run verify:chord-contract` passed without changing
-the nine existing application job directories. Milestone 0 remains open pending
-the single ready product review
-[#3](https://github.com/perchristian/piano-practice-poc/issues/3), two untouched
-holdout files, and independently approved target references.
+Status: Complete for the purpose of unblocking CR1, and amended on 2026-07-25.
+The locked 8/4 RWC split excludes all consumed Phase 2J tracks, five local target
+candidates remain checksum-inventoried, and metrics, paths, artifact locations,
+and dry-run commands are defined. `npm run verify:chord-contract` passed without
+changing the existing application job directories.
+
+The two untouched target holdout slots, the blind two-reviewer reference process,
+and Logic fixture authoring were removed from the critical path by the `CHANGES`
+verdict; they apply again only if a scored target holdout is reinstated. What
+remains open is one deferred product-owner input: approving or replacing the
+proposed `thresholds.rwcPrimaryGate` values before the RWC holdout is opened,
+and agreeing the scope of the final manual domain check.
 
 ### CR1: Add evidence diagnostics and failure fixtures
 
@@ -140,7 +165,8 @@ Verify:
 Milestone:
 - Milestone 1 passes.
 
-Status: Planned after CR0.
+Status: Ready. This is the next task. Generated known-answer fixtures cover the
+listed scenarios; Logic-authored fixtures are optional and off the critical path.
 
 ### CR2: Validate accompaniment-first melody suppression
 
@@ -168,9 +194,11 @@ Non-goals:
 
 Verify:
 - Melody-heavy generated fixtures.
-- New locked development gate, then untouched holdout only after it passes.
-- Target screen-recording listening/chart review.
+- RWC development gate; the RWC holdout is opened only at the precommitted
+  milestone gate and only after the primary gate thresholds are approved.
 - False-extra and missing-change comparison.
+- Optional informal listening on a local target recording as a sanity check; the
+  scored target-domain review no longer gates this milestone.
 
 Milestone:
 - Milestone 2 passes or the project follows its external-analyzer comparison
@@ -205,8 +233,8 @@ Non-goals:
 Verify:
 - No-bass, inversion, pedal-tone, passing-bass, ornament, and genuine-short-chord
   fixtures.
-- Bass-present and no-bass scenario metrics.
-- Locked development/holdout and target-domain review.
+- Bass-present and no-bass scenario metrics, grouped from RWC instrumentation.
+- Locked RWC development results; holdout only at the precommitted gate.
 
 Milestone:
 - Milestone 3 passes.
@@ -301,7 +329,9 @@ Non-goals:
 - Resuming the feature backlog without recording the gate result.
 
 Verify:
-- Target-domain holdout and grouped metrics.
+- RWC holdout against the approved primary gate thresholds, plus grouped metrics.
+- Final manual domain check on a small number of representative iOS screen
+  recordings, run only after the RWC results are satisfactory.
 - Runtime and memory measurement.
 - Three-minute-song correction-time review.
 - Human chart-usability assessment.

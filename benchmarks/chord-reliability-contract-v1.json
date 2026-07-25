@@ -2,6 +2,62 @@
   "version": 1,
   "contractId": "chord-reliability-cr0-v1",
   "lockedOn": "2026-07-24",
+  "amendments": [
+    {
+      "amendedOn": "2026-07-25",
+      "source": "https://github.com/perchristian/piano-practice-poc/issues/3",
+      "verdict": "CHANGES",
+      "decision": "DECISIONS.md Decision 33",
+      "summary": "RWC-P becomes the primary benchmark and runs first. Logic-generated fixtures and the two untouched target holdout recordings are no longer prerequisites for the RWC development and holdout evaluation. A manual check of a few representative iOS screen recordings becomes the final domain check.",
+      "unchanged": [
+        "RWC-P 8-development/4-holdout split and its manifest checksum",
+        "exclusion of all consumed Phase 2J tracks",
+        "annotation commit pinning",
+        "--allow-holdout gating for RWC holdout analyzer output",
+        "metrics, artifact paths, and target candidate checksums",
+        "separate reference/corrected and end-to-end reporting"
+      ],
+      "status": "Awaiting product-owner approval of the RWC primary gate thresholds in openInputs."
+    }
+  ],
+  "evaluationOrder": [
+    {
+      "step": 1,
+      "name": "rwc-development",
+      "gate": "thresholds.retainedExperiment",
+      "blockedBy": [],
+      "note": "Primary benchmark. RWC-P aligned MIDI, beat, chord, structure, melody, and vocal annotations may all be used as evidence or diagnostics."
+    },
+    {
+      "step": 2,
+      "name": "rwc-holdout",
+      "gate": "thresholds.rwcPrimaryGate",
+      "blockedBy": ["rwc-development"],
+      "note": "Requires --allow-holdout and a precommitted milestone gate. Thresholds are proposed, not locked; see openInputs."
+    },
+    {
+      "step": 3,
+      "name": "target-domain-manual-check",
+      "gate": "thresholds.correctionBurden",
+      "blockedBy": ["rwc-holdout"],
+      "note": "Manual check of a small number of representative iOS screen recordings once RWC results are satisfactory. Not a scored blind holdout."
+    }
+  ],
+  "openInputs": [
+    {
+      "id": "rwc-primary-gate-thresholds",
+      "owner": "product-owner",
+      "question": "What does 'RWC results are satisfactory' mean numerically?",
+      "why": "The originally locked thresholds describe the target-domain holdout only. Making RWC-P the primary gate leaves the terminal GO/ADJUST/COMPARE/STOP decision without an absolute bar.",
+      "proposedNotLocked": "thresholds.rwcPrimaryGate"
+    },
+    {
+      "id": "target-domain-manual-check-scope",
+      "owner": "product-owner",
+      "question": "How many representative iOS screen recordings, and which scenarios must the final manual check cover?",
+      "why": "The manual check replaces the two scored untouched holdouts, so its coverage determines how much domain risk remains at GO."
+    }
+  ],
   "components": {
     "rwc": {
       "manifest": "benchmarks/chord-reliability-rwc-v1.json",
@@ -57,7 +113,33 @@
     ]
   },
   "thresholds": {
+    "rwcPrimaryGate": {
+      "status": "proposed-awaiting-approval",
+      "note": "Proposed by the 2026-07-25 amendment because the RWC holdout became the primary accuracy gate. Not locked. Must be approved or replaced before the RWC holdout is opened, and may not be changed after holdout results are seen.",
+      "basis": {
+        "lockedBaselineSource": "benchmarks/rwc-popular-isolated-smoothing-checkpoint.md",
+        "note": "The consumed Phase 2J holdout reached 49.0% MajMin with oracle timing and 39.9% end-to-end. That corpus is a different, consumed split and is cited only to show the size of the proposed jump.",
+        "referenceChordChangesPerMinute": 30.2
+      },
+      "referenceOrCorrectedTiming": {
+        "rootWcsrMinimum": 0.75,
+        "majMinWcsrMinimum": 0.65,
+        "triadsWcsrMinimum": 0.6,
+        "mirexWcsrMinimum": 0.65,
+        "boundaryF1Minimum": 0.6
+      },
+      "endToEndTiming": {
+        "rootWcsrMinimum": 0.65,
+        "majMinWcsrMinimum": 0.55,
+        "boundaryF1Minimum": 0.5
+      },
+      "density": {
+        "chordChangesPerMinuteRatioMaximum": 1.5,
+        "rule": "Analyzer changes per minute divided by reference changes per minute, after merging adjacent equal labels. Over-segmentation was the original product complaint, so density is a gate rather than a diagnostic."
+      }
+    },
     "targetHoldoutReferenceOrCorrectedTiming": {
+      "appliesTo": "Retained for a future scored target holdout. The 2026-07-25 amendment replaced the blocking two-recording holdout with a manual domain check, so these values no longer gate CR6 on their own.",
       "rootWcsrMinimum": 0.8,
       "majMinWcsrMinimum": 0.7,
       "triadsWcsrMinimum": 0.65,
@@ -105,7 +187,7 @@
     }
   },
   "holdoutAccess": {
-    "rwc": "Dry-run availability checks are permitted. Analyzer results require --allow-holdout and may be produced only at a precommitted milestone gate.",
-    "target": "Do not run analyzer output or inspect references for the two new holdout recordings before the integrated gate."
+    "rwc": "Dry-run availability checks are permitted. Analyzer results require --allow-holdout and may be produced only at a precommitted milestone gate. This is now the primary gate, so opening it consumes the split permanently.",
+    "target": "The two untouched holdout slots remain defined but no longer block the RWC evaluation. If they are ever supplied, the same rule applies: do not run analyzer output or inspect their references before the integrated gate. The final manual domain check uses ordinary representative recordings, not these slots."
   }
 }

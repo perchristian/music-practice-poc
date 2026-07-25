@@ -2,6 +2,38 @@
 
 Prepared: 2026-07-24
 
+Status: **Resolved on 2026-07-24.** This packet is historical. It is kept as the
+exact material that was reviewed; do not act on its request for a response.
+
+## Outcome
+
+The product owner answered `CHANGES` in
+[#3](https://github.com/perchristian/piano-practice-poc/issues/3):
+
+> Use RWC-P as the primary benchmark first, including its aligned MIDI, beat,
+> chord, structure, melody, and vocal annotations. Do not require
+> Logic-generated fixtures or two untouched target recordings before running the
+> RWC development and holdout evaluation. Once RWC results are satisfactory,
+> manually test a small number of representative iOS screen recordings as a
+> final domain check.
+
+Consequences are recorded in `DECISIONS.md` Decision 33, the
+`## Amendment of 2026-07-25` section of
+`research/chord-reliability-cr0-contract.md`, and the `amendments` block of
+`benchmarks/chord-reliability-contract-v1.json`.
+
+The parts of this packet that no longer apply: the two untouched holdout slots,
+the blind two-musician reference requirement, and the target-domain thresholds
+as the terminal gate. The RWC split, checksums, exclusions, and `--allow-holdout`
+rule are unchanged.
+
+One follow-up input is still open: the RWC primary gate now needs an absolute
+accuracy bar, proposed under `thresholds.rwcPrimaryGate`.
+
+---
+
+The original packet as reviewed follows.
+
 Review only this packet and the machine-readable thresholds. The working research
 history is not required.
 
@@ -61,7 +93,7 @@ holdout tolerance is two WCSR points and three boundary-F1 points.
    variations without seeing analyzer output.
 6. Accept or challenge the numeric good-enough thresholds.
 
-Respond with exactly one of:
+Respond with exactly one of (answered `CHANGES` on 2026-07-24; see Outcome above):
 
 - `PASS` — approve the mappings, rights, two holdout slots, independent review,
   and thresholds. This unblocks adding the two checksum-only holdout identities
