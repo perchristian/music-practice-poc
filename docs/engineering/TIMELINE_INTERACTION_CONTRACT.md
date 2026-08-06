@@ -142,4 +142,4 @@ Human review on 2026-07-23 found that the implementation does not yet meet this 
 - Current `Follow` behavior can reposition the viewport while playback is paused; the agreed contract limits `Follow` viewport movement to active playback.
 - Current `Edit timing` starts at minimum zoom instead of inheriting and later restoring the ordinary-playback viewport.
 
-Until a fix passes human trackpad review, use the visible Zoom slider and `Fit` as the reliable zoom path, plus the platform scrollbar where it is available for panning. The implementation and verification plan is tracked in `TASKS.md`.
+Until a fix passes human trackpad review, use the visible Zoom slider and `Fit` as the reliable zoom path, plus the platform scrollbar where it is available for panning. The implementation and verification plan is tracked in `docs/planning/TASKS.md`.

@@ -1,9 +1,9 @@
 # Appendix: Competitive & Pattern Analysis — Moises and Peer Apps
 
-**Companion document to `DESIGN_BRIEF.md`.**
+**Companion document to `docs/product/DESIGN_BRIEF.md`.**
 For Claude Design: use this alongside the brief to inform visual direction. It captures how Moises and adjacent apps solve problems we also face, what patterns are worth borrowing, and where our POC should stay distinct.
 
-Screenshots referenced here live in `Moises/Screenshots/` (subfolders `Intro/`, `ipad/`, `iphone/`).
+Screenshots referenced here live in `assets/moises-screenshots/` (subfolders `Intro/`, `ipad/`, `iphone/`).
 
 ---
 

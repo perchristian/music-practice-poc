@@ -2,7 +2,7 @@
 
 > **Purpose of this document:** Provide a visual designer (or Claude Design) with enough context to propose multiple visual design directions for this application. Screenshots of the current functional prototype are included throughout.
 >
-> **Companion:** `MOISES_ANALYSIS.md` — competitive/pattern analysis of Moises and peer apps (Chordify, Songsterr, Yousician, Simply Piano, Flowkey, Ultimate Guitar). Read alongside this brief.
+> **Companion:** `docs/product/MOISES_ANALYSIS.md` — competitive/pattern analysis of Moises and peer apps (Chordify, Songsterr, Yousician, Simply Piano, Flowkey, Ultimate Guitar). Read alongside this brief.
 
 ---
 
@@ -39,7 +39,7 @@ The prototype is fully functional but has developer-default styling: a teal acce
 
 Two-panel layout: a narrow sidebar on the left for the song library, and a large detail area on the right.
 
-![Library empty](design-screenshots/01-empty-library.png)
+![Library empty](../../assets/design-screenshots/01-empty-library.png)
 
 **Left sidebar:**
 - "LIBRARY / Songs" heading
@@ -62,7 +62,7 @@ Two-panel layout: a narrow sidebar on the left for the song library, and a large
 
 When a song is selected, the right panel shows a sticky header with song metadata.
 
-![Practice view full](design-screenshots/03-practice-view-full.png)
+![Practice view full](../../assets/design-screenshots/03-practice-view-full.png)
 
 **Song header contains:**
 - Album art (letter avatar; real thumbnail when available)
@@ -112,7 +112,7 @@ The Time panel is always visible above the chord chart. It contains all timing c
 
 Entered by clicking "Edit timing". This mode lets users correct the beat grid by dragging bar markers on the waveform.
 
-![Timing edit mode](design-screenshots/12-timing-edit-mode.png)
+![Timing edit mode](../../assets/design-screenshots/12-timing-edit-mode.png)
 
 **Changes from normal mode:**
 - "Edit timing" button replaced by: **Zoom** slider + **Fit** button + **Done** button
@@ -137,7 +137,7 @@ Entered by clicking "Edit timing". This mode lets users correct the beat grid by
 
 The mixer sits in the bottom-right of the practice view, below the chord chart.
 
-![Mixer](design-screenshots/04-mixer.png)
+![Mixer](../../assets/design-screenshots/04-mixer.png)
 
 **One row per stem:**
 - Stem name (Grid click / Drums / Bass / Guitar / Piano / Vocals / Other)
@@ -162,7 +162,7 @@ The mixer sits in the bottom-right of the practice view, below the chord chart.
 
 The Harmony panel shows the chord sequence laid out in a grid. Each row contains N bars (configurable: 1, 2, 4, or 8 per row).
 
-![Chord grid basic](design-screenshots/05-chord-grid-basic.png)
+![Chord grid basic](../../assets/design-screenshots/05-chord-grid-basic.png)
 
 **Controls above the grid:**
 - "Harmony" heading
@@ -198,7 +198,7 @@ The Harmony panel shows the chord sequence laid out in a grid. Each row contains
 
 When "Section info" is checked, colored horizontal bands appear above bars to label song structure.
 
-![Chord grid two sections](design-screenshots/09b-chord-grid-two-sections.png)
+![Chord grid two sections](../../assets/design-screenshots/09b-chord-grid-two-sections.png)
 
 **Section bands:**
 - Span one or more bars
@@ -213,7 +213,7 @@ When "Section info" is checked, colored horizontal bands appear above bars to la
 - A "Create section" button appears in the toolbar when a valid range is selected
 - "Bar N selected" / "Bar N–M selected" shown as summary text
 
-![Bar range selected](design-screenshots/07-bar-range-selected.png)
+![Bar range selected](../../assets/design-screenshots/07-bar-range-selected.png)
 
 **Design considerations:**
 - Section bands are the most colorful element in the UI — they carry a lot of visual weight. Their color system (blue/green/amber/rose) should integrate with the overall palette.
@@ -227,7 +227,7 @@ When "Section info" is checked, colored horizontal bands appear above bars to la
 
 A modal dialog for creating or editing a section.
 
-![Section create dialog](design-screenshots/08b-section-create-dialog-filled.png)
+![Section create dialog](../../assets/design-screenshots/08b-section-create-dialog-filled.png)
 
 **Fields:**
 - **Symbol** — short identifier, max 12 chars (e.g. "A", "Verse", "Bridge")
@@ -252,7 +252,7 @@ A modal dialog for creating or editing a section.
 
 When loop is enabled, a visual loop region appears overlaid on the chord grid.
 
-![Loop on chord grid](design-screenshots/11-loop-on-chord-grid.png)
+![Loop on chord grid](../../assets/design-screenshots/11-loop-on-chord-grid.png)
 
 **Loop region:**
 - Semi-transparent overlay spanning loop start → end bars
@@ -275,7 +275,7 @@ When loop is enabled, a visual loop region appears overlaid on the chord grid.
 
 At wider bar density, the chord grid compresses.
 
-![Chord grid 4 per row](design-screenshots/15-chord-grid-4-per-row.png)
+![Chord grid 4 per row](../../assets/design-screenshots/15-chord-grid-4-per-row.png)
 
 **Design considerations:**
 - At 4 bars/row, chord cards become narrow. The two-line chord+roman format becomes tight.

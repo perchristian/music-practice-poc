@@ -36,7 +36,7 @@ node scripts/validate-chord-reliability-contract.js \
 
 Do not use `--allow-holdout` until a precommitted milestone gate. The full CR0
 contract and review process are documented in
-`research/chord-reliability-cr0-contract.md`.
+`docs/research/chord-reliability-cr0-contract.md`.
 
 ## One-time setup
 

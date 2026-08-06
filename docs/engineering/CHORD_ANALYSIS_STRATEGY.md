@@ -68,7 +68,7 @@ Seed a separate musician-editable working chart
 ```
 
 The implementation is primarily in
-[`server.js`](./server.js), especially `estimateBeatGrid`,
+[`server.js`](../../server.js), especially `estimateBeatGrid`,
 `chromaEvidenceForBar`, `estimateChord`, `estimateKey`, and
 `analyzeHarmonyFromAudio`.
 
@@ -286,7 +286,7 @@ with estimated timing it also slightly reduced major/minor accuracy and
 boundary recall, demonstrating the expected precision/recall tradeoff.
 
 Detailed evidence is in
-[`benchmarks/rwc-popular-isolated-smoothing-checkpoint.md`](./benchmarks/rwc-popular-isolated-smoothing-checkpoint.md).
+[`benchmarks/rwc-popular-isolated-smoothing-checkpoint.md`](../../benchmarks/rwc-popular-isolated-smoothing-checkpoint.md).
 The holdout has been consumed and must not be used for further tuning.
 
 ### Real screen recordings
@@ -359,4 +359,4 @@ Reliable chord analysis is now a committed validation gate before unrelated
 feature work resumes. The research, proposed accompaniment/bass/repetition
 evidence model, locked evaluation contract, milestones, and terminal decisions
 are defined in
-[`research/chord-reliability-validation-plan.md`](./research/chord-reliability-validation-plan.md).
+[`docs/research/chord-reliability-validation-plan.md`](../research/chord-reliability-validation-plan.md).

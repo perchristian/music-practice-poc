@@ -21,7 +21,7 @@ Each report should cover:
 ### Scope
 
 Reviewed the delivered prototype, current project planning and status, recent
-iteration history, and `AI_TOKEN_OPTIMIZATION.md`.
+iteration history, and `docs/engineering/AI_TOKEN_OPTIMIZATION.md`.
 
 Product validation will be led by the piano-player product owner, supported by
 additional user testing. The project team should prepare a dependable testable
@@ -53,7 +53,7 @@ sessions.
   technical backlog should prepare for that work rather than assume more features
   are automatically valuable.
 - Current-context documents have accumulated too much chronological history.
-  `STATUS.md` and `TASKS.md` duplicate evidence already available in tests,
+  `docs/planning/STATUS.md` and `docs/planning/TASKS.md` duplicate evidence already available in tests,
   `CHANGELOG.md`, decisions, and Git history.
 - `public/app.js` and `server.js` remain large integration files. The frontend is
   now the more immediate source of interaction complexity.
@@ -104,7 +104,7 @@ sessions.
 
 ### Resulting Actions
 
-- Revised `AI_TOKEN_OPTIMIZATION.md` into a measurement-first plan.
-- Added provisional, technically sequenced work packages to `TASKS.md`.
+- Revised `docs/engineering/AI_TOKEN_OPTIMIZATION.md` into a measurement-first plan.
+- Added provisional, technically sequenced work packages to `docs/planning/TASKS.md`.
 - Paused implementation pending backlog grooming and sprint planning with the
   product owner.

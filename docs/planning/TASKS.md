@@ -1,4 +1,4 @@
-# TASKS.md
+# Tasks
 
 ## Next Task
 
@@ -10,7 +10,7 @@ required before the RWC **holdout** is opened, not before CR1 starts. Create the
 `owner:agent` issue for CR1 when work begins, and an `owner:per` issue for the
 threshold approval when the CR1 development results make it actionable.
 
-Current issue pointers and blocking state live in `STATUS.md` under Active Work
+Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
 
 ## Index
@@ -36,13 +36,13 @@ Ownership. They are not duplicated here.
 | [5B.5](#21-phase-5b5-chord-multi-selection) | Chord multi-selection | Planned after 5B.4 |
 | [5B.6](#22-phase-5b6-chord-copypaste-and-loop-from-selection) | Chord copy/paste and loop from selection | Planned after 5B.5 |
 
-Completed task records live in `TASKS_ARCHIVE.md`. Unscheduled and conditional
-work lives in `IDEAS.md`.
+Completed task records live in `docs/archive/TASKS_ARCHIVE.md`. Unscheduled and conditional
+work lives in `docs/product/IDEAS.md`.
 
 ## Purpose
 
 This file is the execution plan for the POC. It contains pending work only, in
-the order it should be attempted. Completed records move to `TASKS_ARCHIVE.md`
+the order it should be attempted. Completed records move to `docs/archive/TASKS_ARCHIVE.md`
 rather than accumulating here.
 
 GitHub Issues are the source of truth for executable work. This file retains the
@@ -51,7 +51,7 @@ created only when its review packet is ready.
 
 Phase IDs are preserved because they identify the subsystem where work belongs. They are not expected to be numerically increasing when a later iteration returns to an earlier subsystem; for example, Phase 2I was completed after Phase 5C.
 
-Unscheduled, conditional, or temporarily parked work lives in `IDEAS.md`. Moving an item there does not reject it; it means the item has no committed place in the current execution sequence.
+Unscheduled, conditional, or temporarily parked work lives in `docs/product/IDEAS.md`. Moving an item there does not reject it; it means the item has no committed place in the current execution sequence.
 
 ## Prioritization Order
 
@@ -70,12 +70,12 @@ Product-owner decision on 2026-07-23:
 - current chord quality is not yet validated as good enough;
 - prove or disprove chord reliability before resuming unrelated feature work;
 - use the bounded research and milestone contract in
-  `research/chord-reliability-validation-plan.md`;
+  `docs/research/chord-reliability-validation-plan.md`;
 - retain editable charts and immutable analyzer provenance throughout.
 
 Product-owner amendment on 2026-07-24, answered in
 [#3](https://github.com/perchristian/piano-practice-poc/issues/3) and recorded as
-`DECISIONS.md` Decision 33:
+`docs/planning/DECISIONS.md` Decision 33:
 
 - run RWC-P as the primary benchmark first, using its aligned MIDI, beat, chord,
   structure, melody, and vocal annotations;
@@ -103,7 +103,7 @@ several unproven heuristics in one experiment.
 ### CR0: Lock the chord-reliability validation contract
 
 Files and symbols:
-- `research/chord-reliability-validation-plan.md`: Evaluation contract and
+- `docs/research/chord-reliability-validation-plan.md`: Evaluation contract and
   Milestone 0
 - `scripts/chord-benchmark-lib.js`: existing RWC adapter and metrics contract
 - `scripts/benchmark-chords.js`: benchmark CLI
@@ -330,8 +330,8 @@ Status: Conditional on CR4.
 
 Files and symbols:
 - benchmark reports and aggregate checkpoint
-- `CHORD_ANALYSIS_STRATEGY.md`
-- `STATUS.md`, `RISKS.md`, `DECISIONS.md`, and `DEMO.md`
+- `docs/engineering/CHORD_ANALYSIS_STRATEGY.md`
+- `docs/planning/STATUS.md`, `docs/planning/RISKS.md`, `docs/planning/DECISIONS.md`, and `docs/engineering/DEMO.md`
 
 Goal:
 - Run the best independently validated changes together and make an explicit
@@ -382,10 +382,10 @@ Purpose:
 - Select one bounded sprint and explicitly defer or park the rest.
 
 Inputs:
-- `RETROSPECTIVES.md`
-- `AI_TOKEN_OPTIMIZATION.md`
+- `docs/planning/RETROSPECTIVES.md`
+- `docs/engineering/AI_TOKEN_OPTIMIZATION.md`
 - current planned phases in this file
-- `RISKS.md`, `STATUS.md`, and `IDEAS.md`
+- `docs/planning/RISKS.md`, `docs/planning/STATUS.md`, and `docs/product/IDEAS.md`
 
 Output:
 - one agreed sprint goal
@@ -406,14 +406,14 @@ Technical rationale:
 
 Tasks:
 1. Capture comparable frontend, backend/analysis, and documentation task baselines
-   using the metrics in `AI_TOKEN_OPTIMIZATION.md`.
-2. Condense `STATUS.md` to current state and move dated verification history to an
+   using the metrics in `docs/engineering/AI_TOKEN_OPTIMIZATION.md`.
+2. Condense `docs/planning/STATUS.md` to current state and move dated verification history to an
    archive.
-3. Keep active and near-future work in `TASKS.md`; archive completed phase detail
+3. Keep active and near-future work in `docs/planning/TASKS.md`; archive completed phase detail
    without losing traceability.
 4. Add a compact stable codebase quick reference to `AGENTS.md`, excluding line
    numbers, fixed test totals, and volatile current state.
-5. Adopt the symbol-based task contract from `AI_TOKEN_OPTIMIZATION.md`.
+5. Adopt the symbol-based task contract from `docs/engineering/AI_TOKEN_OPTIMIZATION.md`.
 6. Perform and record the required simulated or fresh context recovery review.
 7. Repeat comparable task samples after the changes and retain only improvements
    that preserve quality.
@@ -435,7 +435,7 @@ Technical rationale:
 
 Tasks:
 1. Implement the Phase 3G.2A contract in
-   `TIMELINE_INTERACTION_CONTRACT.md`.
+   `docs/engineering/TIMELINE_INTERACTION_CONTRACT.md`.
 2. Centralize viewport mutation and input arbitration.
 3. Extract timeline viewport/input state from `public/app.js` only if the active
    change exposes a cohesive, testable seam; avoid a broad frontend rewrite.
@@ -462,9 +462,9 @@ Technical rationale:
 
 Tasks:
 1. Complete Phase 5D.2 transport, keyboard, loop, and mobile Harmony cleanup.
-2. Run the complete mock and real demo journeys using `DEMO.md`.
+2. Run the complete mock and real demo journeys using `docs/engineering/DEMO.md`.
 3. Resolve or explicitly preserve the malformed local `job.json` recorded in
-   `STATUS.md`; do not delete ambiguous user data without approval.
+   `docs/planning/STATUS.md`; do not delete ambiguous user data without approval.
 4. Confirm clean test-job state, known demo fixtures, and reproducible setup.
 5. Prepare a short user-test readiness note containing known limitations and
    suggested observation points, without inferring product success.
@@ -532,14 +532,14 @@ below preserve existing detail and previous ordering until grooming explicitly
 reclassifies, parks, or selects them.
 
 Numbering is non-contiguous because completed phase records moved to
-`TASKS_ARCHIVE.md`. Only pending records remain here.
+`docs/archive/TASKS_ARCHIVE.md`. Only pending records remain here.
 
 ### 18A. Phase 3G.2A: Timeline Input-Contract Hardening
 
 Goal: Make timeline navigation predictable across trackpad, mouse, touchscreen, and keyboard without changing playback time accidentally or allowing `Follow` to fight direct navigation.
 
 Product contract:
-- Implement the normative behavior in `TIMELINE_INTERACTION_CONTRACT.md`.
+- Implement the normative behavior in `docs/engineering/TIMELINE_INTERACTION_CONTRACT.md`.
 - Treat the contract as input-mechanism based rather than detecting a Mac, Windows, touch-only, or mouse-only device.
 - Keep the dependency-light mock journey fully usable through visible Zoom, `Fit`, scrubber, and scrollbar controls even when a hardware gesture is unavailable.
 
@@ -574,7 +574,7 @@ Verification:
 - Verify touch tap, horizontal pan, vertical page scroll, pinch, second-finger conversion, and timing-marker precedence on a real or browser-faithful touchscreen.
 - Manually verify a real Mac trackpad from `Fit`, after slider zoom, after `Fit`, at both zoom bounds, and through repeated pinch-in/pinch-out cycles. If Windows support becomes a POC target, repeat the wheel/pinch checks on a Windows Precision Touchpad without changing the product contract.
 - Delete every song/job created by automated or manual verification, retaining only documented intentional demo, fixture, or calibration jobs.
-- Run `git diff --check` and update `CHANGELOG.md`, `STATUS.md`, and this task status in the implementation commit.
+- Run `git diff --check` and update `CHANGELOG.md`, `docs/planning/STATUS.md`, and this task status in the implementation commit.
 
 Acceptance criteria:
 - `Follow` changes viewport position only while playback is running and never changes playback position.
@@ -663,4 +663,4 @@ Status: Planned after chord multi-selection.
 
 ## Parked Work
 
-See `IDEAS.md` for conditional, unscheduled, or temporarily deferred work. Promote an idea back into this file only when it has explicit entry criteria and a defined position in the execution order.
+See `docs/product/IDEAS.md` for conditional, unscheduled, or temporarily deferred work. Promote an idea back into this file only when it has explicit entry criteria and a defined position in the execution order.

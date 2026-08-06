@@ -1,10 +1,10 @@
-# TASKS_ARCHIVE.md
+# Tasks Archive
 
-Completed task records moved out of `TASKS.md` on 2026-07-25 so the roadmap
+Completed task records moved out of `docs/planning/TASKS.md` on 2026-07-25 so the roadmap
 contains only pending work. Content is unchanged from the day it was moved; the
 sections below were copied verbatim, not rewritten or summarized.
 
-`TASKS.md` remains the execution plan. Look here only for the detail behind work
+`docs/planning/TASKS.md` remains the execution plan. Look here only for the detail behind work
 that is already finished.
 
 ## Completed Work — Chronological
@@ -127,8 +127,8 @@ Outcome:
 - Assisted suggestions remain compatible with the flat model; linked templates require a new arrangement/override model.
 
 References:
-- `research/section-structure-prototype-plan.md`
-- `research/section-structure-prototype-results.md`
+- `docs/research/section-structure-prototype-plan.md`
+- `docs/research/section-structure-prototype-results.md`
 
 Status: Research complete.
 
@@ -270,7 +270,7 @@ Current data contract:
 - `practiceState.chordChart` is the user's authoritative working chart after it is created.
 
 Execution sequence:
-1. Build the dataset-backed benchmark described in `research/chord-analysis-benchmark-strategy.md`, using RWC-P v2 as the primary real-pop corpus without checking audio into Git.
+1. Build the dataset-backed benchmark described in `docs/research/chord-analysis-benchmark-strategy.md`, using RWC-P v2 as the primary real-pop corpus without checking audio into Git.
 2. Lock a 12-song complexity-stratified pilot before analyzer changes: 8 development songs and 4 untouched holdout songs.
 3. Run the current analyzer with both RWC reference timing and analyzer-estimated timing; report Root/MajMin/Triads/MIREX WCSR, boundary precision/recall, cue density, OOV duration, and runtime.
 4. Automatically classify false extra changes, missing changes, wrong roots, wrong qualities, and the largest per-track regressions.
@@ -398,7 +398,7 @@ Status: Complete for the original slider/Fit/Follow slice on 2026-07-22. Normal 
 
 ### Phase 5D.1: Library, App Shell, and Selected-Song Header
 
-Moved from the Phase 5D section of `TASKS.md`, where 5D.2 remains pending.
+Moved from the Phase 5D section of `docs/planning/TASKS.md`, where 5D.2 remains pending.
 
 #### 19.1 Library, App Shell, and Selected-Song Header
 

@@ -1,4 +1,4 @@
-# ARCHITECTURE.md
+# Architecture
 
 ## Current Recommendation
 
@@ -128,7 +128,7 @@ The processed-song library treats completed jobs as reusable practice items inst
 
 ## Library UX
 
-The frontend uses the Voice Memos-inspired song workspace documented in `UX_FLOOR_PLANS.md`.
+The frontend uses the Voice Memos-inspired song workspace documented in `docs/product/UX_FLOOR_PLANS.md`.
 
 Pipeline mode is part of the browser entry URL (`?mode=real` or `?mode=mock`) rather than a transient main-surface control. A browser with no saved preference is redirected from the root to Real; later root visits reuse the last successfully selected mode. The processed-demo route explicitly selects Mock. The URL selection is applied through the existing backend setting endpoint because this remains a single-user local POC. Mode links and backend readiness live in the compact app-information popover.
 

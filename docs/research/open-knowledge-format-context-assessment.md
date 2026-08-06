@@ -15,13 +15,13 @@ Yes, but only as a lightweight project-context and handoff format. It should not
 
 The project already depends on Markdown project memory:
 
-- `STATUS.md`
-- `TASKS.md`
-- `DECISIONS.md`
-- `ARCHITECTURE.md`
-- `RISKS.md`
-- `DEMO.md`
-- `research/`
+- `docs/planning/STATUS.md`
+- `docs/planning/TASKS.md`
+- `docs/planning/DECISIONS.md`
+- `docs/engineering/ARCHITECTURE.md`
+- `docs/planning/RISKS.md`
+- `docs/engineering/DEMO.md`
+- `docs/research/`
 
 OKF is relevant because it formalizes this kind of Markdown-plus-metadata knowledge bundle. Its useful contribution here is not a new service or SDK; it is a small convention for making project context easier for agents and humans to navigate.
 
@@ -52,7 +52,7 @@ Each file can use minimal YAML frontmatter:
 type: project-context
 title: Current Status
 description: Short agent-readable summary of implemented work, current architecture, and next task.
-resource: ../STATUS.md
+resource: ../docs/planning/STATUS.md
 tags: [context, status, handoff]
 timestamp: 2026-07-08T00:00:00Z
 ---

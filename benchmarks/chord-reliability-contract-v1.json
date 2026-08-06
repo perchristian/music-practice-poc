@@ -7,7 +7,7 @@
       "amendedOn": "2026-07-25",
       "source": "https://github.com/perchristian/piano-practice-poc/issues/3",
       "verdict": "CHANGES",
-      "decision": "DECISIONS.md Decision 33",
+      "decision": "docs/planning/DECISIONS.md Decision 33",
       "summary": "RWC-P becomes the primary benchmark and runs first. Logic-generated fixtures and the two untouched target holdout recordings are no longer prerequisites for the RWC development and holdout evaluation. A manual check of a few representative iOS screen recordings becomes the final domain check.",
       "unchanged": [
         "RWC-P 8-development/4-holdout split and its manifest checksum",

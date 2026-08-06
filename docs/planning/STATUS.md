@@ -1,9 +1,9 @@
-# STATUS.md
+# Status
 
 This file describes the project as it is now. Dated history, the completed-work
-list, and the verification log live in `STATUS_ARCHIVE.md`. Curated outcomes live
-in `CHANGELOG.md`, the plan in `TASKS.md`, and irreversible choices in
-`DECISIONS.md`.
+list, and the verification log live in `docs/archive/STATUS_ARCHIVE.md`. Curated outcomes live
+in `CHANGELOG.md`, the plan in `docs/planning/TASKS.md`, and irreversible choices in
+`docs/planning/DECISIONS.md`.
 
 ## Current Status
 
@@ -19,7 +19,7 @@ Implemented and verified by automated backend and browser tests:
 - **Timeline.** Persisted Zoom, Fit, and optional Follow, over a waveform.
   Follow defaults off and yields to manual panning. Mac trackpad pinch is a known
   open defect; the reliable path is the Zoom slider plus `Fit`, and
-  `TIMELINE_INTERACTION_CONTRACT.md` holds the agreed input contract.
+  `docs/engineering/TIMELINE_INTERACTION_CONTRACT.md` holds the agreed input contract.
 - **Timing.** `Edit timing` exposes a separately zoomable waveform where one bar
   line can carry an explicit downbeat time, an effective time signature, or both,
   removable independently. The meter-aware map drives contextual BPM, timeline
@@ -89,7 +89,7 @@ Local web POC:
 - `server.js` — HTTP routing, job lifecycle and storage, mock audio generation,
   real pipeline orchestration, and the beat/harmony analyzer. The two analysis
   subsystems are the next candidates for extraction, per
-  `AI_TOKEN_OPTIMIZATION.md`.
+  `docs/engineering/AI_TOKEN_OPTIMIZATION.md`.
 - `public/app.js` — DOM rendering, transport, persistence, and timeline input.
   The largest integration file.
 - `public/chord-chart.js`, `public/tempo-map.js`, `public/section-ranges.js` —
@@ -121,7 +121,7 @@ Local web POC:
   2026-07-24: RWC-P is the primary benchmark and runs first, Logic fixtures and
   the two untouched target recordings no longer block it, and a manual check of a
   few representative iOS screen recordings becomes the final domain check. This
-  is recorded as `DECISIONS.md` Decision 33.
+  is recorded as `docs/planning/DECISIONS.md` Decision 33.
 - Phase 3G.3 is complete for automated and human verification. A general undo
   history remains deferred.
 - Phase 3G.2A timeline input correctness has a known real-hardware failure and is
@@ -132,7 +132,7 @@ Local web POC:
 ## Next Recommended Task
 
 CR1: add evidence diagnostics and failure fixtures against RWC-P, without
-changing public analyzer output. See `TASKS.md` for the task contract.
+changing public analyzer output. See `docs/planning/TASKS.md` for the task contract.
 
 The deferred threshold approval is not needed to start CR1; it is needed before
 the RWC holdout is opened.
@@ -156,7 +156,7 @@ the RWC holdout is opened.
   - Reproducibility: the labels, milestone, and issue bodies are visible in
     GitHub and the workflow rules are version-controlled in `AGENTS.md`.
 
-Older skill use is recorded in `STATUS_ARCHIVE.md`.
+Older skill use is recorded in `docs/archive/STATUS_ARCHIVE.md`.
 
 ## Agent and Model Use
 
@@ -185,4 +185,4 @@ npm run test:gui      # Playwright browser tests
 npm run verify:chord-contract   # CR0 contract dry run, requires .benchmark-data
 ```
 
-Dated verification evidence for completed work is in `STATUS_ARCHIVE.md`.
+Dated verification evidence for completed work is in `docs/archive/STATUS_ARCHIVE.md`.

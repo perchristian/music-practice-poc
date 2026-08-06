@@ -53,16 +53,18 @@ repository does not depend on the virtual environment's absolute-path entrypoint
 Set `DEMUCS_PYTHON` to use another Python interpreter, or `DEMUCS_PATH` to invoke
 a specific Demucs executable directly.
 
-See `DEMO.md` for the current demo flow and known limitations.
+See `docs/engineering/DEMO.md` for the current demo flow and known limitations.
 
-Project documentation:
+## Documentation
 
-- [CHANGELOG.md](CHANGELOG.md) — notable additions, improvements, and fixes over time
-- [TASKS.md](TASKS.md) — the execution plan for pending work, with a status index
-- [TASKS_ARCHIVE.md](TASKS_ARCHIVE.md) — completed task records
-- [IDEAS.md](IDEAS.md) — conditional or unscheduled product ideas
-- [STATUS.md](STATUS.md) — current technical status, known limitations, and next task
-- [STATUS_ARCHIVE.md](STATUS_ARCHIVE.md) — dated status history, completed-work list, and verification log
+All project documentation lives in [docs/](docs/) — see [docs/README.md](docs/README.md)
+for the full map. The two most-used entry points:
+
+- [docs/planning/STATUS.md](docs/planning/STATUS.md) — current technical status, known limitations, and next task
+- [docs/planning/TASKS.md](docs/planning/TASKS.md) — the execution plan for pending work, with a status index
+
+[AGENTS.md](AGENTS.md) is the operating manual for agents working in this repo, and
+[CHANGELOG.md](CHANGELOG.md) records notable additions, improvements, and fixes.
 
 ## Verify
 

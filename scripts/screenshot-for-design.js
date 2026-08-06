@@ -1,13 +1,13 @@
 // Run with: node scripts/screenshot-for-design.js
 // Requires: npx playwright install chromium (if not already installed)
-// Output: design-screenshots/ directory
+// Output: assets/design-screenshots/ directory
 
 import { chromium } from "@playwright/test";
 import { mkdir } from "fs/promises";
 import { existsSync } from "fs";
 
 const BASE_URL = "http://localhost:3000";
-const OUT_DIR = "design-screenshots";
+const OUT_DIR = "assets/design-screenshots";
 
 async function createProcessedJob(page, filename) {
   const jobId = await page.evaluate(async (name) => {

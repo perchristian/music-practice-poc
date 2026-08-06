@@ -47,7 +47,7 @@ What this deliberately does not change:
 - the metrics, artifact paths, and target candidate checksums;
 - separate reference/corrected and end-to-end reporting.
 
-The amendment is recorded in `DECISIONS.md` Decision 33 and in the `amendments`
+The amendment is recorded in `docs/planning/DECISIONS.md` Decision 33 and in the `amendments`
 block of `benchmarks/chord-reliability-contract-v1.json`.
 
 One product-owner input remains open: making the RWC holdout the primary gate

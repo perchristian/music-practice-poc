@@ -1,4 +1,4 @@
-# UX_FLOOR_PLANS.md
+# UX Floor Plans
 
 ## Purpose
 
@@ -241,4 +241,4 @@ The smallest useful implementation should:
 
 Do not redesign the audio engine, backend storage, or harmonic cue model as part of this UX change.
 
-Timeline navigation across trackpad, mouse, touchscreen, and keyboard is specified separately in `TIMELINE_INTERACTION_CONTRACT.md`.
+Timeline navigation across trackpad, mouse, touchscreen, and keyboard is specified separately in `docs/engineering/TIMELINE_INTERACTION_CONTRACT.md`.

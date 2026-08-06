@@ -206,7 +206,7 @@ async function findAudio(audioRoot, trackId) {
   for (const candidate of audioCandidates(audioRoot, trackId)) {
     if (await fileExists(candidate)) return validateAudioFilename(candidate, trackId);
   }
-  throw new Error(`Missing ${trackId}.wav under ${audioRoot}. See research/chord-analysis-benchmark-strategy.md.`);
+  throw new Error(`Missing ${trackId}.wav under ${audioRoot}. See docs/research/chord-analysis-benchmark-strategy.md.`);
 }
 
 function runProcess(command, args) {

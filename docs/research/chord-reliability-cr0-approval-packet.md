@@ -17,9 +17,9 @@ The product owner answered `CHANGES` in
 > manually test a small number of representative iOS screen recordings as a
 > final domain check.
 
-Consequences are recorded in `DECISIONS.md` Decision 33, the
+Consequences are recorded in `docs/planning/DECISIONS.md` Decision 33, the
 `## Amendment of 2026-07-25` section of
-`research/chord-reliability-cr0-contract.md`, and the `amendments` block of
+`docs/research/chord-reliability-cr0-contract.md`, and the `amendments` block of
 `benchmarks/chord-reliability-contract-v1.json`.
 
 The parts of this packet that no longer apply: the two untouched holdout slots,

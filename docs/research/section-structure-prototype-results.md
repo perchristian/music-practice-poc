@@ -4,7 +4,7 @@ Date: 2026-07-08
 
 ## Summary
 
-This pass compares three paper prototypes for repeated song sections against the shared test scenario from `research/section-structure-prototype-plan.md`.
+This pass compares three paper prototypes for repeated song sections against the shared test scenario from `docs/research/section-structure-prototype-plan.md`.
 
 Recommendation:
 - Build Flat Sections as the first product prototype.

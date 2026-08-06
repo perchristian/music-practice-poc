@@ -122,7 +122,7 @@ If multiple agents are used later:
 - Builder C: implements Assisted Sections prototype.
 - Reviewer: compares prototypes against the same scenario and checks for regressions.
 
-Any agent use, delegation, or model switch must be recorded in `STATUS.md`.
+Any agent use, delegation, or model switch must be recorded in `docs/planning/STATUS.md`.
 
 ## Exit Criteria
 

@@ -73,13 +73,13 @@ compare later sessions and must not incentivize skipping necessary context.
 The primary context files have accumulated completed history and detailed
 verification logs. Reorganize them without losing evidence:
 
-- keep `STATUS.md` focused on current architecture, current checkpoint, active
+- keep `docs/planning/STATUS.md` focused on current architecture, current checkpoint, active
   work, next task, blockers, and known local state
-- keep active and near-future execution work in `TASKS.md`
+- keep active and near-future execution work in `docs/planning/TASKS.md`
 - move completed task detail and dated verification history to clearly named
   archives
 - retain `CHANGELOG.md` as the curated outcome history
-- keep `DECISIONS.md` authoritative for irreversible choices
+- keep `docs/planning/DECISIONS.md` authoritative for irreversible choices
 
 The target is not an arbitrary line count. A fresh session should be able to
 orient itself by reading the current sections without scanning chronological
@@ -94,7 +94,7 @@ the baseline has been recorded. It should contain:
 - current runtime entry points
 - critical state/provenance invariants
 - canonical development commands without test totals
-- pointers to `STATUS.md`, `TASKS.md`, `ARCHITECTURE.md`, and `DECISIONS.md`
+- pointers to `docs/planning/STATUS.md`, `docs/planning/TASKS.md`, `docs/engineering/ARCHITECTURE.md`, and `docs/planning/DECISIONS.md`
 
 Keep the reference short enough that automatically loading it is always cheaper
 than rediscovering the same information. Do not copy current task status,
@@ -171,7 +171,7 @@ one-line signatures merely to increase annotation coverage.
 After the context changes:
 
 1. perform the required simulated or fresh-session context recovery review using
-   only `STATUS.md`, `TASKS.md`, `DECISIONS.md`, and `ARCHITECTURE.md`
+   only `docs/planning/STATUS.md`, `docs/planning/TASKS.md`, `docs/planning/DECISIONS.md`, and `docs/engineering/ARCHITECTURE.md`
 2. repeat comparable frontend, backend, and documentation tasks
 3. compare tokens, exploratory reads, time, and rework with the baseline
 4. retain only changes that improve efficiency without weakening outcomes

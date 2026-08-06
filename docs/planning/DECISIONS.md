@@ -1,4 +1,4 @@
-# DECISIONS.md
+# Decision Log
 
 ## Decision 1
 

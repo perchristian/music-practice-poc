@@ -1,5 +1,24 @@
 # AGENTS.md
 
+## Repository layout
+
+```text
+server.js, demucs-command.js, timing-analysis.js   backend entry points
+public/                                            browser client and shared modules
+scripts/  tests/  benchmarks/                      tooling, tests, benchmark harness
+docs/planning/                                     TASKS, STATUS, DECISIONS, RISKS — the working set
+docs/engineering/                                  ARCHITECTURE and behavioral contracts
+docs/product/                                      VISION, design brief, ideas
+docs/research/                                     dated investigations
+docs/archive/                                      frozen history, do not edit
+assets/                                            screenshots referenced by the docs
+```
+
+`docs/README.md` is the full documentation map. Paths in this file are
+repo-relative.
+
+---
+
 ## Mission
 
 Your mission is **not** to build the perfect music application.
@@ -96,7 +115,7 @@ when practical, but document copyright and source limitations.
 
 ## Engineering Definition of Done
 
-The prototype is considered complete when another developer can follow `DEMO.md` and successfully:
+The prototype is considered complete when another developer can follow `docs/engineering/DEMO.md` and successfully:
 
 - choose a screen recording
 - process it
@@ -211,14 +230,14 @@ Avoid accumulating multiple unrelated tasks in one dirty worktree.
 
 ### Changelog maintenance
 
-`CHANGELOG.md` is the curated, audience-facing history of what was added, changed, fixed, or removed. It is not a copy of `TASKS.md`, `STATUS.md`, or the Git log.
+`CHANGELOG.md` is the curated, audience-facing history of what was added, changed, fixed, or removed. It is not a copy of `docs/planning/TASKS.md`, `docs/planning/STATUS.md`, or the Git log.
 
 For every completed implementation iteration:
 
 - add concise entries under `Unreleased` in the same focused commit as the implementation
 - describe user-visible or developer-visible outcomes rather than internal coding steps
 - use `Added`, `Changed`, `Fixed`, and `Removed` headings as applicable
-- use `TASKS.md`, `STATUS.md`, commit messages, and the actual diff as source material, but verify the final wording against implemented behavior
+- use `docs/planning/TASKS.md`, `docs/planning/STATUS.md`, commit messages, and the actual diff as source material, but verify the final wording against implemented behavior
 - do not include planned or incomplete work
 - do not add entries for routine formatting, planning-only edits, or internal refactors unless they materially affect setup, APIs, compatibility, performance, or future development
 
@@ -279,7 +298,7 @@ Each assumption should have:
 
 ## Domain-specific risks
 
-Maintain domain risks in `RISKS.md`.
+Maintain domain risks in `docs/planning/RISKS.md`.
 
 At minimum, consider:
 
@@ -308,7 +327,7 @@ The project must be reproducible without relying on hidden agent state.
 
 Codex may use available Codex skills when they are directly relevant, but the project must not depend on custom skills being present.
 
-If a skill is used, document it in `STATUS.md` with:
+If a skill is used, document it in `docs/planning/STATUS.md` with:
 
 - skill name
 - purpose
@@ -345,11 +364,11 @@ Before adding a new dependency, evaluate:
 4. Does it introduce platform, GPU, license, or install-time risk?
 5. Can the feature be mocked first?
 
-Document significant dependency choices in `DECISIONS.md`.
+Document significant dependency choices in `docs/planning/DECISIONS.md`.
 
 If a dependency cannot be installed in the current environment, do not block the project. Keep mock mode working, document the limitation, and continue with tasks that can still be completed.
 
-Dependency, platform, and installation risks must be tracked in `RISKS.md`.
+Dependency, platform, and installation risks must be tracked in `docs/planning/RISKS.md`.
 
 ---
 
@@ -358,13 +377,13 @@ Dependency, platform, and installation risks must be tracked in `RISKS.md`.
 Before implementation, create:
 
 ```text
-VISION.md
-ARCHITECTURE.md
-TASKS.md
-RISKS.md
-DECISIONS.md
-STATUS.md
-DEMO.md
+docs/product/VISION.md
+docs/engineering/ARCHITECTURE.md
+docs/planning/TASKS.md
+docs/planning/RISKS.md
+docs/planning/DECISIONS.md
+docs/planning/STATUS.md
+docs/engineering/DEMO.md
 ```
 
 Implementation starts only after these exist.
@@ -388,7 +407,7 @@ Each epic should reduce technical uncertainty or improve the demo.
 
 ### Task contract shape
 
-Use this compact shape for tasks written into `TASKS.md`:
+Use this compact shape for tasks written into `docs/planning/TASKS.md`:
 
 ```md
 ### Task: Short title
@@ -415,8 +434,8 @@ Verify:
 
 ## Work ownership and GitHub issues
 
-GitHub Issues are the source of truth for executable work. `TASKS.md` keeps the
-roadmap, work-package dependencies, and durable task contracts; `STATUS.md` keeps
+GitHub Issues are the source of truth for executable work. `docs/planning/TASKS.md` keeps the
+roadmap, work-package dependencies, and durable task contracts; `docs/planning/STATUS.md` keeps
 only the current issue pointers and blocking state.
 
 Every open issue must carry exactly one ownership label:
@@ -540,7 +559,7 @@ Use cheaper models for:
 
 Simple tasks should be delegated to agents using simpler models when practical.
 
-Document every model switch, delegation, or agent use in `STATUS.md`.
+Document every model switch, delegation, or agent use in `docs/planning/STATUS.md`.
 
 ---
 
@@ -553,12 +572,12 @@ Do not depend on conversation history.
 Instead maintain:
 
 ```text
-STATUS.md
-TASKS.md
-DECISIONS.md
+docs/planning/STATUS.md
+docs/planning/TASKS.md
+docs/planning/DECISIONS.md
 ```
 
-A new agent session should be able to continue using only these files together with `ARCHITECTURE.md`.
+A new agent session should be able to continue using only these files together with `docs/engineering/ARCHITECTURE.md`.
 
 ---
 
@@ -570,10 +589,10 @@ Preferred method:
 
 Start a fresh agent session and provide only:
 
-- `STATUS.md`
-- `TASKS.md`
-- `DECISIONS.md`
-- `ARCHITECTURE.md`
+- `docs/planning/STATUS.md`
+- `docs/planning/TASKS.md`
+- `docs/planning/DECISIONS.md`
+- `docs/engineering/ARCHITECTURE.md`
 
 The new session must correctly explain:
 
@@ -604,10 +623,10 @@ Use this output format:
 Type: Simulated or Fresh Session
 
 Files used:
-- STATUS.md
-- TASKS.md
-- DECISIONS.md
-- ARCHITECTURE.md
+- docs/planning/STATUS.md
+- docs/planning/TASKS.md
+- docs/planning/DECISIONS.md
+- docs/engineering/ARCHITECTURE.md
 
 Summary:
 - Current architecture: ...
@@ -626,7 +645,7 @@ PASS or FAIL
 
 ## Decision log
 
-Every irreversible decision must be documented in `DECISIONS.md`.
+Every irreversible decision must be documented in `docs/planning/DECISIONS.md`.
 
 Use this template:
 
@@ -661,7 +680,7 @@ Routine coding decisions do not require logging.
 
 An iteration is defined as:
 
-1. selecting one coherent task from `TASKS.md`
+1. selecting one coherent task from `docs/planning/TASKS.md`
 2. implementing it
 3. running appropriate verification
 4. updating project documentation

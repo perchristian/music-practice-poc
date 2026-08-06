@@ -22,28 +22,28 @@ effort go into analyzer accuracy or into the interface?
 
 **The `A…` and `G…` labels below are local to this note.** They exist only here,
 to let options be compared side by side. They are not project identifiers and
-must not be referenced from `TASKS.md`, issues, or commits. The project's real
-schemes are `CR0–CR6`, `WP0–WP5`, `Phase …` (all in `TASKS.md`) and
-`Decision N` (in `DECISIONS.md`).
+must not be referenced from `docs/planning/TASKS.md`, issues, or commits. The project's real
+schemes are `CR0–CR6`, `WP0–WP5`, `Phase …` (all in `docs/planning/TASKS.md`) and
+`Decision N` (in `docs/planning/DECISIONS.md`).
 
 Two of these options are **new proposals with no existing task behind them** and
 are marked below. Everything else maps to work that already exists:
 
 | Note label | Corresponds to | Where |
 |---|---|---|
-| A0 | CR2–CR5 | [TASKS.md:171–309](TASKS.md#L171) |
-| A1 | **New.** Closest existing hook is CR6's external-analyzer escape rule | [TASKS.md:311](TASKS.md#L311) |
+| A0 | CR2–CR5 | [TASKS → CR2](../planning/TASKS.md#cr2-validate-accompaniment-first-melody-suppression) |
+| A1 | **New.** Closest existing hook is CR6's external-analyzer escape rule | [TASKS → CR6](../planning/TASKS.md#cr6-integrated-chord-reliability-checkpoint) |
 | A2 | **New.** Nothing existing | — |
-| A3 | CR4 and CR5 | [TASKS.md:244–309](TASKS.md#L244) |
+| A3 | CR4 and CR5 | [TASKS → CR4](../planning/TASKS.md#cr4-validate-repeated-section-evidence-pooling-with-known-groups) |
 | **A4** | **New. Nothing existing anywhere.** The leading backend proposal | — |
-| A5 | WP4 task 3, "extract beat and harmony analysis from `server.js`" | [TASKS.md:464](TASKS.md#L464) |
-| G1 | Phase 3G.2A, and WP2 | [TASKS.md:927](TASKS.md#L927), [TASKS.md:409](TASKS.md#L409) |
-| G2 | Phase 5D.2, and WP3 task 1 | [TASKS.md:1005](TASKS.md#L1005), [TASKS.md:438](TASKS.md#L438) |
+| A5 | WP4 task 3, "extract beat and harmony analysis from `server.js`" | [TASKS → WP4](../planning/TASKS.md#wp4-boundary-contracts-and-opportunistic-backend-modularization) |
+| G1 | Phase 3G.2A, and WP2 | [TASKS → Phase 3G.2A](../planning/TASKS.md#18a-phase-3g2a-timeline-input-contract-hardening), [TASKS → WP2](../planning/TASKS.md#wp2-timeline-input-correctness-and-frontend-seam) |
+| G2 | Phase 5D.2, and WP3 task 1 | [TASKS → Phase 5D](../planning/TASKS.md#19-phase-5d-compact-practice-shell-and-touch-accessibility), [TASKS → WP3](../planning/TASKS.md#wp3-user-test-readiness-stabilization) |
 | **G3** | **New. Nothing existing anywhere.** The stated bottleneck | — |
-| G4 | "Broad Internal Design-System Pass" | `IDEAS.md`, Platform and UI Architecture |
-| G5 | Phase 5B.4–5B.6, and WP5 | [TASKS.md:1022–1071](TASKS.md#L1022) |
+| G4 | "Broad Internal Design-System Pass" | `docs/product/IDEAS.md`, Platform and UI Architecture |
+| G5 | Phase 5B.4–5B.6, and WP5 | [TASKS → Phase 5B.4](../planning/TASKS.md#20-phase-5b4-section-resize-handles-and-color-coding), [TASKS → WP5](../planning/TASKS.md#wp5-evidence-driven-feature-backlog) |
 
-If any option here is adopted, it should be rewritten into `TASKS.md` under the
+If any option here is adopted, it should be rewritten into `docs/planning/TASKS.md` under the
 project's own scheme and these labels dropped.
 
 ---
@@ -131,7 +131,7 @@ basis for measurement:
 
 **Given the corrected premise, the primary metric should be correction burden:
 how long it takes to bring a three-minute song to a usable chart.** Not WCSR.
-`TASKS.md` already lists exactly this under CR6 verification ("Three-minute-song
+`docs/planning/TASKS.md` already lists exactly this under CR6 verification ("Three-minute-song
 correction-time review"), so the measurement is already sanctioned — it just is
 not currently the gating one.
 
@@ -143,7 +143,7 @@ density against the reference rate means structural errors.
 **Recommendation:** replace the single-threshold formulation in
 `thresholds.rwcPrimaryGate` with correction burden as the gate and the severity
 classes as diagnostics. This also resolves the product-owner input currently
-deferred in `TASKS.md`.
+deferred in `docs/planning/TASKS.md`.
 
 > Literature figures above are from memory and should be verified against sources
 > before any of them are written into the contract.
@@ -167,8 +167,8 @@ deferred in `TASKS.md`.
 Viterbi decode over a chord transition prior that heavily favours self-transition.
 
 **Why it is the right fix:** the existing analyzer estimates each beat
-independently ([server.js:928](server.js#L928)) and then patches up isolated
-beats with a heuristic ([server.js:1086](server.js#L1086)). No amount of
+independently ([server.js:928](../../server.js#L928)) and then patches up isolated
+beats with a heuristic ([server.js:1086](../../server.js#L1086)). No amount of
 evidence-quality tuning fixes that; a chord sequence with stable durations
 requires a sequence model. **Over-segmentation is not a symptom of weak evidence,
 it is a symptom of a missing decoder.** CR2 and CR3 both operate on the evidence
@@ -196,7 +196,7 @@ Under the corrected premise this is **the central engineering artifact of the
 whole backend strategy.** Which model is best is the user's decision, made after
 release. What the project owes them is a boundary to plug into.
 
-`TASKS.md` WP4 already anticipates this ("when harmonic analysis is next changed,
+`docs/planning/TASKS.md` WP4 already anticipates this ("when harmonic analysis is next changed,
 extract beat and harmony analysis from `server.js` without rewriting
 algorithms"). A4 *is* that change, so A4 and A5 should very likely be one
 iteration rather than two.
@@ -221,9 +221,9 @@ ornament resistance (CR3), repeat pooling (CR4), automatic repeat detection
 (CR5), integrated checkpoint (CR6).
 
 **What the existing analyzer actually is:** DFT energy per pitch class
-([server.js:796](server.js#L796)), bar-synchronous chroma weighted across Demucs
+([server.js:796](../../server.js#L796)), bar-synchronous chroma weighted across Demucs
 stems, template matching with heuristic bonuses
-([server.js:892](server.js#L892)), argmax per beat, heuristic smoothing. The
+([server.js:892](../../server.js#L892)), argmax per beat, heuristic smoothing. The
 method family from roughly 2008–2011: no tuning estimation (fixed A440), no
 overtone suppression, no sequence model.
 
@@ -305,7 +305,7 @@ margin the most mature transcription task there is.
 
 **Why it matters beyond accuracy:** it makes D-vs-D7 a principled question ("is
 the C present?") rather than a template-matching accident, and it unlocks several
-parked `IDEAS.md` items at once — audible chord preview, reharmonization,
+parked `docs/product/IDEAS.md` items at once — audible chord preview, reharmonization,
 notation, explaining *why* a chord was chosen.
 
 | | |
@@ -353,8 +353,8 @@ fails on real Mac hardware. The pointer-based fix passed synthetic automation an
 failed human review. `Follow` also repositions the viewport while paused.
 
 The normative contract is already written in
-`TIMELINE_INTERACTION_CONTRACT.md`, with a ten-step implementation sequence in
-`TASKS.md`. The specification cost is sunk.
+`docs/engineering/TIMELINE_INTERACTION_CONTRACT.md`, with a ten-step implementation sequence in
+`docs/planning/TASKS.md`. The specification cost is sunk.
 
 | | |
 |---|---|
@@ -407,7 +407,7 @@ originate and most able to implement quickly from a concrete design.
 Costs the agent nothing and turns the vaguest item here into the best-specified
 one.
 
-## G4. Design-system pass (currently parked in `IDEAS.md`)
+## G4. Design-system pass (currently parked in `docs/product/IDEAS.md`)
 
 Tokens, buttons, segmented controls, fields, toggles, panels, list rows, mixer
 rows. Currently 2058 lines of hand-written CSS with no token layer.
@@ -436,7 +436,7 @@ G3+G4 is realistically 4–6 sessions rather than 5–8 separately.
 | Benefit | Was conditional; the corrected premise raises it |
 | Confidence | Medium |
 
-`TASKS.md` says these should wait for evidence. That was written when correction
+`docs/planning/TASKS.md` says these should wait for evidence. That was written when correction
 was an edge case. **If users routinely correct charts, multi-selection and
 copy/paste stop being power-user conveniences and become core correction
 tooling.** Still defer to G3 — the redesign should determine what these look
@@ -515,7 +515,7 @@ Suggested order:
    path, and is a natural first contributor task.
 
 **Defer CR2–CR5.** Keep CR1 if the diagnostics are wanted for their own sake.
-Record the deferral in `DECISIONS.md` with the reason — the architecture now
+Record the deferral in `docs/planning/DECISIONS.md` with the reason — the architecture now
 solves this better than tuning does — so a later session does not resume the
 sequence on the old premise.
 
@@ -538,7 +538,7 @@ further — which is why A4 carries a listening gate.
 1. Do you accept **correction burden** as the primary gate, with the severity
    classes as diagnostics? This resolves the deferred `thresholds.rwcPrimaryGate`
    input.
-2. Should CR2–CR5 be formally deferred in `TASKS.md` and `DECISIONS.md`, or kept
+2. Should CR2–CR5 be formally deferred in `docs/planning/TASKS.md` and `docs/planning/DECISIONS.md`, or kept
    active as a fallback if A4 disappoints?
 3. Does the plug-in boundary target **a local process** (a command the user
    points at), **an HTTP endpoint**, or **both**? This changes A5's design and is

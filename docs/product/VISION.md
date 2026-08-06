@@ -1,4 +1,4 @@
-# VISION.md
+# Vision
 
 ## Product Question
 

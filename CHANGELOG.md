@@ -2,20 +2,22 @@
 
 This file records notable user-visible and developer-visible changes to the piano-practice POC.
 
-The project currently uses date-based development milestones rather than numbered releases. Dates below follow the Git commit history. Planned work belongs in `TASKS.md`; conditional or unscheduled work belongs in `IDEAS.md`.
+The project currently uses date-based development milestones rather than numbered releases. Dates below follow the Git commit history. Planned work belongs in `docs/planning/TASKS.md`; conditional or unscheduled work belongs in `docs/product/IDEAS.md`.
 
 ## Unreleased
 
 ### Changed
 
+- Consolidated project documentation under `docs/`, moved reference captures
+  under `assets/`, and added `docs/README.md` as the documentation map.
 - Browser tests now run their server against a temporary `DATA_DIR` created per
   run, so `npm run test:gui` can no longer write jobs into the local song
   library and no longer depends on name-based cleanup.
-- `STATUS.md` is now a current-state document. Its dated history,
+- `docs/planning/STATUS.md` is now a current-state document. Its dated history,
   completed-work list, and verification log moved verbatim to a new
-  `STATUS_ARCHIVE.md`.
-- `TASKS.md` now contains pending work only and opens with a status index.
-  Completed task records moved verbatim to a new `TASKS_ARCHIVE.md`, and the
+  `docs/archive/STATUS_ARCHIVE.md`.
+- `docs/planning/TASKS.md` now contains pending work only and opens with a status index.
+  Completed task records moved verbatim to a new `docs/archive/TASKS_ARCHIVE.md`, and the
   task-contract template moved to `AGENTS.md`.
 
 ### Added
@@ -96,7 +98,7 @@ The project currently uses date-based development milestones rather than numbere
 - Active jobs resume polling after a browser reload, while failed jobs retain the original backend error.
 - Harmonic analysis now covers the entire recording using an approximately 8 kHz mono analysis representation instead of retaining full-rate sample arrays for every source and stem.
 - Increased the defensive working-chart limit from 128 to 4096 chord events.
-- Separated the chronological execution roadmap in `TASKS.md` from conditional and unscheduled work in `IDEAS.md`.
+- Separated the chronological execution roadmap in `docs/planning/TASKS.md` from conditional and unscheduled work in `docs/product/IDEAS.md`.
 
 ### Fixed
 

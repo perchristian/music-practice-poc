@@ -1,10 +1,10 @@
-# IDEAS.md
+# Ideas
 
 ## Purpose
 
 This file holds useful but unscheduled work. Items here are not rejected; they are intentionally kept out of the chronological execution plan until evidence, a human decision, or a blocking condition gives them a defined position.
 
-When promoting an idea to `TASKS.md`, add:
+When promoting an idea to `docs/planning/TASKS.md`, add:
 - a clear goal and demonstrable outcome
 - entry criteria
 - verification and cleanup expectations
@@ -168,7 +168,7 @@ Promotion trigger:
 ### OKF-Style Context Bundle
 
 Reference:
-- `research/open-knowledge-format-context-assessment.md`
+- `docs/research/open-knowledge-format-context-assessment.md`
 
 Candidate scope:
 - A small `context/` index and curated OKF-style Markdown summaries linking canonical architecture, status, decisions, risks, and tasks.
