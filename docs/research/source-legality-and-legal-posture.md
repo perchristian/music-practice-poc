@@ -88,9 +88,12 @@ independent reason to prioritise it.
 Tool neutrality weakens when the tool is designed, documented, or marketed for
 the infringing use. This is the live gap, and it is not technical.
 
-`docs/product/DESIGN_BRIEF.md` currently opens: *"A pianist uploads a screen
-recording of a song (from YouTube, TikTok, or similar)."* `AGENTS.md` frames the
-engineering goal as selecting a screen recording from Photos.
+Until the 2026-08-08 reframe pass, `docs/product/DESIGN_BRIEF.md` opened: *"A
+pianist uploads a screen recording of a song (from YouTube, TikTok, or
+similar),"* and `AGENTS.md` framed the engineering goal as selecting a screen
+recording from Photos. Both now describe the input as material the user already
+holds, and `AGENTS.md` instructs against building streaming acquisition. Recorded
+as Decision 36.
 
 Moises runs the same class of technology and takes the opposite posture: it
 **refuses** URLs from Spotify, Apple Music, Tidal, Deezer, SoundCloud, TikTok and

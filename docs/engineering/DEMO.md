@@ -2,7 +2,9 @@
 
 ## Goal
 
-Demonstrate that a user can choose a screen recording, process it, return to the processed song from a library, hear separated stems, mute/unmute or solo stems, slow playback down, loop a passage, save practice state, label song sections, and view approximate harmonic information.
+Demonstrate that a user can choose a recording they hold, process it, return to the processed song from a library, hear separated stems, mute/unmute or solo stems, slow playback down, loop a passage, save practice state, label song sections, and view approximate harmonic information.
+
+The stem the user mutes is whichever part is theirs. The demo below uses piano as its worked example because that is what the current mock stems provide; the same steps apply to any stem, and a drummer, bassist, guitarist, or singer would mute their own row instead.
 
 ## Current Demo Mode
 
@@ -134,9 +136,9 @@ The browser smoke test does not prove that the stems sound musically useful. Man
 9. On mobile, confirm the list opens first, then the selected song/practice detail, and the Songs button returns to the list.
 10. Play the stem mix.
 11. Confirm the mixer shows piano plus either accompaniment from the local demo stems or generated drums, bass, and guitar fallback stems.
-12. Mute the piano stem so the non-piano backing remains while the piano drops out.
-13. Solo the piano stem and confirm other stems drop out.
-14. Confirm mute and solo cannot remain active at the same time on the piano stem.
+12. Pick one stem as the practice target — piano in the current mock set — and mute it, so the rest of the backing remains while that part drops out.
+13. Solo the same stem and confirm other stems drop out. This is the study-the-part case, as important as removal.
+14. Confirm mute and solo cannot remain active at the same time on that stem.
 15. Confirm the timeline shows beat/bar markers. Increase normal playback `Zoom` with the slider, seek through the song, and try `Follow`; the playhead should remain near the left-center while the timeline moves. Manually pan the timeline and confirm Follow turns off. Select `Fit`, reload, and confirm the saved Zoom/Follow preference returns. Follow intentionally defaults to off. Trackpad pinch is pending human-approved behavior; see `docs/engineering/TIMELINE_INTERACTION_CONTRACT.md` and use the slider for the reliable demo path.
 16. Unmute the `Grid click` mixer row, play the song, and listen for whether the click feels aligned with the music.
 17. Use `/2` or `x2` next to the displayed tempo if the grid click is clearly half-time or double-time.
@@ -180,8 +182,8 @@ npm run generate:test-media
 12. Enable optional `Start at Bar 1`, set count-in independently, then enable Loop and set start/end as whole bars. The paused playhead may inspect any position, but pressing Play with a valid loop must first move it to the corrected loop-start boundary regardless of its prior position. Without count-in, playback begins there directly; with count-in, one mapped count-in runs before audio begins there. Confirm the count-in repeats on each subsequent pass.
 13. Confirm beat markers and chord highlighting update immediately after timing correction while Harmony remains expressed in musical bars/beats rather than visible seconds. Seek to an exact corrected downbeat and confirm the chord beginning on that bar is highlighted immediately; a final-beat chord from the previous bar must not flash or remain active.
 14. Edit at least one chord label, add one section label, resize one chord, reload, reopen the song, and confirm BPM/grid seed, timing anchors, key, loop bars, sections, and chord chart persist.
-15. Mute the piano stem and listen for whether the accompaniment has enough piano reduction for play-along practice.
-16. Solo the piano stem and listen for whether the piano part is recognizable enough for learning.
+15. Mute each stem in turn and listen for whether the remaining backing is clean enough for play-along practice by a player of that part.
+16. Solo each stem in turn and listen for whether that part is recognizable enough to learn from. Both checks matter now: every stem is both removed and studied. Per-stem evidence is currently thin — see `docs/planning/DECISIONS.md` Decision 35.
 17. Listen to the FFmpeg source extraction directly at `http://localhost:3000/api/jobs/<job-id>/source-audio.wav`.
 18. Inspect the job directory under `data/jobs/<job-id>/` and confirm `source-audio.wav`, `waveform.json`, and the stem WAV files exist with nonzero size.
 
@@ -220,7 +222,7 @@ MakeYouFeelMyLovePart2 - FFmpeg spectral
 MakeYouFeelMyLovePart2 - Demucs htdemucs_6s
 ```
 
-Open the app, select each entry from the song list, mute or solo the piano stem, and compare whether the remaining stems are useful for play-along practice. Harmony cues in these bakeoff jobs are mocked; judge audio quality only.
+Open the app, select each entry from the song list, mute or solo each stem in turn, and compare whether the stems are useful both for play-along practice and for studying a part in isolation. Harmony cues in these bakeoff jobs are mocked; judge audio quality only.
 
 ## Fast Iteration Steps
 

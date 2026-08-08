@@ -1,9 +1,12 @@
 # Project Review: Repositioning From Piano Practice to Band Cover Practice
 
 Date: 2026-08-08
-Status: Complete. All four open questions were answered by the product owner on
-2026-08-08 and are recorded under "Product-owner decisions" below. Nothing in
-this note has been implemented.
+Status: Complete and partly acted on. All four open questions were answered by
+the product owner on 2026-08-08 and are recorded under "Product-owner decisions"
+below. Steps 1-2 of the recommended sequence — the decision log entries and the
+documentation/naming reframe pass — were executed the same day (Decisions 34-36).
+Steps 3-6 remain open and are tracked as `BR1` and `BR2` in
+`docs/planning/TASKS.md`.
 
 Trigger: the product owner stated that the purpose is no longer only piano
 practice, but practice for any band member playing covers.
@@ -298,7 +301,7 @@ The working directory and GitHub repository are `music-practice-poc`, but:
 - `server.js:3148` — logs `Piano Practice POC running at ...`
 - `public/app.js:168`, `:584` — localStorage key `piano-practice-pipeline-mode`
 - `docs/planning/STATUS.md:104`, `TASKS.md:92-96` — issue links to
-  `github.com/perchristian/piano-practice-poc/...`
+  `github.com/perchristian/music-practice-poc/...`
 
 The issue links still resolve through GitHub's rename redirect, so nothing is
 broken. Renaming the localStorage key resets one saved mode preference on one

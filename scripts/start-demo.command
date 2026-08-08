@@ -36,12 +36,12 @@ if [ ! -d "node_modules" ]; then
 fi
 
 if curl --silent --fail "${HEALTH_URL}" >/dev/null 2>&1; then
-  echo "Piano Practice POC is already running on ${URL}."
+  echo "Music Practice POC is already running on ${URL}."
   open_browser
   exit 0
 fi
 
-echo "Starting Piano Practice POC in ${PIPELINE_MODE} mode..."
+echo "Starting Music Practice POC in ${PIPELINE_MODE} mode..."
 echo "URL: ${URL}"
 echo
 

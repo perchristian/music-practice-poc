@@ -21,7 +21,7 @@ Browser UI
   - POSTs to backend
   - polls job status
   - plays processed stems in sync
-  - mutes/unmutes and solos individual stems, especially piano for play-along practice
+  - mutes/unmutes and solos individual stems, especially the user's own part for play-along practice
   - controls speed and loop region
   - renders harmonic metadata
 
@@ -47,7 +47,7 @@ Local filesystem storage
 - `GET /api/jobs`: returns all persisted jobs, including queued, processing, failed, and complete states, so the unified song list can recover lifecycle state after a browser reload.
 - `GET /api/jobs/:id`: returns job status, progress, stem result URLs, and harmonic metadata when ready. In mock mode the result contains piano plus accompaniment when local demo stems are available, otherwise generated drums, bass, guitar, and piano stems. In real mode the result currently contains Demucs stems by default and approximate beat-aware harmonic metadata.
 - `GET /api/jobs/:id/stems/:stem.wav` or `GET /api/jobs/:id/stems/:stem.m4a`: returns a processed stem asset.
-- `GET /api/jobs/:id/piano.wav`: compatibility endpoint for the processed piano-focused audio.
+- `GET /api/jobs/:id/piano.wav`: legacy compatibility endpoint retained from the piano-only era; serves the piano stem when present, otherwise the first available stem.
 - `GET /api/jobs/:id/source-audio.wav`: returns the extracted real-mode full mix used as the timing/harmony reference.
 - `GET /api/jobs/:id/waveform.json`: returns the compact versioned min/max peak envelope, generating it lazily for older completed jobs when possible.
 - `GET /api/library`: returns completed processed songs that can be reopened without creating a new processing job.
@@ -277,10 +277,10 @@ The first iOS spike should stay narrow: choose a video from Photos, upload it to
 
 | Assumption | Confidence | Evidence | Remaining uncertainty |
 | --- | --- | --- | --- |
-| Screen recording audio quality is sufficient | Low | Not tested yet | Need real iOS screen recordings from target apps |
-| Piano stems can be isolated accurately enough | Medium | Demucs `htdemucs_6s` was accepted for the MakeYouFeelMyLovePart2 play-along use case, though solo piano has artifacts | Need more songs and longer screen recordings |
-| Muting piano while keeping other stems useful helps practice | Medium | Strong learning rationale; mock mixer now demonstrates flow | Need tester feedback |
-| Transcription can produce useful cues | Low | Dense piano is difficult | Need Basic Pitch or alternative benchmark |
+| User-supplied recording audio quality is sufficient | Low | Not tested yet | Need real recordings across the range users will actually bring |
+| Every stem can be isolated well enough to be studied, not just removed | Low to medium | Piano accepted for the MakeYouFeelMyLovePart2 play-along case though solo has artifacts; drums rated "not perfect but ok" on 2026-08-08 | Bass, guitar, vocals, and other are unmeasured. See Decision 35 |
+| Muting one's own part while keeping other stems useful helps practice | Medium | Strong learning rationale; mock mixer now demonstrates flow | Need tester feedback, and the `practiceTarget` model is not built yet |
+| Users will supply their own stems when pipeline quality is insufficient | Medium | Local Logic and LALAL exports exist in `test-media/`; product-owner direction on 2026-08-08 | Import is not implemented; alignment and format handling are unproven |
 | Harmonic cues remain useful despite errors | Medium | Phase 2H produces downbeat-aligned C/Am/F/G cues on generated known-chord media with pre-roll before first downbeat | Need manual inspection on real screen recordings and user feedback |
 | Processing time is acceptable | Low to medium | Phase 2G/2H short generated samples pass automated tests; Demucs completed the local bakeoff clip | Need measurement on longer real screen recordings |
 | Local backend is practical | Medium | Simple local web flow should work | Need run-through on MacBook |

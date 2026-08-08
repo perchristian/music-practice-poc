@@ -3145,7 +3145,7 @@ async function startServer() {
       json(res, 500, { error: "Internal server error" });
     });
   }).listen(PORT, HOST, () => {
-    console.log(`Piano Practice POC running at http://${HOST}:${PORT}`);
+    console.log(`Music Practice POC running at http://${HOST}:${PORT}`);
     console.log(`PIPELINE_MODE=${activePipelineMode}`);
   });
 }

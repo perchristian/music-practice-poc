@@ -4,6 +4,11 @@
 
 CR1: add evidence diagnostics and failure fixtures against RWC-P.
 
+The band-cover repositioning (Decision 34) did not change the gate. It added a
+short reframing pass, completed on 2026-08-08, plus two queued tasks below —
+`BR1` practice target and `BR2` stem import — which are ready but do not preempt
+CR1.
+
 CR0 is amended and no longer blocks implementation. One product-owner input is
 still open — approving the proposed RWC primary gate thresholds — but it is only
 required before the RWC **holdout** is opened, not before CR1 starts. Create the
@@ -24,6 +29,8 @@ Ownership. They are not duplicated here.
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
+| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR1 |
+| [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
 | [WP0](#wp0-backlog-grooming-and-sprint-planning) | Backlog grooming and sprint planning | Superseded |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
@@ -74,7 +81,7 @@ Product-owner decision on 2026-07-23:
 - retain editable charts and immutable analyzer provenance throughout.
 
 Product-owner amendment on 2026-07-24, answered in
-[#3](https://github.com/perchristian/piano-practice-poc/issues/3) and recorded as
+[#3](https://github.com/perchristian/music-practice-poc/issues/3) and recorded as
 `docs/planning/DECISIONS.md` Decision 33:
 
 - run RWC-P as the primary benchmark first, using its aligned MIDI, beat, chord,
@@ -89,11 +96,11 @@ The locked RWC split, exclusions, checksums, annotation commit, and
 
 GitHub tracking:
 - Shared gate:
-  [#1](https://github.com/perchristian/piano-practice-poc/issues/1)
+  [#1](https://github.com/perchristian/music-practice-poc/issues/1)
 - CR0 agent preparation:
-  [#2](https://github.com/perchristian/piano-practice-poc/issues/2) — closed
+  [#2](https://github.com/perchristian/music-practice-poc/issues/2) — closed
 - CR0 product review:
-  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) — closed
+  [#3](https://github.com/perchristian/music-practice-poc/issues/3) — closed
   with `CHANGES`
 
 The tasks below are in committed priority order. A task may stop the sequence at
@@ -359,6 +366,75 @@ Milestone:
 - Milestone 6 closes the gate and selects the next project direction.
 
 Status: Planned after the last entered experimental milestone.
+
+## Band Repositioning Tasks
+
+Created by Decision 34 on 2026-08-08. Neither task changes the analyzer, so
+neither interacts with the chord-reliability gate. Both are small enough to
+schedule around CR1 rather than ahead of it.
+
+### BR1: Per-song practice target
+
+Files and symbols:
+- `server.js`: `publicStem` (`defaultMuted`)
+- `public/app.js`: stem player construction, `primaryPlayer`, practice-state
+  persistence
+- `docs/engineering/ARCHITECTURE.md`: practice-state shape
+
+Goal:
+- Let the user mark which stem is their part, persist it per song, and default
+  that stem to muted when the song opens.
+
+Contracts to preserve:
+- The target is derived from the job's actual stem list, never a fixed instrument
+  vocabulary, because imported jobs (BR2) may carry any stems.
+- Existing songs without a target keep current behavior: nothing muted on open.
+- `primaryPlayer` must stop preferring piano; prefer the longest loaded stem, as
+  it is only a duration/clock reference.
+
+Non-goals:
+- Role-specific views.
+- Dynamic stem sets beyond reading the job's own list.
+
+Verify:
+- Focused browser coverage for target selection, default mute on open, and
+  persistence across reload.
+- `npm test` and `npm run test:gui`.
+- Delete test-created jobs.
+
+Status: Ready.
+
+### BR2: Import user-supplied stems
+
+Files and symbols:
+- `server.js`: job creation, stem descriptors, `stemsForJob`, analysis source
+  selection
+- `public/app.js`: upload flow and stem naming UI
+
+Goal:
+- Create a processing job from a set of user-supplied stems, skipping separation.
+
+Contracts to preserve:
+- Validate stem lengths on import and fail loudly. The transport trusts one
+  stem's duration as its clock, so a mismatched stem would corrupt the grid
+  silently rather than error.
+- Synthesize `source-audio.wav` by summing imported stems when no full mix is
+  supplied; harmony analysis and the waveform asset both depend on it.
+- Map filenames to stem roles with a user override.
+- Mock mode stays dependency-light.
+
+Non-goals:
+- A LALAL or other service integration. That is a later, separate decision.
+- Changing the analyzer.
+
+Verify:
+- Import fixtures from `test-media/stems from logic/` and
+  `test-media/stems from lalal/`, including the `.mov` container case.
+- Mismatched-length and unknown-name rejection paths.
+- `npm test` and `npm run test:gui`.
+- Delete test-created jobs.
+
+Status: Ready after BR1.
 
 ## Deferred Work Packages
 

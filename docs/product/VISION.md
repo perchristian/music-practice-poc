@@ -2,62 +2,113 @@
 
 ## Product Question
 
-Can AI transform a simple screen recording of a song into a significantly better piano learning experience?
+Can AI transform a recording of a song into a significantly better way for a band
+member to learn their part in a cover?
 
-This prototype exists to help humans evaluate that question. It should not be treated as proof that the product works until piano players have used it.
+This prototype exists to help humans evaluate that question. It should not be
+treated as proof that the product works until musicians have used it.
 
 ## Target User
 
-A piano player who already learns songs from recordings, tutorials, or screen captures and wants faster access to the piano part, a way to remove the piano while practising, slower playback, loops, and harmonic cues.
+A member of a band that plays covers — keys, guitar, bass, drums, or vocals — who
+already learns songs from recordings and wants faster access to their own part, a
+way to remove that part while practising, slower playback, loops, and harmonic
+cues.
+
+The user brings a recording they hold, or stems they have already separated
+elsewhere. See `docs/research/source-legality-and-legal-posture.md` for why the
+source matters.
 
 ## Prototype Promise
 
-Given a user-selected screen recording, the prototype should produce a practice view where the user can:
+Given a user-supplied recording, the prototype should produce a practice view
+where the user can:
 
-- upload the recording
+- upload the recording, or import stems they already have
 - wait through a realistic processing job
-- hear separated stems for drums, bass, guitar, and piano
-- mute and unmute stems, especially muting piano to play that part themselves
+- hear separated stems for drums, bass, guitar, piano, vocals, and other
+- choose which part is theirs
+- mute and unmute stems, especially muting their own part to play or sing it
+  themselves against the rest of the arrangement
+- solo any stem to hear a part they are learning
 - change playback speed
 - loop a difficult passage
-- inspect approximate key, chords, roman numerals, and melody cues
+- inspect approximate key, chords, and roman numerals
 
 ## Validation Criteria
 
 ### Objective
 
-Validate whether the app gives piano learners a significantly better way to learn new songs than their current approach.
+Validate whether the app gives band members a significantly better way to learn
+their part of a cover than their current approach.
 
-The real baseline is not only the original recording. It is the user's existing workflow, such as Spotify, YouTube, tutorials, slowdown tools, looping, and learning by ear. The app has to clear a meaningful adoption threshold because stem separation, analysis, hosting, upload time, and learning a new tool all create cost or friction.
+The real baseline is not only the original recording. It is the user's existing
+workflow, such as Spotify, YouTube, tutorials, slowdown tools, looping, and
+learning by ear. The app has to clear a meaningful adoption threshold because
+stem separation, analysis, hosting, upload time, and learning a new tool all
+create cost or friction.
 
 The primary validation question is:
 
-> Does this workflow help piano players learn songs significantly faster, with less friction, and with a stronger sense of musical understanding than their existing approach?
+> Does this workflow help band members learn their parts significantly faster,
+> with less friction, and with a stronger sense of musical understanding than
+> their existing approach?
 
 ### Key Results
 
 The prototype is useful for validation when testers can show or report that:
 
-- **Learning speed:** They can learn a selected piano passage faster with the processed practice view than with their existing workflow.
-- **Perceived value:** They describe the app as a significant improvement, not merely a nice-to-have.
-- **Practice usefulness:** They naturally use piano mute/unmute, slowed playback, looping, and harmonic cues while practising.
-- **Motivation:** The app makes the song feel more approachable and makes them want to keep practising.
-- **Empowerment:** The user feels more capable of learning the song themselves, not dependent on a tutorial or note-by-note instruction.
-- **Reduced cognitive load:** The app reduces simultaneous guessing about chords, timing, voicings, song form, and tempo.
-- **Aha moments:** The user discovers reusable musical patterns such as chord progressions, repeated voicings, section structure, or accompaniment figures.
-- **Transferable learning:** The user becomes better able to recognize similar progressions or patterns in future songs, even without the app.
-- **Error tolerance:** The experience remains useful even when stem separation, chord labels, or melody cues are imperfect.
-- **Return intent:** The user would want to use the workflow on another song they care about.
-- **Adoption threshold:** The improvement feels strong enough to justify uploading a recording, waiting for processing, learning a new tool, and potentially paying for analysis.
+- **Learning speed:** They can learn a selected passage of their own part faster
+  with the processed practice view than with their existing workflow.
+- **Perceived value:** They describe the app as a significant improvement, not
+  merely a nice-to-have.
+- **Practice usefulness:** They naturally use mute/unmute of their own part,
+  soloing to study a part, slowed playback, looping, and harmonic cues while
+  practising.
+- **Motivation:** The app makes the song feel more approachable and makes them
+  want to keep practising.
+- **Empowerment:** The user feels more capable of learning the song themselves,
+  not dependent on a tutorial or note-by-note instruction.
+- **Reduced cognitive load:** The app reduces simultaneous guessing about chords,
+  timing, song form, and tempo.
+- **Aha moments:** The user discovers reusable musical patterns such as chord
+  progressions, section structure, or accompaniment figures.
+- **Transferable learning:** The user becomes better able to recognize similar
+  progressions or patterns in future songs, even without the app.
+- **Error tolerance:** The experience remains useful even when stem separation or
+  chord labels are imperfect.
+- **Return intent:** The user would want to use the workflow on another song they
+  care about.
+- **Adoption threshold:** The improvement feels strong enough to justify supplying
+  a recording, waiting for processing, learning a new tool, and potentially paying
+  for analysis.
+
+### Role coverage
+
+Different band roles need different things from the same processed song. Current
+coverage, and what each role depends on:
+
+| Role | Depends on | Status |
+| --- | --- | --- |
+| Keys, guitar, bass | Chord chart, sections, own stem | Blocked by the chord-reliability gate |
+| Drums | Tempo, meter, bar grid, count-in, click, sections | Served |
+| Vocals | Own stem; lyrics for orientation | Practice mechanic served; lyrics undecided |
 
 ## Non-Goals
 
 - Perfect stem separation.
-- Perfect transcription.
+- Note-level transcription or notation. No role needs it: a part is learned by
+  soloing its stem, and chord labels carry the harmony.
+- Melody extraction. A sung or played melody is learnable by ear from the soloed
+  stem; the chord chart exists because harmony is *not*.
 - A production iOS app before the web POC proves value.
 - Large-scale storage, authentication, payments, or sharing.
-- Copyright automation beyond clear demo guidance and user expectations.
+- Acting as a capture tool for streaming services. The user supplies material
+  they already hold.
 
 ## First Demo Shape
 
-The first demo should use a local web uploader and mock pipeline. Mock mode must still feel like the real flow: file selection, upload, job status, generated stems, stem mute/unmute, playback controls, loops, and harmonic metadata.
+The first demo should use a local web uploader and mock pipeline. Mock mode must
+still feel like the real flow: file selection, upload, job status, generated
+stems, stem mute/unmute and solo, playback controls, loops, and harmonic
+metadata.

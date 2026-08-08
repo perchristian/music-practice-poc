@@ -1,6 +1,10 @@
-# piano-practice-poc
+# music-practice-poc
 
-Mock-first prototype for testing whether a screen recording can become a better piano learning workflow.
+Mock-first prototype for testing whether a recording of a song can become a better way for a band member to learn their part in a cover.
+
+The user supplies a recording they already hold, or stems they separated
+elsewhere. This is not a capture tool for streaming services — see
+[docs/research/source-legality-and-legal-posture.md](docs/research/source-legality-and-legal-posture.md).
 
 The current POC uses local mock audio stems when available: `data/jobs/Bare piano.m4a` for piano and `data/jobs/Uten piano.m4a` for accompaniment. If those ignored local files are missing, it falls back to generated drums, bass, guitar, and piano WAV stems. Stable `?mode=mock` and `?mode=real` URLs select the upload pipeline. The browser can queue multiple files, reopen processed songs from a creation-time-sorted library, preview/rename/delete them, persist practice state, play stems together, mute/unmute or solo stems, adjust stem volume, slow playback, loop passages, and show harmonic cues.
 
@@ -38,7 +42,7 @@ Mock remains the dependency-light server and launcher default and requires no he
 PIPELINE_MODE=mock npm start
 ```
 
-Real mode currently validates upload, FFmpeg source-audio extraction, Demucs `htdemucs_6s` stem separation, and first-pass harmonic analysis for piano-focused practice. It stores uploaded media, writes `source-audio.wav`, exposes `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` WAV stems, then emits approximate beat-aware chord cues, key, roman numerals, tempo, meter, and bar/beat metadata. The FFmpeg spectral split remains available as a lightweight fallback with `REAL_SEPARATOR=ffmpeg-spectral`. Melody transcription is not implemented yet.
+Real mode currently validates upload, FFmpeg source-audio extraction, Demucs `htdemucs_6s` stem separation, and first-pass harmonic analysis. It stores uploaded media, writes `source-audio.wav`, exposes `Drums`, `Bass`, `Guitar`, `Piano`, `Vocals`, and `Other` WAV stems — roughly one per band role — then emits approximate beat-aware chord cues, key, roman numerals, tempo, meter, and bar/beat metadata. The FFmpeg spectral split remains available as a lightweight fallback with `REAL_SEPARATOR=ffmpeg-spectral`, though it only produces a piano/accompaniment split and is scheduled for retirement. Note-level transcription is out of scope.
 
 Heavy real-pipeline dependencies are optional and separate from mock mode:
 

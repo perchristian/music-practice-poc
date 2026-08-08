@@ -1,5 +1,148 @@
 # Decision Log
 
+## Decision 34
+
+Decision:
+Broaden the product from piano practice to practice for any member of a band
+playing covers. Keep the stem count fixed at the six `htdemucs_6s` outputs and
+let users import stems they separated elsewhere instead of adding separators.
+Vocals are in scope and need a vocal stem plus lyrics, not melody notation.
+Note-level transcription and melody extraction leave scope entirely.
+
+Reason:
+Product-owner direction on 2026-08-08. `htdemucs_6s` already emits close to one
+stem per band role, so the audio and analysis layers required no change; the
+piano framing lived almost entirely in documentation. Broadening multiplies the
+addressable user without a pipeline change, and delegating unusual roles to
+user-supplied stems bounds the pipeline instead of growing it.
+
+Melody left scope on the reasoning that the chord chart exists because harmony is
+*not* reliably recoverable by ear, whereas a melody is monophonic and foreground
+and can be learned from the soloed stem. Words are the singer's equivalent of the
+harmony problem; the tune is not.
+
+This is a directional decision, not an evidence-driven one. The
+`docs/product/IDEAS.md` entry "Additional Practice Targets" recorded a promotion
+trigger of "piano user testing succeeds or clearly shows another target is
+required", and that trigger has not fired — no user has used the prototype at
+all. The decision is legitimate as product direction and is recorded as such
+rather than as the parked trigger firing.
+
+Alternatives considered:
+- Keep the piano-only framing until user testing produces evidence. Advantages:
+  respects the recorded promotion trigger; keeps validation focused.
+  Disadvantages: no user testing is scheduled, so the trigger might never fire;
+  meanwhile every agent session re-derives piano-only priorities from `AGENTS.md`
+  and pushes the codebase back toward a framing the owner has abandoned.
+- Broaden and add separators for roles the six-stem model misses, such as saxophone
+  or a second guitar. Advantages: covers more of a real band. Disadvantages: a new
+  separation model per role, unbounded scope, and heavy dependencies for a POC.
+- Broaden and treat melody extraction as required for the vocal role. Advantages:
+  gives the singer reading material analogous to the chord chart. Disadvantages:
+  a second capability gate comparable in size to the chord gate, built on a false
+  analogy.
+
+Tradeoffs:
+Per-stem separation quality becomes a primary quality bar rather than a secondary
+one, which invalidates the stated rationale of Decision 19 — see Decision 35.
+Mock mode cannot yet demonstrate a non-pianist journey because it generates no
+vocals stem. Against that, the repositioning removes more work than it adds:
+melody transcription leaves scope, one risk closes, the stem count is frozen, and
+the only genuinely new build is stem import.
+
+Confidence:
+High that the code and architecture absorb the change cheaply, since the coupling
+was enumerated and shallow. Medium for the product judgment itself, which rests
+on owner direction rather than user evidence.
+
+Date:
+2026-08-08
+
+## Decision 35
+
+Decision:
+Supersede the rationale of Decision 19. Demucs `htdemucs_6s` remains the default
+real-mode separator, but not because solo-stem quality is unimportant. Per-stem
+isolation quality is now a primary bar for all six stems, and user-supplied stem
+import is the structural mitigation when the pipeline's own quality is
+insufficient for a role.
+
+Reason:
+Decision 19 accepted Demucs on the reasoning that "solo piano quality is less
+important than creating a useful non-piano backing track". That trade was correct
+when exactly one stem was ever removed and no stem was ever studied. Under
+Decision 34 a guitarist solos the guitar stem to learn the part, so every stem is
+both removed and studied. The conclusion survives — there is no better
+reproducible option in scope — but the reasoning and the `RISKS.md` Low rating do
+not.
+
+Evidence per stem is thin: piano was judged on one listening pass on one clip and
+on the removal case only; drums were rated "not perfect but ok" by the product
+owner on 2026-08-08; bass, guitar, vocals, and other are unmeasured.
+
+Alternatives considered:
+- Leave Decision 19 as written. Advantages: no work. Disadvantages: leaves a
+  stated rationale in the decision log that contradicts the current product, which
+  is exactly the failure mode the log exists to prevent.
+- Replace or tune the separator. Advantages: might raise solo quality.
+  Disadvantages: no better reproducible option is in scope, and the effort
+  competes with the chord gate for no validated benefit.
+- Run a full per-stem listening campaign before deciding. Advantages: real
+  evidence. Disadvantages: the override makes the campaign much less decisive,
+  since a user with inadequate stems can now supply their own.
+
+Tradeoffs:
+Separation quality moves from a hard product ceiling to a per-song default the
+user can override, which is a better risk position than tuning the separator, but
+it makes stem import load-bearing rather than merely convenient. A bounded solo
+check of the four unmeasured stems remains worthwhile and is not scheduled here.
+
+Confidence:
+High that the original rationale no longer holds; medium that Demucs remains the
+right default, pending the unmeasured stems.
+
+Date:
+2026-08-08
+
+## Decision 36
+
+Decision:
+Position the app as a neutral tool that processes material the user already
+holds. Keep it local and single-user. Do not build or document features that
+acquire audio from streaming services. Responsibility for source rights sits with
+the user.
+
+Reason:
+Under Norwegian åndsverkloven § 26 the private-copying right belongs to the user,
+and a free tool running locally is the user copying for themselves rather than
+receiving commercial third-party assistance — which matters, because that
+assistance is specifically restricted for musical and film works. The prior
+documentation undercut this position by describing the input as a screen
+recording from YouTube or TikTok, which is both the weakest available source and
+the one a comparable well-resourced product (Moises) explicitly refuses.
+
+Alternatives considered:
+- Keep the streaming-capture framing. Advantages: describes what an early tester
+  would actually do. Disadvantages: documented intent is evidence, and it
+  undermines the neutral-tool position at no benefit.
+- Adopt the full commercial apparatus now — warranty, indemnity, safe harbour.
+  Advantages: needed eventually if the project is productized. Disadvantages:
+  premature for a local POC, and it does not cure the Norwegian restriction on
+  commercial assistance for musical works.
+
+Tradeoffs:
+The position holds for a free local tool and does not automatically survive
+commercialisation or hosting, so this decision has to be revisited with counsel
+before either. Full analysis and the open questions for a lawyer are in
+`docs/research/source-legality-and-legal-posture.md`.
+
+Confidence:
+Medium. This is an AI-authored orientation, not legal advice, and the DRM and
+commercial-assistance points in particular are unverified by a lawyer.
+
+Date:
+2026-08-08
+
 ## Decision 1
 
 Decision:
@@ -816,7 +959,7 @@ Date:
 
 Decision:
 Amend Decision 31 after the product-owner `CHANGES` verdict on
-[#3](https://github.com/perchristian/piano-practice-poc/issues/3): run RWC-P as
+[#3](https://github.com/perchristian/music-practice-poc/issues/3): run RWC-P as
 the primary benchmark first, using its aligned MIDI, beat, chord, structure,
 melody, and vocal annotations; do not require Logic-generated fixtures or two
 untouched target screen recordings before the RWC development and holdout
