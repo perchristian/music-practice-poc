@@ -148,9 +148,9 @@ Mapping current capability onto band roles:
 | Guitar | Same as keys; voicings/tab later | Served. Blocked by the chord gate. |
 | Bass | Root motion, inversions, slash chords | Mostly served. Slash chords are parked in `IDEAS.md` under Advanced Chord Vocabulary. Blocked by the chord gate. |
 | Drums | Tempo, meter, bar grid, count-in, click, section map, loops | **Served now.** Chord accuracy is irrelevant to this role, and timing already passed its human gate. |
-| Vocals | Mute/solo own stem; melody line, lyrics, key/transposition | **Split.** In scope as of 2026-08-08. The practice mechanic works today; the reading material does not. See below. |
+| Vocals | Mute/solo own stem; lyrics | **Nearly served.** In scope as of 2026-08-08. The practice mechanic works today; lyrics are the one gap. See below. |
 
-Three consequences follow, and they are the most actionable findings in this
+Four consequences follow, and they are the most actionable findings in this
 review:
 
 1. **The chord gate blocks three of five roles, not the whole product.** A
@@ -158,21 +158,41 @@ review:
    no user has ever used it, while the gate has been running since 2026-07-23.
    The repositioning creates a legitimate path to first user contact that does
    not require waiting for CR6.
-2. **Vocals in scope is cheaper than it first appears.** The core mechanic —
-   mute your own stem and perform that part against the rest of the band — needs
-   only a vocals stem, which `htdemucs_6s` already produces. A singer can use the
-   prototype the same day a drummer can.
-   What a singer lacks is the *reading material*. Keys, guitar, and bass read the
-   chord chart; the singer has no equivalent. Melody and lyrics are that
-   equivalent, and both are unimplemented (`README.md:41`) or parked.
-   So vocals-in-scope should be split into two commitments: the stem-based
-   practice mechanic, available now at no cost, and the melody/lyrics chart,
-   which is a second capability gate comparable in size to the chord gate and
-   should be scheduled deliberately rather than implied by the scope decision.
-3. **Lyrics carry a licensing question the rest of the app does not.** Chord
-   labels are analysis output; lyrics are third-party copyrighted text with no
-   obvious in-scope source. `IDEAS.md` already flags this. Melody extraction has
-   no such problem and is the safer half to start with.
+2. **Vocals in scope is cheap.** The core mechanic — mute your own stem and
+   perform that part against the rest of the band — needs only a vocals stem,
+   which `htdemucs_6s` already produces. A singer can use the prototype today.
+   The singer's one real gap is **lyrics**.
+   Melody does not belong on that list. An earlier draft of this review reasoned
+   by analogy — harmony players read the chord chart, so the singer needs an
+   equivalent — and filled the slot with melody plus lyrics. The analogy is
+   false. The chord chart exists because harmony is *not* reliably recoverable by
+   ear, which is the project's founding premise. Melody is monophonic,
+   foreground, and the most salient element in a mix, so it is learnable by ear
+   from the soloed vocal stem. Words are the singer's version of the
+   can't-get-this-by-listening problem; the tune is not.
+   Product-owner confirmation, 2026-08-08: a singer needs a vocal stem and
+   lyrics, not melody notation.
+3. **Melody transcription drops out of scope entirely.** No role needs it. A
+   guitarist learning a solo is served by soloing the guitar stem, the same
+   mechanic. Chord analysis actively suppresses melody as noise (CR2). This
+   *simplifies* the project rather than expanding it: `RISKS.md:10` (inaccurate
+   transcription) can be closed rather than retargeted, and the reframe pass can
+   delete the melody clauses from the `AGENTS.md` harmonic-information spec and
+   the `VISION.md` prototype promise instead of rewriting them.
+4. **Lyrics are a sourcing and licensing problem, not an accuracy one.** Two
+   acquisition paths exist, and neither requires a lyrics database:
+   - **ASR over the isolated vocal stem.** The app already produces that stem,
+     and recognition on an isolated vocal is far easier than on a full mix.
+     Word-level timestamps come free, which is precisely what makes lyrics useful
+     for orientation — `IDEAS.md` already frames timed lyrics as a way to help
+     users locate themselves in the chart.
+   - **OCR from the screen recording.** Many source recordings already display
+     synchronized lyrics on screen. `IDEAS.md` notes this; given that screen
+     recordings are the product's defining input, it deserves evaluation.
+   Transcribing the user's own audio for their own practice is a different
+   posture from redistributing published lyrics, though it is still derived from
+   a copyrighted work and the question does not disappear. This is a legal scope
+   call, not an engineering one.
 
 ## Finding 5a: Stem import replaces "more stems" — and changes several assumptions
 
@@ -302,10 +322,10 @@ local machine — immaterial for a single-user POC.
 | --- | --- | --- |
 | `RISKS.md:9` "Non-piano stems are too poor..." | Likelihood Low; mitigation prioritizes accompaniment over isolation | Reframe as "any stem is too poor to study in isolation"; raise likelihood; record the drums result; name stem import as the primary mitigation |
 | `RISKS.md:8` "Piano leaks into other/guitar/vocals" | Piano-specific | Generalize to cross-stem leakage; a guitarist hearing piano bleed is the same defect |
-| `RISKS.md:10` Basic Pitch / dense polyphonic piano | Piano transcription | Retarget to melody extraction for the vocal role — now in scope, so this risk is live rather than closable |
-| `RISKS.md:38` "Users need notation or keyboard visualization" | Keyboard-specific | Generalize; a guitarist wants tab/voicings, a drummer wants a groove map, a singer wants melody/lyrics |
+| `RISKS.md:10` Basic Pitch / dense polyphonic piano | Piano transcription | **Close it.** No role needs note-level transcription; the vocal role needs lyrics, not melody |
+| `RISKS.md:38` "Users need notation or keyboard visualization" | Keyboard-specific | Generalize; a guitarist wants tab/voicings, a drummer wants a groove map, a singer wants lyrics |
 | *(new)* | — | Imported stems are misaligned, mismatched in length, or in an unsupported format, silently corrupting the grid rather than failing |
-| *(new)* | — | Lyrics have no in-scope licensed source; the vocal chart may be limited to melody |
+| *(new)* | — | Lyrics are derived from copyrighted works even when transcribed from the user's own audio; scope is a legal call |
 
 ---
 
@@ -329,21 +349,29 @@ local machine — immaterial for a single-user POC.
    override and by delegating roles the stem set does not cover.
 6. **Supersede Decision 19**, recording the drums result and naming stem import
    as the structural mitigation. Optionally solo-check the four unmeasured stems.
-7. **Schedule the vocal chart (melody first, lyrics separately) as its own
-   gate.** Do not let it ride along with the scope decision.
+7. **Decide the lyrics question** — whether to pursue it at all, and if so
+   whether via ASR over the vocal stem or OCR from the screen recording. The
+   blocker is legal scope, not feasibility. Until it is answered, the vocal role
+   ships with the practice mechanic alone, which is already useful.
 8. **Continue CR1 unchanged.** The gate is unaffected.
 
 Steps 1-4 are roughly a day and are all reversible. Step 5 is a real feature.
-Step 7 is a second capability gate and needs its own plan. Nothing here needs to
+Step 7 is a scope question, not an engineering one. Nothing here needs to
 interrupt CR1.
+
+Net effect of the 2026-08-08 decisions: the repositioning **removes** more work
+than it adds. Melody transcription leaves scope, one risk closes, the stem count
+is frozen, and user testing is deferred. The only genuinely new build is stem
+import.
 
 ## Product-owner decisions
 
 Answered 2026-08-08:
 
-1. **Is the vocal role in scope?** **Yes.** Consequence: the stem-based practice
-   mechanic works immediately, but the singer's reading material (melody, then
-   lyrics) is a second capability gate. Finding 5, consequence 2.
+1. **Is the vocal role in scope?** **Yes** — and it needs only a vocal stem plus
+   lyrics, not melody notation. Consequence: the practice mechanic works
+   immediately, melody transcription leaves scope, and lyrics remain an open
+   sourcing/licensing question. Finding 5, consequences 2-4.
 2. **Does "any band member" include roles with no dedicated stem?** **Resolved by
    delegation.** Do not extend the stem count. Let users upload premade stems,
    with LALAL as a possible later service integration. Finding 5a.
