@@ -193,6 +193,10 @@ review:
    posture from redistributing published lyrics, though it is still derived from
    a copyrighted work and the question does not disappear. This is a legal scope
    call, not an engineering one.
+   Surveyed in depth in `docs/research/lyrics-transcription-options.md`, which
+   revises this consequence: transcription turns out to be the *weakest* of the
+   available options, and a tiered design starting from an open lyrics database
+   makes lyrics a materially smaller commitment than assumed here.
 
 ## Finding 5a: Stem import replaces "more stems" — and changes several assumptions
 
