@@ -1,9 +1,9 @@
 # Project Review: Repositioning From Piano Practice to Band Cover Practice
 
 Date: 2026-08-08
-Status: Reviewed. Three of the four open questions were answered by the product
-owner on 2026-08-08 and are recorded under "Product-owner decisions" below.
-Nothing in this note has been implemented.
+Status: Complete. All four open questions were answered by the product owner on
+2026-08-08 and are recorded under "Product-owner decisions" below. Nothing in
+this note has been implemented.
 
 Trigger: the product owner stated that the purpose is no longer only piano
 practice, but practice for any band member playing covers.
@@ -187,9 +187,12 @@ quality into a per-song override (Finding 4). `IDEAS.md` already carries it as
 `test-media/stems from logic/` holds a six-stem Logic export, and
 `test-media/stems from lalal/` holds a LALAL piano/other pair.
 
-It is also plausibly the **fastest path to first user testing**, because it
-bypasses both Demucs quality and the heavy Torch install. A band member with
-Logic stems could practise without the real pipeline existing on their machine.
+It also bypasses both Demucs quality and the heavy Torch install, so a band
+member with Logic stems could practise without the real pipeline existing on
+their machine. That was originally argued here as the fastest route to first user
+contact; with user testing deferred (decision 3 below) the argument no longer
+carries weight, and stem import stands on the quality override and the scope
+delegation instead.
 
 Five assumptions it breaks, which should be settled before implementation:
 
@@ -322,8 +325,8 @@ local machine — immaterial for a single-user POC.
 4. **Add a generated `vocals` stem to mock mode** so the dependency-light demo
    can show a non-pianist journey.
 5. **Implement stem import**, settling the five assumptions in Finding 5a. This
-   is now the largest committed piece of new work and the one most likely to
-   reach a real band member soonest.
+   is the largest committed piece of new work, justified by the per-song quality
+   override and by delegating roles the stem set does not cover.
 6. **Supersede Decision 19**, recording the drums result and naming stem import
    as the structural mitigation. Optionally solo-check the four unmeasured stems.
 7. **Schedule the vocal chart (melody first, lyrics separately) as its own
@@ -345,15 +348,16 @@ Answered 2026-08-08:
    delegation.** Do not extend the stem count. Let users upload premade stems,
    with LALAL as a possible later service integration. Finding 5a.
 
-Still open:
+3. **Should first user testing start with a drummer?** **No.** User testing
+   remains deferred. Consequence: the project's product-value claims stay
+   unvalidated for longer, exactly as `docs/planning/STATUS.md` already records,
+   and the chord gate remains the pacing item for reaching users. Nothing in the
+   engineering sequence depends on this.
+4. **Keep or retire `ffmpeg-spectral-piano-v1`?** **Retire, later.** It stays for
+   now. Until it is removed it remains a path that produces a piano/accompaniment
+   split useless to four of five roles, so it should not be presented as a
+   supported fallback in reframed documentation. Stem import is its natural
+   replacement as the lightweight non-Demucs route; retiring it once import
+   lands is the tidy sequencing.
 
-3. **Should first user testing start with a drummer, before the chord gate
-   closes?** The timing subsystem has passed its human gate and does not depend
-   on chord accuracy, and drums isolation has now been checked. This would
-   produce the project's first real user evidence without weakening the gate. The
-   counter-argument is that it validates the least differentiated part of the
-   product. Stem import (step 5) would widen this to any role.
-4. **Keep or retire `ffmpeg-spectral-piano-v1`?** It only produces a
-   piano/accompaniment split and is now useless for four of five roles. Retiring
-   it removes a fallback but also removes a misleading path. Stem import
-   arguably replaces it as the lightweight non-Demucs route.
+No open product-owner questions remain from this review.
