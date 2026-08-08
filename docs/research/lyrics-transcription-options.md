@@ -209,9 +209,11 @@ That ordering suggests lyrics need not be an ML project at all — which makes i
 materially smaller commitment than the chord gate, contrary to the earlier
 assumption in the repositioning review.
 
-The unresolved question remains legal rather than technical: whether displaying
-lyrics — fetched, user-pasted, or transcribed — is in scope for this product.
-None of the options above answers it.
+The unresolved question is legal rather than technical, and it turned out to be
+larger than lyrics: it is a question about where the app's *source media* comes
+from, which applies equally to the stored recordings and the derived stems.
+`source-legality-and-legal-posture.md` covers it, and concludes that lyrics add
+no new category of exposure beyond what the app already stores.
 
 ## Sources
 
