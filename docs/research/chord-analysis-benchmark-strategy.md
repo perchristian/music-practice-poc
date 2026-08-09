@@ -41,7 +41,7 @@ tilbake til enklere, kontrollerte signaler når noe feiler.
 
 ## Hva den eksisterende rapporten dekker
 
-[`Chord editor deep-research-report.md`](./Chord%20editor%20deep-research-report.md)
+[`chord-editor-deep-research-report.md`](./chord-editor-deep-research-report.md)
 beskriver hvordan akkorder bør modelleres, presenteres og redigeres. Den støtter
 prosjektets nåværende grid-first modell godt, men behandler audioanalyse som et
 sekundært lag og definerer ikke en metode for å måle om analyzerens akkorder er
