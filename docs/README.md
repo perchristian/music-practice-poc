@@ -49,9 +49,11 @@ explicitly superseded. Do not treat these as current unless the header says so.
 - [band-practice-repositioning-review.md](research/band-practice-repositioning-review.md)
 - [lyrics-transcription-options.md](research/lyrics-transcription-options.md)
 - [source-legality-and-legal-posture.md](research/source-legality-and-legal-posture.md)
+- [Chord editor deep-research-report.md](research/Chord%20editor%20deep-research-report.md) — Norwegian; chord/bar presentation in an editable app
 
-New files in `research/` are ignored by git unless added to the allowlist in
-[.gitignore](../.gitignore).
+Everything in `research/` is committed. New notes need no allowlist entry — add
+the file and it is tracked. Keep this index updated when adding one, so the
+directory stays navigable.
 
 ## archive/ — historical, do not edit
 
