@@ -47,6 +47,7 @@ explicitly superseded. Do not treat these as current unless the header says so.
 - [section-structure-prototype-results.md](research/section-structure-prototype-results.md)
 - [open-knowledge-format-context-assessment.md](research/open-knowledge-format-context-assessment.md)
 - [band-practice-repositioning-review.md](research/band-practice-repositioning-review.md)
+- [ponytail-audit-2026-08-09.md](research/ponytail-audit-2026-08-09.md) — ranked repository-wide over-engineering cuts; findings not applied
 - [lyrics-transcription-options.md](research/lyrics-transcription-options.md)
 - [source-legality-and-legal-posture.md](research/source-legality-and-legal-posture.md)
 - [chord-editor-deep-research-report.md](research/chord-editor-deep-research-report.md) — Norwegian; chord/bar presentation in an editable app

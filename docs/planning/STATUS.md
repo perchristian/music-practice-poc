@@ -139,6 +139,14 @@ the RWC holdout is opened.
 
 ## Skills Used
 
+- Used Codex skill `ponytail:ponytail-audit` on 2026-08-09 for a read-only,
+  repository-wide over-engineering audit.
+  - Purpose: rank code, compatibility, tooling, styling, and documentation that
+    could be deleted or simplified without performing a correctness review.
+  - Result: saved ten unapplied findings and an estimated reduction of about
+    900 lines in `docs/research/ponytail-audit-2026-08-09.md`.
+  - Reproducibility: the report names every target and replacement; the audit
+    can be repeated with ordinary repository inspection without the skill.
 - Used Codex skill `github:github` on 2026-07-24 to inspect CR0 issue #2 and its
   parent gate, verify the human queue, and create approval issue #3.
   - Purpose: execute the issue contract while keeping the product-owner review
