@@ -77,23 +77,31 @@ Why parked:
 Promotion trigger:
 - Manual/user testing validates the single-loop flow and demonstrates repeated demand for saving several passages.
 
-### Additional Practice Targets
+### Additional Practice Targets — PROMOTED 2026-08-08
 
-Candidate scope:
-- A `practiceTarget` model for piano, synth, guitar, lead vocal, bass, drums, or rest.
-- Dynamic stem sets without breaking the player.
+Promoted to `docs/planning/TASKS.md` by Decision 34. The recorded trigger ("piano
+user testing succeeds or clearly shows another target is required") never fired;
+the product owner broadened scope directionally instead. Retained here only as
+the origin record.
 
-Why parked:
-- Piano remains the hypothesis-validation target; broadening now would dilute learning.
+### Import separated stems — PROMOTED 2026-08-08
 
-Promotion trigger:
-- Piano user testing succeeds or clearly shows another target is required to validate the same workflow.
+Promoted to `docs/planning/TASKS.md` by Decision 34, which chose stem import over
+adding separation models as the way to cover roles the six-stem set misses.
+Decision 35 makes it load-bearing: it is the structural mitigation when the
+pipeline's own per-stem quality is inadequate for a role. It is also the cleanest
+input path on source-rights grounds (Decision 36).
 
-### Import separated stems
-The user may have other services that are more advanced at separating than  this tool provides. It could therefore be relevant to enable an import of allready separated stems.
+Original note: the user may have other services that are more advanced at
+separating than this tool provides. It could therefore be relevant to enable an
+import of already separated stems.
 
 ### Supported file formats
 The user need to know the possibilities and limitations to what they can load into the app for separation and analysis. We should therefore audit suported formats, expand if needed, and display supported formats to the user.
+
+Raised in priority by stem import: a rejected file becomes a rejected practice
+session rather than a rejected separation, and local LALAL exports are `.mov`
+containers.
 
 ## Song Structure
 

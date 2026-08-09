@@ -165,7 +165,7 @@ const explicitPipelineMode = ["mock", "real"].includes(urlParams.get("mode"))
   : null;
 let savedPipelineMode = null;
 try {
-  savedPipelineMode = window.localStorage.getItem("piano-practice-pipeline-mode");
+  savedPipelineMode = window.localStorage.getItem("music-practice-pipeline-mode");
 } catch {
   // Storage can be unavailable in restricted browser contexts.
 }
@@ -581,7 +581,7 @@ function backendReadyLabel(settings, suffix = "") {
 function renderPipelineMode(mode) {
   pipelineMode = mode === "real" ? "real" : "mock";
   try {
-    window.localStorage.setItem("piano-practice-pipeline-mode", pipelineMode);
+    window.localStorage.setItem("music-practice-pipeline-mode", pipelineMode);
   } catch {
     // The URL remains the source of truth when storage is unavailable.
   }

@@ -1,12 +1,33 @@
 # Changelog
 
-This file records notable user-visible and developer-visible changes to the piano-practice POC.
+This file records notable user-visible and developer-visible changes to the music-practice POC.
 
 The project currently uses date-based development milestones rather than numbered releases. Dates below follow the Git commit history. Planned work belongs in `docs/planning/TASKS.md`; conditional or unscheduled work belongs in `docs/product/IDEAS.md`.
 
 ## Unreleased
 
 ### Changed
+
+- Broadened the product from piano practice to practice for any member of a band
+  playing covers. The user now chooses which stem is their own part; the app no
+  longer assumes it is the piano. Recorded as Decision 34.
+- Renamed the app from `piano-practice-poc` to `music-practice-poc` across the
+  package name, page title, heading, startup log, and launcher. The browser
+  pipeline-mode preference key changed from `piano-practice-pipeline-mode` to
+  `music-practice-pipeline-mode`, so one saved mode preference resets on first
+  load after this change.
+- Documented that source material is whatever the user already holds. The app is
+  not a capture tool for streaming services and is no longer described as one.
+  Recorded as Decision 36.
+- Superseded the rationale for accepting Demucs: per-stem isolation quality is
+  now a primary bar for all six stems, since every stem is both removed for
+  play-along and soloed for study. Recorded as Decision 35.
+
+### Removed
+
+- Note-level transcription and melody extraction left scope. No band role needs
+  them: a part is learned by soloing its stem, and the chord chart carries the
+  harmony that cannot be recovered by ear.
 
 - Consolidated project documentation under `docs/`, moved reference captures
   under `assets/`, and added `docs/README.md` as the documentation map.

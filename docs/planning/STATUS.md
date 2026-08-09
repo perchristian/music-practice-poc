@@ -62,7 +62,7 @@ persistence, and the editable chart are not.
 - Multipart uploads are buffered in memory behind a 650 MB cap; peak memory has
   not been measured near the limit.
 - Runtime and memory for full-length real recordings are unmeasured.
-- No piano player has used the prototype yet, so nothing about product value is
+- No musician has used the prototype yet, so nothing about product value is
   validated.
 
 ## Current Architecture
@@ -73,7 +73,7 @@ Local web POC:
 - lightweight Node.js backend
 - local filesystem storage under `data/`
 - server startup uses `PIPELINE_MODE=mock` unless configured otherwise; the browser entry URL applies Real for a first-time root visit and remembers later mode choices
-- processed results represented as stems, with piano as the primary practice target
+- processed results represented as stems, any of which may be the user's own part; a per-song `practiceTarget` model is planned but not yet built
 - completed jobs exposed as a reusable processed-song library
 - unified workspace shows active uploads, processing jobs, failed jobs, and completed songs in one primary song list
 - per-song practice state stored in local `job.json`, including grid overrides, key override, and the user's grid-first chord chart
@@ -101,12 +101,12 @@ Local web POC:
 ## Active Work Ownership
 
 - Shared gate:
-  [#1 — Validate chord reliability for user testing](https://github.com/perchristian/piano-practice-poc/issues/1)
+  [#1 — Validate chord reliability for user testing](https://github.com/perchristian/music-practice-poc/issues/1)
 - Current agent task: None open. CR1 is ready and needs an `owner:agent` issue
   when work begins.
 - Current human action: None ready.
 - Blocked by human action: No. CR0 was answered `CHANGES` in
-  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) on
+  [#3](https://github.com/perchristian/music-practice-poc/issues/3) on
   2026-07-24 and the contract is amended accordingly.
 - Deferred human input: approve or replace the proposed
   `thresholds.rwcPrimaryGate` values in
@@ -117,7 +117,7 @@ Local web POC:
 
 - No implementation phase is currently in progress.
 - CR0 is complete and amended. The product owner answered `CHANGES` in
-  [#3](https://github.com/perchristian/piano-practice-poc/issues/3) on
+  [#3](https://github.com/perchristian/music-practice-poc/issues/3) on
   2026-07-24: RWC-P is the primary benchmark and runs first, Logic fixtures and
   the two untouched target recordings no longer block it, and a manual check of a
   few representative iOS screen recordings becomes the final domain check. This

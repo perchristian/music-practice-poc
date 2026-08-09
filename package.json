@@ -1,8 +1,8 @@
 {
-  "name": "piano-practice-poc",
+  "name": "music-practice-poc",
   "version": "0.1.0",
   "private": true,
-  "description": "Mock-first piano practice POC for screen recording uploads.",
+  "description": "Mock-first band cover practice POC for user-supplied recordings and stems.",
   "type": "module",
   "scripts": {
     "bakeoff:stems": "node scripts/build-stem-bakeoff.js",

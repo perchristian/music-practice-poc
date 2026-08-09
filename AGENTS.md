@@ -25,11 +25,16 @@ Your mission is **not** to build the perfect music application.
 
 Your mission is to answer one product question:
 
-> Can AI transform a simple screen recording of a song into a significantly better piano learning experience?
+> Can AI transform a recording of a song into a significantly better way for a band member to learn their part in a cover?
 
 The prototype should enable a human to evaluate this question.
 
 Whenever tradeoffs arise, optimize for **learning**, not completeness.
+
+The target user is any member of a band playing covers — keys, guitar, bass,
+drums, or vocals. The product was originally scoped to piano only; that changed
+on 2026-08-08 (`docs/planning/DECISIONS.md` Decision 34). Piano remains a useful
+concrete example, never the only one.
 
 ---
 
@@ -37,7 +42,7 @@ Whenever tradeoffs arise, optimize for **learning**, not completeness.
 
 The hypothesis is:
 
-> A musician can learn the piano part of a song faster by using an AI-assisted workflow than by using the original recording alone.
+> A musician can learn their own part of a song faster by using an AI-assisted workflow than by using the original recording alone.
 
 This hypothesis **cannot** be validated by implementation alone.
 
@@ -49,14 +54,16 @@ Your responsibility is to build a prototype suitable for validating it.
 
 Build an end-to-end prototype where a user can:
 
-1. Select a screen recording from Photos on iOS.
+1. Select a recording they hold, or stems they have already separated elsewhere.
 2. Upload it to a backend.
 3. Wait for processing.
 4. Listen to separated stems, at minimum drums, bass, guitar, and piano in the POC.
-5. Mute and unmute individual stems, especially the piano stem, so the user can practise playing the piano part themselves against the rest of the arrangement.
-6. Slow playback down.
-7. Loop difficult passages.
-8. View approximate harmonic information.
+5. Choose which part is theirs.
+6. Mute and unmute individual stems, especially their own, so the user can practise playing or singing that part themselves against the rest of the arrangement.
+7. Solo any stem to study a part they are learning.
+8. Slow playback down.
+9. Loop difficult passages.
+10. View approximate harmonic information.
 
 Do not optimize beyond what is necessary for this experience.
 
@@ -64,12 +71,20 @@ The first prototype may use a web/local uploader instead of a native iOS app.
 Native iOS should be deferred until the web POC demonstrates enough value to justify
 the setup cost, unless a core assumption specifically requires native Photos access.
 
+The source material is whatever the user already holds. Do not build features
+that acquire audio from streaming services, and do not describe the product as a
+workflow for capturing them. See
+`docs/research/source-legality-and-legal-posture.md`.
+
 Approximate harmonic information means, at minimum, useful learning cues such as:
 
 - detected key
 - concrete chord names over time
 - roman-numeral chord labels relative to the key
-- a melody line when one can be extracted or plausibly mocked
+
+Note-level transcription and melody extraction are explicitly out of scope. A
+part is learned by soloing its stem; the chord chart exists because harmony is
+the thing that is *not* recoverable by ear.
 
 ---
 
@@ -102,7 +117,7 @@ developed and demonstrated without depending on:
 - large test files
 
 Mock mode should still exercise the real product flow: upload, job creation, job
-status transitions, processed stem playback, piano mute/unmute, speed changes,
+status transitions, processed stem playback, stem mute/unmute and solo, speed changes,
 looping, and harmonic metadata display.
 
 `PIPELINE_MODE=real` should replace mock subsystems gradually. Basic Pitch is only
@@ -117,10 +132,11 @@ when practical, but document copyright and source limitations.
 
 The prototype is considered complete when another developer can follow `docs/engineering/DEMO.md` and successfully:
 
-- choose a screen recording
+- choose a recording
 - process it
 - hear separated mock stems for drums, bass, guitar, and piano
-- mute and unmute stems, especially muting piano for play-along practice
+- mute and unmute stems, including muting one stem for play-along practice
+- solo a stem to study that part
 - switch playback speed
 - loop a passage
 - view harmonic information
@@ -147,7 +163,7 @@ An AI agent cannot determine product success.
 
 Instead, prepare the prototype for answering this question:
 
-> Does this workflow help piano players learn songs faster than their existing approach?
+> Does this workflow help band members learn their parts faster than their existing approach?
 
 Do not attempt to infer this answer yourself.
 
@@ -280,13 +296,13 @@ Track these explicitly.
 
 Examples include:
 
-- screen recording audio quality is sufficient
-- piano stems can be isolated accurately enough from compressed screen-recording audio
-- Basic Pitch or another transcription tool produces usable MIDI from the isolated piano stem
-- harmonic analysis remains useful despite imperfect transcription
+- user-supplied recording audio quality is sufficient
+- every stem can be isolated accurately enough to be both removed and studied in isolation
+- harmonic analysis remains useful despite imperfect separation
 - processing time is acceptable for interactive use
 - local backend is practical during development
-- the iOS import/upload flow is not too much friction for a user
+- the import/upload flow is not too much friction for a user
+- users can supply stems they separated elsewhere when the pipeline's own quality is insufficient
 
 Each assumption should have:
 
@@ -302,13 +318,12 @@ Maintain domain risks in `docs/planning/RISKS.md`.
 
 At minimum, consider:
 
-- Poor stem separation quality when the source is screen-recorded, compressed, noisy, or mixed.
-- Piano leakage into `other`, `guitar`, or `vocals` stems.
-- Basic Pitch producing inaccurate MIDI for dense polyphonic piano.
+- Poor stem separation quality when the source is compressed, noisy, or densely mixed.
+- Cross-stem leakage in any direction, since every stem is now both removed and studied.
 - Chord detection being wrong or misleading when the recording has weak harmonic information.
 - CPU-only processing being too slow for a convincing demo.
 - iOS Photos permissions, large video uploads, and App Transport Security friction.
-- Copyright and user expectations around processing commercial recordings.
+- Copyright, source legality, and user expectations around processing commercial recordings.
 
 For each significant risk, document:
 
@@ -399,8 +414,8 @@ Every epic must produce something demonstrable.
 Examples:
 
 - User can upload a video.
-- User receives separated stems with piano as the primary practice target.
-- User can mute piano and practise using slowed playback.
+- User receives separated stems and can choose which one is their part.
+- User can mute their own stem and practise using slowed playback.
 - User can see approximate harmonic information.
 
 Each epic should reduce technical uncertainty or improve the demo.

@@ -1,4 +1,4 @@
-# Design Brief: Piano Practice App
+# Design Brief: Band Cover Practice App
 
 > **Purpose of this document:** Provide a visual designer (or Claude Design) with enough context to propose multiple visual design directions for this application. Screenshots of the current functional prototype are included throughout.
 >
@@ -8,22 +8,34 @@
 
 ## What the app does
 
-A pianist uploads a screen recording of a song (from YouTube, TikTok, or similar). The app uses AI to:
+A musician supplies a recording of a song they already hold — or stems they have
+already separated elsewhere. The app uses AI to:
 1. Separate the audio into individual stems: drums, bass, guitar, piano, vocals
 2. Detect the song's key, tempo, time signature, and chord sequence
 3. Deliver an interactive practice session
 
-The central learning mechanic: **mute the piano stem and play that part yourself**, while the rest of the band keeps going. Think of it as a smart karaoke machine for piano players.
+The central learning mechanic: **mute your own part and play or sing it yourself**, while the rest of the band keeps going. Think of it as a smart karaoke machine for every member of a covers band, not only the singer.
+
+The second mechanic is its inverse: **solo a stem to study a part you are still learning**.
+
+Note on source material: the user brings audio they already have. The app is not a
+capture tool for streaming services, and should not be presented as one — see
+`docs/research/source-legality-and-legal-posture.md`.
 
 ---
 
 ## Who uses it
 
-- Adult hobbyist or serious music student learning piano by ear
-- Practices at home, alone, with a laptop or iPad
+- A member of a band that plays covers: keys, guitar, bass, drums, or vocals
+- Adult hobbyist or serious music student, learning by ear
+- Practices at home, alone, with a laptop or iPad; the band rehearses together later
 - Knows basic notation; not necessarily a music theorist
 - Motivated by learning specific songs, not by formal exercises
 - Often practices with reduced lighting; dark mode is likely preferred
+
+Different roles lean on different parts of the interface. Keys, guitar, and bass
+live in the chord chart. Drummers live in the tempo, meter, and section map.
+Singers mostly need their stem and a way to know where they are in the song.
 
 ---
 
@@ -151,7 +163,7 @@ The mixer sits in the bottom-right of the practice view, below the chord chart.
 - Metronome ("Grid click") is the first row — it's always present regardless of which stems exist
 
 **Design considerations:**
-- The piano stem is the most important row — it's the one users mute to practice. It needs prominence or a distinct visual treatment.
+- One row is the user's own part — the one they mute to practice. Which row that is varies per user and per song, so the prominence must be *assignable*, not fixed to a particular instrument. (The underlying `practiceTarget` model is not built yet; see `docs/planning/TASKS.md`.)
 - M and S buttons currently look identical; their states (active/inactive) are shown only by border color. This is easy to miss.
 - Volume sliders currently use the browser default (blue). They should feel musical — like a mixing desk.
 - When a stem is muted, the row should clearly communicate "this stem is silent."
@@ -343,7 +355,7 @@ Directly inspired by Logic Pro, Ableton, GarageBand. Dark grey panels, precise m
 1. **Dark or light mode as default?** (Users practice at varied lighting levels)
 2. **How to visually separate practice mode from edit mode?**
 3. **What should the "active chord" state look like?** (This is the most critical real-time signal)
-4. **How to give the piano stem row visual prominence in the mixer?**
+4. **How to mark the user's own part in the mixer**, given it can be any stem and changes per song?
 5. **Should the chord grid feel more like sheet music or more like a grid/table?**
 6. **How should section color bands interact with the overall palette?**
 7. **What to do with the waveform — purely functional or a visual centerpiece?**

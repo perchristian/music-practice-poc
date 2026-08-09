@@ -46,6 +46,9 @@ explicitly superseded. Do not treat these as current unless the header says so.
 - [section-structure-prototype-plan.md](research/section-structure-prototype-plan.md)
 - [section-structure-prototype-results.md](research/section-structure-prototype-results.md)
 - [open-knowledge-format-context-assessment.md](research/open-knowledge-format-context-assessment.md)
+- [band-practice-repositioning-review.md](research/band-practice-repositioning-review.md)
+- [lyrics-transcription-options.md](research/lyrics-transcription-options.md)
+- [source-legality-and-legal-posture.md](research/source-legality-and-legal-posture.md)
 
 New files in `research/` are ignored by git unless added to the allowlist in
 [.gitignore](../.gitignore).
