@@ -23,6 +23,24 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 These are the dated narrative entries previously kept under `## Current Status`.
 They are in the original order, oldest editorial additions last as written.
 
+CR2E automated holdout gate completed on 2026-08-10. After issue #8 approved
+the exact thresholds, the unchanged local CR1 baseline and Chordino each ran
+once on the four-track RWC-P holdout with oracle and end-to-end timing. Chordino
+materially outperformed local analysis and passed every aggregate check except
+oracle root accuracy: 73.1% against the frozen 75.0% minimum. Oracle MajMin was
+73.9%, boundary F1 72.9%, and density 1.01x reference; end-to-end MajMin was
+75.2% and boundary F1 76.0%. It improved oracle MajMin on three of four tracks
+and all four end-to-end; `RWC_P024` regressed 4.7 oracle points. The result is
+`STOP/REFRAME`, the holdout is consumed, and manual screen-recording review plus
+product integration remain blocked. `npm test` passed 58 tests with one optional
+calibration skip; the chord contract check, JSON validation, and diff checks
+passed and confirmed all 10 existing application job directories were
+unchanged. The `ponytail:ponytail` and `github:github` skills were used; no agents
+were delegated and no model switch occurred. GitHub issue reconciliation
+remains blocked by invalid local `gh` authentication and unavailable connector
+issue-state operations; the connector also rejected posting the benchmark
+summary without explicit external-disclosure approval.
+
 CR1 inspectable chord baseline completed on 2026-08-10. The real-audio analyzer
 now has an opt-in benchmark-only diagnostic result with per-beat source chroma,
 low-note candidates, acoustic bass-reliability measurements,

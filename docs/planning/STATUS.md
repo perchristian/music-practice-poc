@@ -44,8 +44,8 @@ chord chart, sections, and Harmony view are separate user-owned state.
 ### Current checkpoint
 
 The chord-reliability validation gate is the committed line of work. Everything
-else is deferred behind it. CR2 completed on 2026-08-10 by following its
-external-analyzer escape rule. The measured position is:
+else is deferred behind it. CR2E reached a terminal `STOP/REFRAME` result on
+2026-08-10. The measured position is:
 
 - On the locked CR0 development split, full-mix MajMin is 53.6% with oracle
   timing and 48.1% end-to-end; real Demucs evidence improves those to 61.0% and
@@ -62,9 +62,18 @@ external-analyzer escape rule. The measured position is:
   and 30.9 changes/minute, improving all eight development tracks over the
   61.0%, 53.0%, and 65.0 local baseline. End-to-end Chordino reaches 77.5%
   MajMin and 77.7% boundary F1.
+- On the once-opened four-track CR2E holdout, Chordino materially beats the
+  local baseline and passes every frozen aggregate check except oracle root:
+  73.1% against the 75.0% minimum. Oracle MajMin is 73.9%, boundary F1 is 72.9%,
+  and density is 1.01x reference. End-to-end MajMin is 75.2% and boundary F1 is
+  76.0%. The local baseline reaches 59.0%, 53.6%, and 2.23x oracle.
+- Chordino improves oracle MajMin on three of four holdout tracks and
+  end-to-end MajMin on all four; `RWC_P024` regresses 4.7 oracle MajMin points.
 - The Phase 2J holdout is consumed and fixed at 49.0% oracle and 39.9%
   end-to-end. It must never be used for tuning.
-- The new four-track RWC holdout remains unopened.
+- The CR2E holdout is also consumed and must never be reused for tuning or a
+  later candidate decision. The failed root gate blocks the approved manual
+  screen-recording check and any Chordino product adapter.
 - Human review found chord names still inaccurate on real recordings after
   corrected-timing reanalysis. Timing itself passed its human gate.
 
@@ -127,19 +136,21 @@ Local web POC:
   [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
   (`owner:per`; closed after approving the proposed thresholds and three
   recommended recording scenarios).
-- Current agent task:
+- Agent task completed locally; GitHub state reconciliation is blocked:
   [#10 — CR2E Chordino holdout and screen-recording validation](https://github.com/perchristian/music-practice-poc/issues/10)
-  (`owner:agent`, `state:ready`).
+  (`owner:agent`, `state:ready`; still open because local `gh` authentication is
+  invalid and the connected GitHub app does not expose issue-state writes. A
+  checkpoint-comment attempt was rejected by its external-disclosure policy.)
+- Required next ownership: one `owner:per`, `state:ready` STOP/REFRAME decision
+  issue after GitHub write access is restored. No competing human issue is open.
 
 ## In Progress
 
-- No implementation phase is currently in progress. CR2E is ready but has not
-  opened the holdout.
-- CR2 is complete. Both local variants were rejected by their precommitted
-  development rule; the mandatory Chordino comparison materially outperformed
-  the local baseline. Decision 38 stops CR3–CR5 pending the guarded replacement
-  evaluation in CR2E. Details are in
-  `benchmarks/chord-reliability-cr2-checkpoint.md`.
+- No implementation phase is currently in progress. CR2E's automated gate is
+  complete and failed one frozen metric. The detailed result is in
+  `benchmarks/chord-reliability-cr2e-checkpoint.md`.
+- Chordino remains benchmark-only. The manual screen-recording gate, product
+  adapter, and CR3–CR5 are blocked pending product-owner STOP/REFRAME direction.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -159,9 +170,15 @@ Local web POC:
 
 ## Next Recommended Task
 
-Agent: execute issue #10 (CR2E): run the unchanged local baseline and Chordino
-on the locked RWC-P holdout, then prepare the approved three-recording manual-
-domain review packet. See `docs/planning/TASKS.md`.
+Product owner: choose one exact response after reviewing
+`benchmarks/chord-reliability-cr2e-checkpoint.md`:
+
+- `STOP — end automatic chord-analysis replacement work for this POC.`
+- `REFRAME — authorize a new validation direction that keeps CR2E recorded as a
+  failed gate and does not reuse the consumed holdout.`
+
+GitHub write access must be restored before this can be represented as the one
+ready `owner:per` issue and issue #10 can be closed.
 
 ## Context Recovery Review Result
 
@@ -180,24 +197,43 @@ Summary:
   analyzer suggestions.
 - Completed work: the end-to-end library, practice workspace, mixer, transport,
   metronome, timing editor/map, editable Harmony chart, mock pipeline, real
-  six-stem Demucs pipeline, and CR0–CR2 chord-reliability work are implemented
-  and verified. CR2 rejected two local variants and established Chordino as the
-  replacement candidate on development.
-- Remaining work: chord reliability remains the decisive validation gate. CR2E
-  must evaluate Chordino on the four-track RWC holdout and representative screen
-  recordings; CR3–CR5 are deferred behind that replacement decision. Practice-
-  target, stem-import, and timeline-hardening work remain behind the gate.
-- Next recommended task: agent issue #10, CR2E.
+  six-stem Demucs pipeline, and CR0–CR2E automated chord-reliability work are
+  implemented and verified. CR2E consumed the locked holdout and returned
+  `STOP/REFRAME` after Chordino missed oracle root by 1.9 points.
+- Remaining work: product-owner direction is required before any chord-analysis
+  work continues. The manual target-domain check, CR3–CR5, practice-target,
+  stem-import, and timeline-hardening work remain blocked behind that decision.
+- Next recommended task: product-owner STOP/REFRAME decision after GitHub issue
+  state is reconciled.
 
 Gaps found:
-- No material gaps. The four files identify Chordino as the development winner,
-  issue #8's approval, CR2E issue #10 as the next agent task, and the unopened
-  holdout plus manual screen-recording check as the remaining decision evidence.
+- GitHub issue state is stale: issue #10 remains open and no ready owner issue
+  can be created until `gh` authentication is restored or the connector gains
+  issue write support. The technical continuation state is otherwise explicit.
 
 Result:
 PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2E.
+  - Purpose: reuse the frozen evaluator and avoid speculative product or manual-
+    review code after the automated gate failed.
+  - Result: the holdout ran once; the exact failed threshold stopped product
+    integration and the blocked manual step.
+  - Reproducibility: commands, frozen thresholds, and aggregate/per-track
+    checkpoint results are version-controlled; the skill is not required.
+- Used Codex skill `github:github` on 2026-08-10 for issue #10 orientation and
+  attempted ownership reconciliation.
+  - Purpose: read issues #8 and #10 and preserve the issue ownership contract.
+  - Result: approvals and issue scope were verified, but issue creation and
+    closure are blocked because local `gh` authentication is invalid and the
+    connected app does not expose issue-state writes; its policy also rejected
+    posting the benchmark summary without explicit disclosure approval.
+  - Reproducibility: local execution does not depend on the skill; GitHub state
+    must be reconciled after authentication is restored.
+- No sub-agent delegation or model switch was used for CR2E; the session retained
+  high reasoning throughout.
 
 - Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2 implementation.
   - Purpose: test the two smallest isolated evidence policies, preserve the

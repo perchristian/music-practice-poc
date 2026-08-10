@@ -1112,3 +1112,53 @@ the product analyzer until the holdout and screen-recording review pass.
 
 Date:
 2026-08-10
+
+## Decision 39
+
+Decision:
+Record CR2E as `STOP/REFRAME`, permanently consume the four-track RWC-P
+holdout, and keep Chordino out of the product and the approved manual
+screen-recording gate until the product owner authorizes a newly scoped
+direction. Do not change the frozen threshold or reuse the holdout.
+
+Reason:
+Issue #8 approved the proposed thresholds unchanged before the holdout was
+opened. Chordino materially outperformed the local baseline and passed every
+aggregate check except oracle root accuracy, where it reached 73.1% against the
+75.0% minimum. It also regressed `RWC_P024` oracle MajMin by 4.7 points while
+improving the other three tracks and every end-to-end track. The frozen contract
+therefore cannot authorize replacement or the blocked manual gate.
+
+Alternatives considered:
+- Treat the 1.9-point root miss as close enough. Advantages: preserves momentum
+  toward a much stronger analyzer. Disadvantages: moves a precommitted threshold
+  after observing the holdout and invalidates the gate. Effort is low, technical
+  risk is medium, and expected validation quality is poor.
+- Resume CR3–CR5 local heuristics. Advantages: follows the original local
+  research sequence. Disadvantages: both local CR2 variants already failed and
+  the consumed holdout cannot validate further tuning. Effort and overfit risk
+  are high; expected demo quality is below Chordino.
+- Run another external analyzer against this holdout. Advantages: may find a
+  passing replacement. Disadvantages: reuses the consumed split as a selection
+  set. Effort is medium, technical risk is medium, and evidence quality is
+  invalid.
+- Reframe in a new, explicit product/validation strategy without claiming CR2E
+  passed or reusing its holdout. Advantages: preserves the learning value of
+  Chordino's large gains while keeping the failed result honest. Disadvantages:
+  requires a new owner decision and evidence plan. Effort and risk depend on the
+  chosen scope; expected learning value is highest.
+
+Tradeoffs:
+The app keeps its weaker local analyzer and does not receive Chordino's large
+MajMin, boundary, density, and runtime gains. In exchange, the project preserves
+the integrity of the locked evaluation and avoids taking on Sonic
+Annotator/Vamp packaging and licensing costs without authorization. The
+recommended owner choice is `REFRAME`, but CR2E remains a failed gate.
+
+Confidence:
+High that the frozen gate failed and the holdout cannot be reused. Medium that
+reframing is more valuable than stopping automatic chord analysis entirely;
+that is a product-owner decision.
+
+Date:
+2026-08-10

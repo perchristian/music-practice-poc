@@ -97,7 +97,19 @@ npm run benchmark:chords -- \
 Sonic Annotator and Chordino remain optional benchmark tools. They are not
 installed by `npm install`, required by mock mode, or integrated into the real
 pipeline. See `chord-reliability-cr2-checkpoint.md` for results and the guarded
-next step. Do not run the holdout command until issue #8 is approved.
+next step.
+
+## CR2E terminal holdout result
+
+Issue #8 approved the proposed thresholds unchanged before CR2E opened the
+holdout. The unchanged Demucs-assisted local analyzer and Chordino each ran once
+with oracle and end-to-end timing. Chordino passed every gate except oracle root
+accuracy: 73.1% against the frozen 75.0% minimum. The holdout is now consumed;
+do not rerun it for tuning or another candidate decision.
+
+The result is `STOP/REFRAME`. The manual screen-recording gate and product
+integration remain blocked. Aggregate, per-track, density, runtime, and command
+details are in `chord-reliability-cr2e-checkpoint.md`.
 
 ## One-time setup
 

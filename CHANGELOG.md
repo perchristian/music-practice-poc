@@ -8,6 +8,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Marked the four-track CR2E RWC-P holdout as consumed after Chordino missed the
+  frozen oracle root threshold. Product integration and the manual target-domain
+  review remain blocked pending a STOP/REFRAME decision.
 - Replaced the custom multipart decoder with Node's native `FormData` parser
   and consolidated server-side chord/Harmony validation onto the shared browser
   model helpers.
@@ -60,6 +63,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added the terminal CR2E checkpoint comparing the unchanged local analyzer and
+  Chordino across aggregate accuracy, boundary, density, runtime, and per-track
+  holdout results without changing application dependencies or behavior.
 - Added selectable CR2 accompaniment-first benchmark policies with generated
   melody-suppression, full-mix-fallback, chordality-gate, and bass-invariance
   coverage. The existing `legacy` policy remains the product default because

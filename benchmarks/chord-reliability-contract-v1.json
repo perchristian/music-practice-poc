@@ -17,7 +17,7 @@
         "metrics, artifact paths, and target candidate checksums",
         "separate reference/corrected and end-to-end reporting"
       ],
-      "status": "Awaiting product-owner approval of the RWC primary gate thresholds in openInputs."
+      "status": "Approved unchanged in issue #8 on 2026-08-10 before the holdout was opened."
     }
   ],
   "evaluationOrder": [
@@ -33,29 +33,30 @@
       "name": "rwc-holdout",
       "gate": "thresholds.rwcPrimaryGate",
       "blockedBy": ["rwc-development"],
-      "note": "Requires --allow-holdout and a precommitted milestone gate. Thresholds are proposed, not locked; see openInputs."
+      "note": "Consumed once in CR2E on 2026-08-10 after issue #8 locked the thresholds; Chordino missed the oracle root minimum."
     },
     {
       "step": 3,
       "name": "target-domain-manual-check",
       "gate": "thresholds.correctionBurden",
       "blockedBy": ["rwc-holdout"],
-      "note": "Manual check of a small number of representative iOS screen recordings once RWC results are satisfactory. Not a scored blind holdout."
+      "note": "Blocked after CR2E missed the frozen RWC oracle root minimum. Not a scored blind holdout."
     }
   ],
-  "openInputs": [
+  "resolvedInputs": [
     {
       "id": "rwc-primary-gate-thresholds",
       "owner": "product-owner",
       "question": "What does 'RWC results are satisfactory' mean numerically?",
-      "why": "The originally locked thresholds describe the target-domain holdout only. Making RWC-P the primary gate leaves the terminal GO/ADJUST/COMPARE/STOP decision without an absolute bar.",
-      "proposedNotLocked": "thresholds.rwcPrimaryGate"
+      "resolution": "APPROVE — thresholds as proposed.",
+      "source": "https://github.com/perchristian/music-practice-poc/issues/8"
     },
     {
       "id": "target-domain-manual-check-scope",
       "owner": "product-owner",
       "question": "How many representative iOS screen recordings, and which scenarios must the final manual check cover?",
-      "why": "The manual check replaces the two scored untouched holdouts, so its coverage determines how much domain risk remains at GO."
+      "resolution": "Three recordings covering full band with bass, piano/guitar plus vocal with no dedicated bass, and melody/ornament-heavy repeated sections with one legitimate variation.",
+      "source": "https://github.com/perchristian/music-practice-poc/issues/8"
     }
   ],
   "components": {
@@ -114,8 +115,8 @@
   },
   "thresholds": {
     "rwcPrimaryGate": {
-      "status": "proposed-awaiting-approval",
-      "note": "Proposed by the 2026-07-25 amendment because the RWC holdout became the primary accuracy gate. Not locked. Must be approved or replaced before the RWC holdout is opened, and may not be changed after holdout results are seen.",
+      "status": "locked-approved",
+      "note": "Approved unchanged in issue #8 on 2026-08-10 before the holdout was opened. These values remain immutable after the CR2E result.",
       "basis": {
         "lockedBaselineSource": "benchmarks/rwc-popular-isolated-smoothing-checkpoint.md",
         "note": "The consumed Phase 2J holdout reached 49.0% MajMin with oracle timing and 39.9% end-to-end. That corpus is a different, consumed split and is cited only to show the size of the proposed jump.",
@@ -187,7 +188,7 @@
     }
   },
   "holdoutAccess": {
-    "rwc": "Dry-run availability checks are permitted. Analyzer results require --allow-holdout and may be produced only at a precommitted milestone gate. This is now the primary gate, so opening it consumes the split permanently.",
+    "rwc": "Consumed once at CR2E on 2026-08-10. Do not tune against, rerun candidates on, or reinterpret this holdout. Dry-run availability checks remain harmless, but no further analyzer decision may use the split.",
     "target": "The two untouched holdout slots remain defined but no longer block the RWC evaluation. If they are ever supplied, the same rule applies: do not run analyzer output or inspect their references before the integrated gate. The final manual domain check uses ordinary representative recordings, not these slots."
   }
 }
