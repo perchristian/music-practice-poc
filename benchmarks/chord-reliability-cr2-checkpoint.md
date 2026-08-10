@@ -11,8 +11,9 @@ the application default, and local weight tuning stops here.
 
 Chordino is the clear development replacement candidate. It substantially
 outperformed the local Demucs-assisted analyzer through the same evaluator and
-on all eight development tracks. The four-track RWC holdout remains unopened
-until issue #8 approves its thresholds and final manual-domain-check scope.
+on all eight development tracks. Issue #8 approved the proposed thresholds and
+three-recording manual-domain-check scope after this result was recorded. The
+four-track RWC holdout remains unopened for the guarded CR2E run in issue #10.
 
 ## Generated melody control
 

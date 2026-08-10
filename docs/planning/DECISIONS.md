@@ -1102,8 +1102,8 @@ not receive the stronger development result yet. Chordino would add separate
 Sonic Annotator/Vamp setup and licensing review to real mode. In exchange, the
 project stops spending effort on non-generalizing weights, preserves the clean
 mock boundary, and tests the most promising candidate before accepting its
-dependency cost. The four-track holdout remains untouched until issue #8 locks
-its thresholds.
+dependency cost. Issue #8 subsequently locked the proposed thresholds and
+three-recording manual scope; the four-track holdout remains untouched for CR2E.
 
 Confidence:
 High that both CR2 variants should be rejected and local tuning should stop;

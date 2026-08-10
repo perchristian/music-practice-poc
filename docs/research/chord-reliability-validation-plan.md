@@ -374,8 +374,9 @@ compare an external analyzer through the same evaluator.
 Status: Escape rule triggered on 2026-08-10. Both accompaniment-first variants
 fixed the generated vocal control but regressed locked RWC-P development.
 Chordino materially outperformed the local baseline through the same evaluator
-and is the CR2E replacement candidate. The RWC holdout remains unopened pending
-issue #8; see `benchmarks/chord-reliability-cr2-checkpoint.md`.
+and is the CR2E replacement candidate. The RWC holdout remains unopened; its
+guarded run is ready in issue #10 after issue #8 approval. See
+`benchmarks/chord-reliability-cr2-checkpoint.md`.
 
 ### Milestone 3: Bass fallback and ornament resistance
 

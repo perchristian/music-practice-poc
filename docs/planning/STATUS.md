@@ -122,17 +122,19 @@ Local web POC:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/music-practice-poc/issues/1)
 - Completed agent task:
   [#9 — CR2 accompaniment-first melody suppression](https://github.com/perchristian/music-practice-poc/issues/9)
-  (`owner:agent`; completed in this CR2 iteration).
-- Current human action:
+  (`owner:agent`; closed in this CR2 iteration).
+- Completed human action:
   [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
-  (`owner:per`, `state:ready`). Reply in the exact `APPROVE` or `CHANGES` format
-  requested in the issue.
-- Blocked by human action: CR2E cannot open the RWC holdout until #8 is
-  answered. No other `owner:per` issue should be made ready first.
+  (`owner:per`; closed after approving the proposed thresholds and three
+  recommended recording scenarios).
+- Current agent task:
+  [#10 — CR2E Chordino holdout and screen-recording validation](https://github.com/perchristian/music-practice-poc/issues/10)
+  (`owner:agent`, `state:ready`).
 
 ## In Progress
 
-- No implementation phase is currently in progress.
+- No implementation phase is currently in progress. CR2E is ready but has not
+  opened the holdout.
 - CR2 is complete. Both local variants were rejected by their precommitted
   development rule; the mandatory Chordino comparison materially outperformed
   the local baseline. Decision 38 stops CR3–CR5 pending the guarded replacement
@@ -157,10 +159,9 @@ Local web POC:
 
 ## Next Recommended Task
 
-Product owner: answer issue #8 in its exact `APPROVE` or `CHANGES` format. After
-approval, the next agent task is CR2E: run the unchanged local baseline and
-Chordino on the locked RWC-P holdout, then prepare the approved manual-domain
-review packet. See `docs/planning/TASKS.md`.
+Agent: execute issue #10 (CR2E): run the unchanged local baseline and Chordino
+on the locked RWC-P holdout, then prepare the approved three-recording manual-
+domain review packet. See `docs/planning/TASKS.md`.
 
 ## Context Recovery Review Result
 
@@ -186,12 +187,12 @@ Summary:
   must evaluate Chordino on the four-track RWC holdout and representative screen
   recordings; CR3–CR5 are deferred behind that replacement decision. Practice-
   target, stem-import, and timeline-hardening work remain behind the gate.
-- Next recommended task: product-owner issue #8, then CR2E.
+- Next recommended task: agent issue #10, CR2E.
 
 Gaps found:
 - No material gaps. The four files identify Chordino as the development winner,
-  CR2E as the next agent task after issue #8, and the unopened holdout plus
-  manual screen-recording check as the remaining decision evidence.
+  issue #8's approval, CR2E issue #10 as the next agent task, and the unopened
+  holdout plus manual screen-recording check as the remaining decision evidence.
 
 Result:
 PASS
@@ -209,8 +210,8 @@ PASS
     aggregate results are version-controlled; the skill is not required.
 - Used Codex skill `github:github` on 2026-08-10 for CR2 ownership tracking.
   - Purpose: satisfy the GitHub-Issue execution contract.
-  - Result: created owner-agent issue #9; issue #8 remains the only ready human
-    action and blocks opening the holdout.
+  - Result: created and closed owner-agent issue #9, reconciled issue #8's
+    approval, and created ready owner-agent issue #10 for CR2E.
   - Reproducibility: issue state is visible on GitHub and local execution does
     not depend on the skill.
 - No sub-agent delegation or model switch was used for CR2; the session retained

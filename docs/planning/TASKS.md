@@ -12,8 +12,9 @@ CR2E.
 
 CR2 is complete by following its external-analyzer escape rule. Both local
 variants failed development; Chordino substantially outperformed the local
-baseline. Product-owner issue #8 must approve the proposed RWC primary gate
-thresholds and final manual-domain-check scope before CR2E opens the holdout.
+baseline. Product-owner issue #8 approved the proposed RWC primary gate
+thresholds and three-recording manual-domain-check scope before the holdout was
+opened. CR2E is ready as agent issue #10.
 
 Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
@@ -23,7 +24,7 @@ Ownership. They are not duplicated here.
 | ID | Task | Status |
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
-| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Waiting on issue #8 — next gate** |
+| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Ready as issue #10 — next gate** |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2E |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
@@ -165,7 +166,8 @@ Goal:
   same locked holdout evaluator and then the approved manual target-domain check.
 
 Contracts to preserve:
-- Do not open the four-track RWC holdout until issue #8 is approved.
+- Issue #8 approved the proposed thresholds and three-recording manual scope;
+  preserve that frozen contract when opening the four-track RWC holdout.
 - Compare the unchanged local CR1 baseline and Chordino through the same
   evaluator; do not tune either against holdout results.
 - Mock mode and normal application setup remain free of Chordino, Sonic
@@ -190,9 +192,9 @@ Milestone:
 - Make a bounded COMPARE/REPLACE or STOP/REFRAME recommendation. Schedule a
   product adapter only if the locked and manual gates authorize it.
 
-Status: Waiting on product-owner issue #8. Chordino improved development oracle
-MajMin from 61.0% to 78.1% and boundary F1 from 53.0% to 75.6%; the holdout is
-still unopened.
+Status: Ready as owner-agent issue #10 after issue #8 approval. Chordino improved
+development oracle MajMin from 61.0% to 78.1% and boundary F1 from 53.0% to
+75.6%; the holdout is still unopened.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
