@@ -45,7 +45,8 @@ chord chart, sections, and Harmony view are separate user-owned state.
 
 The chord-reliability validation gate is the committed line of work. Everything
 else is deferred behind it. CR2E reached a terminal `STOP/REFRAME` result on
-2026-08-10. The measured position is:
+2026-08-10; its qualitative reframe also failed, and CR2F is the authorized
+bounded follow-up. The measured position is:
 
 - On the locked CR0 development split, full-mix MajMin is 53.6% with oracle
   timing and 48.1% end-to-end; real Demucs evidence improves those to 61.0% and
@@ -72,10 +73,12 @@ else is deferred behind it. CR2E reached a terminal `STOP/REFRAME` result on
 - The Phase 2J holdout is consumed and fixed at 49.0% oracle and 39.9%
   end-to-end. It must never be used for tuning.
 - The CR2E holdout is also consumed and must never be reused for tuning or a
-  later candidate decision. The failed root gate blocks the approved manual
-  screen-recording check and any Chordino product adapter.
-- Human review found chord names still inaccurate on real recordings after
-  corrected-timing reanalysis. Timing itself passed its human gate.
+  later candidate decision. Its manual reframe found `TeAmo` and `Changes part
+  1` useful at 4/5, but failed `ShapeOfMyHeart` at 2/5 because of repeated wrong
+  roots and arpeggio-driven boundary churn; timing was also sometimes late.
+- Decision 41 authorizes at most two development-only CR2F candidates. Product
+  integration remains blocked, and a successful candidate would still require
+  fresh validation.
 
 Chord accuracy is therefore the open core question. Timing, transport,
 persistence, and the editable chart are not.
@@ -136,21 +139,26 @@ Local web POC:
   [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
   (`owner:per`; closed after approving the proposed thresholds and three
   recommended recording scenarios).
-- Current human review handoff:
+- Completed human review:
   [#10 — CR2E Chordino holdout and screen-recording validation](https://github.com/perchristian/music-practice-poc/issues/10)
-  (Per selected `REFRAME` in its comment thread; the prepared qualitative review
-  now awaits PASS/FAIL. Its stale `owner:agent` label should switch to
-  `owner:per`; local `gh` authentication remains invalid and the connected app
-  does not expose issue-state writes.)
+  (Per returned `FAIL`: `TeAmo` and `Changes part 1` were useful, while
+  `ShapeOfMyHeart` had repeated wrong roots and arpeggio-driven boundary churn;
+  timing was also sometimes late. The issue remains open with stale
+  `owner:agent`/`state:ready` labels because local `gh` authentication is invalid
+  and the connected app does not expose issue-state writes.)
+- Ready agent task: CR2F musical-grid stabilization in
+  `docs/planning/TASKS.md`. A dedicated `owner:agent`/`state:ready` issue still
+  needs to be created when GitHub write authentication is available.
 
 ## In Progress
 
-- No implementation phase is currently in progress. CR2E's automated gate
-  remains failed, and Decision 40 records the subsequent `REFRAME` direction.
-- The local-only three-recording qualitative packet is ready in
-  `benchmarks/chord-reliability-cr2e-manual-review.md`, with synchronized review
-  in `benchmarks/chordino-manual-review.html`. Chordino remains benchmark-only;
-  product integration and CR3–CR5 await the manual verdict.
+- No implementation phase is currently in progress. CR2E failed both its
+  automated gate and the subsequent qualitative review. Decision 41 records the
+  product owner's authorization for the bounded CR2F follow-up.
+- CR2F may test at most two benchmark-only candidates: musical-window
+  stabilization of raw Chordino labels, then conditional beat-aggregated NNLS
+  bass/treble chroma if persistent wrong roots remain. The consumed holdout is
+  unavailable and product integration remains unauthorized.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -170,11 +178,10 @@ Local web POC:
 
 ## Next Recommended Task
 
-Product owner: follow
-`benchmarks/chord-reliability-cr2e-manual-review.md`, then reply on issue #10
-with the packet's exact `PASS` or `FAIL` format. A pass makes a separate product-
-integration decision ready; it does not authorize integration. Also replace
-the issue's stale `owner:agent` label with `owner:per` while the review is yours.
+Create a dedicated `owner:agent`/`state:ready` GitHub issue for CR2F when write
+authentication is available, then execute the diagnostic and Candidate A in
+`docs/planning/TASKS.md`. Candidate B is conditional, and neither candidate may
+use the consumed holdout or change product behavior.
 
 ## Context Recovery Review Result
 
@@ -196,21 +203,47 @@ Summary:
   six-stem Demucs pipeline, and CR0–CR2E automated chord-reliability work are
   implemented and verified. CR2E consumed the locked holdout and returned
   `STOP/REFRAME` after Chordino missed oracle root by 1.9 points. The owner then
-  selected `REFRAME`, and the bounded qualitative packet is ready.
-- Remaining work: product-owner PASS/FAIL review across the three fixed screen
-  recordings. Product integration, CR3–CR5, practice-target, stem-import, and
-  timeline-hardening remain blocked behind that verdict.
-- Next recommended task: issue #10 qualitative review.
+  selected `REFRAME`; the bounded qualitative review failed on
+  `ShapeOfMyHeart`, while `TeAmo` and `Changes part 1` remained useful.
+- Remaining work: CR2F may test musical-window label stabilization and one
+  conditional NNLS beat-evidence fallback. Product integration, CR3–CR5,
+  practice-target, stem-import, and timeline-hardening remain blocked behind
+  that bounded result.
+- Next recommended task: create the CR2F execution issue, then run its diagnostic
+  and Candidate A.
 
 Gaps found:
-- GitHub issue #10 has the owner's `REFRAME` comment but retains the stale
-  `owner:agent` label because available tooling cannot change issue state. The
-  technical continuation and exact human response are explicit.
+- GitHub issue #10 contains the final `FAIL` but retains stale open/ownership
+  state, and no CR2F execution issue exists, because available tooling cannot
+  create or update issues while local `gh` authentication is invalid.
+- All available RWC holdout and local manual recordings are consumed. CR2F can
+  produce development evidence only; a successful candidate still needs fresh
+  validation before any replacement claim.
 
 Result:
 PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2F planning.
+  - Purpose: keep the authorized follow-up to the smallest ordered candidates
+    with explicit regression and stop gates.
+  - Result: Candidate A reuses raw Chordino labels and existing conservative
+    sequence behavior; Candidate B is conditional and reuses the existing chord
+    scorer with NNLS chroma. Parameter sweeps, product work, and broader
+    heuristics are excluded.
+  - Reproducibility: the task contract, thresholds, and stop conditions are
+    version-controlled; the skill is not required.
+- Used Codex skill `github:github` on 2026-08-10 for CR2F planning.
+  - Purpose: verify issue #10's final product-owner verdict and reconcile the
+    next ownership handoff.
+  - Result: the `FAIL` was confirmed. A dedicated CR2F issue could not be created
+    because local `gh` authentication remains invalid and the connected app does
+    not expose issue creation/state changes.
+  - Reproducibility: the issue comment and local task contract preserve the
+    evidence; GitHub state still needs reconciliation when authentication works.
+- No sub-agent delegation or model switch was used for CR2F planning; the
+  session retained high reasoning throughout.
 
 - Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2E.
   - Purpose: reuse the frozen evaluator, then implement the authorized reframe

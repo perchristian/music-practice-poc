@@ -15,6 +15,24 @@ Question:
 
 This is a qualitative product-risk check, not a new scored holdout.
 
+## Outcome
+
+The product owner returned `FAIL` in issue #10. `TeAmo` and `Changes part 1`
+were useful starting charts, but `ShapeOfMyHeart` was not: repeated wrong roots
+and arpeggio-driven boundary churn made the chart misleading and too costly to
+correct. Timing was also sometimes late, as if a chord boundary followed the
+point where its notes resolved instead of the musical onset.
+
+The reviewer inspected every beat to make the evaluation thorough. That is not
+evidence that ordinary use required beat-by-beat verification; the wording
+below means “would the musician have to verify every beat before trusting the
+starting chart?” The clarification does not change the `FAIL`, which is fully
+determined by the `ShapeOfMyHeart` result.
+
+The product owner subsequently authorized the bounded CR2F follow-up in
+`docs/planning/TASKS.md`. This does not reinterpret CR2E, reopen its holdout, or
+authorize product integration.
+
 ## Fixed recordings
 
 The three recordings were selected from the checksum inventory before this
@@ -58,8 +76,8 @@ ffmpeg -hide_banner -loglevel error -y -i 'test-media/ShapeOfMyHeart.mov' -vn -a
    Chordino label. Click any timestamp to replay it.
 4. For `TeAmo`, time how long it takes to identify and write down every label or
    boundary correction needed for a useful starting chart. Give the unedited
-   Chordino chart a usefulness rating from 1 to 5 and record whether you had to
-   check every beat.
+   Chordino chart a usefulness rating from 1 to 5 and record whether ordinary
+   use would require verifying every beat before trusting the starting chart.
 5. For `Changes part 1` and `ShapeOfMyHeart`, record whether each is a useful
    starting chart. Note repeated confidently wrong roots, misleading quality,
    or boundary churn that would force a complete rewrite.

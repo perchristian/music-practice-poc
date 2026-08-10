@@ -2,21 +2,23 @@
 
 ## Next Task
 
-Product-owner qualitative review after selecting `REFRAME` in issue #10. Inspect
-the three fixed screen-recording scenarios using the prepared local Chordino
-viewer and answer the frozen correction-burden verdict in
-`benchmarks/chord-reliability-cr2e-manual-review.md`.
+CR2F bounded Chordino timing and arpeggio stabilization. Diagnose whether the
+`ShapeOfMyHeart` failure is predominantly musical-boundary placement and
+short-lived label churn, then test at most two development-only candidates. Do
+not reopen the consumed RWC holdout or add Chordino to the product.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
 `BR1` practice target and `BR2` stem import — which are ready but do not preempt
-the required qualitative review.
+the authorized CR2F experiment.
 
 CR2E consumed the four-track holdout once after issue #8 froze the gate.
 Chordino materially outperformed the local baseline and passed every aggregate
 check except oracle root accuracy: 73.1% against the 75.0% minimum. Decision 40
-keeps that failure intact while authorizing one bounded qualitative review; the
-product adapter remains blocked.
+keeps that failure intact. The qualitative review also failed because
+`ShapeOfMyHeart` contained repeated wrong roots and arpeggio-driven boundary
+churn. Decision 41 authorizes one bounded attempt to close that specific gap;
+the product adapter remains blocked.
 
 Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
@@ -26,12 +28,13 @@ Ownership. They are not duplicated here.
 | ID | Task | Status |
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
-| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Reframed manual review ready — human action** |
-| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending manual verdict |
+| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
+| [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | **Ready — bounded agent experiment** |
+| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
-| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2E |
+| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2F |
 | [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
@@ -196,14 +199,105 @@ Milestone:
 - Make a bounded COMPARE/REPLACE or STOP/REFRAME recommendation. Schedule a
   product adapter only if the locked and manual gates authorize it.
 
-Status: Automated portion complete as owner-agent issue #10. Chordino improved
+Status: Complete as a failed gate in issue #10. Chordino improved
 holdout oracle MajMin from 59.0% to 73.9% and boundary F1 from 53.6% to 72.9%,
 but oracle root reached 73.1% against the frozen 75.0% minimum. The holdout is
 consumed and the automated gate remains failed. The product owner selected
-`REFRAME`; the three-recording qualitative packet is ready and awaits the exact
-PASS/FAIL response. Product integration remains unauthorized. See
+`REFRAME`, then returned `FAIL` from the three-recording qualitative review:
+`TeAmo` and `Changes part 1` were useful starting charts, while
+`ShapeOfMyHeart` had repeated wrong roots and excessive arpeggio-driven chord
+changes. Timing was also sometimes late. Product integration remains
+unauthorized. See
 `benchmarks/chord-reliability-cr2e-checkpoint.md` and
 `benchmarks/chord-reliability-cr2e-manual-review.md`.
+
+### CR2F: Stabilize Chordino on the musical grid
+
+Files and symbols:
+- `scripts/benchmark-chords.js`: `parseChordinoCsv`,
+  `alignChordinoToSegments`, and explicit development-only candidate selection
+- `benchmarks/chordino-transform.n3`: unchanged raw Chordino baseline
+- conditional NNLS Chroma transform: bass and treble chroma output only if the
+  hard-label candidate cannot resolve persistent roots
+- `tests/chord-benchmark.test.js`: musical-window, arpeggio, real-short-change,
+  no-chord, and boundary-placement cases
+- `benchmarks/chordino-manual-review.html`: synchronized raw/candidate comparison
+- `docs/planning/STATUS.md`: measured result and next decision
+
+Goal:
+- Determine whether Chordino can become a useful candidate by assigning harmony
+  from evidence across musical beats instead of treating arpeggiated note
+  resolution as repeated chord changes.
+
+Contracts to preserve:
+- The consumed CR2E holdout is unavailable for tuning, reruns, or candidate
+  selection.
+- Raw Chordino intervals and transform settings remain immutable baseline
+  evidence; derived labels have a distinct analyzer/policy identity.
+- Use only the locked RWC development split and already consumed local target
+  recordings for development evidence.
+- Corrected/reference timing is authoritative for the primary experiment.
+  End-to-end timing remains separately reported and cannot be disguised as
+  corrected timing.
+- Mock mode, normal setup, product metadata, and user-owned timing/chord charts
+  remain unchanged.
+- Stop after the two candidates below; do not continue parameter or heuristic
+  search inside this task.
+
+Experiment order:
+1. Diagnose `ShapeOfMyHeart` and RWC development errors as boundary offset,
+   within-beat churn, isolated wrong root, persistent wrong root, or legitimate
+   short/off-beat change. Record boundary distance to the nearest musical beat
+   or off-beat and label occupancy within each beat.
+2. Candidate A — musical-window stabilization: replace midpoint-only sampling
+   with duration evidence across the authoritative beat window, merge adjacent
+   equal labels, and apply the existing conservative isolated-change rule only
+   where generated fixtures prove a real short/off-beat change survives.
+3. Run the automated development gate. If persistent wrong-root runs remain on
+   `ShapeOfMyHeart`, Candidate A is insufficient; do not add more label rules.
+4. Candidate B — conditional NNLS beat evidence: collect the existing plugin
+   pack's bass and treble chroma, aggregate it over the authoritative beat
+   windows, and reuse the existing chord scorer. Do not tune Chordino parameters,
+   add a dependency, or broaden the vocabulary. Candidate B is the final
+   experiment in this task.
+5. Prepare a raw-versus-candidate local viewer only after one candidate passes
+   the automated development gate. Human review remains just-in-time.
+
+Non-goals:
+- Product adapter, installer, packaging/licensing decision, or product UI.
+- Chordino parameter sweeps, a new chord-scoring model, CR3–CR5 heuristics, or
+  repeat-aware copying.
+- Claiming generalization from the three already consumed local recordings.
+- Reopening or informally inspecting the CR2E holdout.
+
+Verify:
+- Focused unit cases fail against the current midpoint behavior where expected
+  and pass for the chosen candidate, including a legitimate short/off-beat
+  change that must not be erased.
+- On the eight-track RWC development split, oracle root, MajMin, and 250 ms
+  boundary F1 each regress by no more than 1.0 percentage point versus raw
+  Chordino; false-extra boundaries decrease; missing boundaries increase by no
+  more than 5%; cue density does not increase.
+- End-to-end timing is reported separately as diagnostic evidence.
+- If the automated gate passes, a product-owner comparison confirms
+  `ShapeOfMyHeart` reaches at least 4/5 with no repeated confidently wrong roots
+  or rewrite-level churn, while `TeAmo` and `Changes part 1` remain at least
+  4/5 and no systematic late-resolution timing remains.
+- `npm test`, syntax/diff checks, and the manual-viewer Playwright test pass; no
+  application server is started and no test-created jobs or songs remain.
+
+Milestone:
+- `STOP`: neither candidate passes; keep automatic harmony explicitly
+  approximate and remove analyzer replacement from the user-test critical path.
+- `VALIDATE`: one candidate passes development and local review; prepare a
+  separate decision for fresh validation plus adapter, packaging, licensing,
+  subprocess memory, and failure behavior. This task never authorizes product
+  integration by itself.
+
+Status: Ready after the product owner authorized the scoped follow-up on
+2026-08-10. A dedicated `owner:agent` GitHub issue remains to be created because
+local `gh` authentication is invalid and the connected app exposes issue reads
+but not issue creation/state changes.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
@@ -238,8 +332,8 @@ Verify:
 Milestone:
 - Milestone 3 passes.
 
-Status: Deferred pending the reframed manual review verdict. Do not resume local
-heuristics or reuse the consumed holdout.
+Status: Deferred pending CR2F. Do not resume the broader local heuristics or
+reuse the consumed holdout.
 
 ### CR4: Validate repeated-section evidence pooling with known groups
 

@@ -1202,3 +1202,63 @@ experiment; medium that the three recordings represent future user material.
 
 Date:
 2026-08-10
+
+## Decision 41
+
+Decision:
+Accept the issue #10 manual `FAIL` without attributing failure to the reviewer's
+deliberate beat-by-beat examination. Authorize CR2F as one bounded,
+development-only attempt to correct the actual failure: late musical boundaries,
+arpeggio-driven label churn, and repeated wrong roots on `ShapeOfMyHeart`.
+Evaluate musical-window stabilization first; only if persistent roots remain,
+evaluate beat-aggregated NNLS bass/treble chroma through the existing scorer.
+Stop after those two candidates. Do not reopen the CR2E holdout or integrate a
+candidate into the product.
+
+Reason:
+`TeAmo` and `Changes part 1` were useful starting charts at 4/5, while
+`ShapeOfMyHeart` was 2/5. The failure is patterned: raw chord boundaries can
+follow note resolution rather than musical onset, and an arpeggio can create
+several short labels instead of one chord inferred from the notes across a
+beat. Chordino remains materially stronger than the local baseline, so one
+targeted experiment has higher learning value than immediate abandonment.
+Chordino already derives frame-wise similarities from NNLS Chroma and offers
+HMM/Viterbi smoothing; the same plugin family exposes separate bass and treble
+chromagrams, making beat aggregation a bounded fallback rather than a new ML
+stack. See https://isophonics.net/nnls-chroma.
+
+Alternatives considered:
+- Integrate raw Chordino now. Advantages: fastest access to the stronger
+  analyzer. Disadvantages: knowingly ships the misleading `ShapeOfMyHeart`
+  behavior and ignores both failed gates. Effort is medium, validation and
+  packaging risk are high, and expected demo quality is inconsistent.
+- Stop automatic harmony work now. Advantages: no further dependency or tuning
+  cost. Disadvantages: discards useful 4/5 results and a specific, testable
+  error pattern. Effort and risk are low; learning value is lower.
+- Tune Chordino parameters or resume broad CR3–CR5 heuristics. Advantages: more
+  search space. Disadvantages: creates an open-ended overfit loop after all
+  available target recordings and the RWC holdout have been consumed. Effort
+  and technical risk are high; evidence quality is poor.
+- Run the two stop-gated candidates in CR2F. Advantages: first tests the smallest
+  boundary/sequence correction, then directly tests the requested combination
+  of bass and treble notes across beats without adding a new model. Disadvantages:
+  development success cannot prove generalization and still leaves packaging
+  unresolved. Effort is low-to-medium, technical risk is bounded, and expected
+  learning value is highest.
+
+Tradeoffs:
+CR2F may spend one more iteration on a candidate that still fails, and the
+available local songs cannot serve as independent validation. In exchange, the
+work has explicit regression and stop gates, preserves raw provenance, and can
+distinguish a fixable musical-window problem from a persistent recognition
+limit. Passing CR2F makes fresh validation and adapter feasibility ready for a
+separate decision; it does not revise CR2E or authorize integration.
+
+Confidence:
+High that the review failed because of `ShapeOfMyHeart`, not because the reviewer
+was thorough. Medium that musical-window stabilization will reduce boundary
+churn; medium-low that it will repair persistent wrong roots without using the
+NNLS chroma fallback.
+
+Date:
+2026-08-10
