@@ -111,6 +111,13 @@ The result is `STOP/REFRAME`. The manual screen-recording gate and product
 integration remain blocked. Aggregate, per-track, density, runtime, and command
 details are in `chord-reliability-cr2e-checkpoint.md`.
 
+The product owner subsequently selected `REFRAME` in issue #10. A new bounded
+qualitative review asks whether Chordino is a useful editable starting chart
+without treating CR2E as passed or authorizing integration. Use
+`chordino-manual-review.html` with the ignored local artifacts and follow the
+frozen steps and response format in
+`chord-reliability-cr2e-manual-review.md`.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:

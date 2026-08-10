@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chordino manual review</title>
+  <style>
+    body { max-width: 760px; margin: 2rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: #1d2433; }
+    label { display: block; margin: 1rem 0; font-weight: 650; }
+    input { display: block; margin-top: .35rem; font: inherit; }
+    audio { width: 100%; margin: 1rem 0; }
+    output { display: block; min-height: 4.5rem; padding: 1rem; border-radius: .5rem; background: #eef2ff; font-size: 2rem; font-weight: 750; }
+    output small { display: block; font-size: .875rem; font-weight: 500; }
+    ol { max-height: 24rem; overflow: auto; padding-left: 2.5rem; }
+    button { border: 0; background: none; color: #244bb8; font: inherit; cursor: pointer; }
+    button[aria-current="true"] { color: #111827; font-weight: 750; }
+  </style>
+</head>
+<body>
+  <h1>Chordino manual review</h1>
+  <p>Select one derived WAV and its matching <code>.lab</code> file. Files stay in this browser and are not uploaded.</p>
+  <label>Recording <input id="audio-file" type="file" accept="audio/wav"></label>
+  <label>Chord labels <input id="label-file" type="file" accept=".lab,text/plain"></label>
+  <audio id="player" controls></audio>
+  <output id="current" aria-live="polite">Choose both files</output>
+  <ol id="cues"></ol>
+  <script>
+    const audioFile = document.querySelector("#audio-file");
+    const labelFile = document.querySelector("#label-file");
+    const player = document.querySelector("#player");
+    const current = document.querySelector("#current");
+    const cueList = document.querySelector("#cues");
+    let cues = [];
+    let activeIndex = -1;
+
+    audioFile.addEventListener("change", () => {
+      if (audioFile.files[0]) player.src = URL.createObjectURL(audioFile.files[0]);
+    });
+
+    labelFile.addEventListener("change", async () => {
+      const text = await labelFile.files[0]?.text();
+      cues = String(text || "").trim().split("\n").filter(Boolean).map((line) => {
+        const [start, end, label] = line.split("\t");
+        return { start: Number(start), end: Number(end), label: label?.replace(/^"|"$/g, "") };
+      }).filter((cue) => Number.isFinite(cue.start) && cue.end > cue.start && cue.label);
+      cueList.replaceChildren(...cues.map((cue, index) => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = `${formatTime(cue.start)}  ${cue.label}`;
+        button.addEventListener("click", () => { player.currentTime = cue.start; player.play(); });
+        button.dataset.index = index;
+        item.append(button);
+        return item;
+      }));
+      activeIndex = -1;
+      updateCue();
+    });
+
+    player.addEventListener("timeupdate", updateCue);
+    player.addEventListener("seeked", updateCue);
+
+    function updateCue() {
+      const nextIndex = cues.findIndex((cue) => cue.start <= player.currentTime && cue.end > player.currentTime);
+      if (nextIndex === activeIndex) return;
+      cueList.querySelector(`[data-index="${activeIndex}"]`)?.removeAttribute("aria-current");
+      activeIndex = nextIndex;
+      const cue = cues[activeIndex];
+      current.replaceChildren(cue?.label || "No chord label at this time");
+      if (cue) {
+        const timing = document.createElement("small");
+        timing.textContent = `${formatTime(cue.start)}–${formatTime(cue.end)}`;
+        current.append(timing);
+      }
+      const button = cueList.querySelector(`[data-index="${activeIndex}"]`);
+      button?.setAttribute("aria-current", "true");
+      button?.scrollIntoView({ block: "nearest" });
+    }
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+    }
+  </script>
+</body>
+</html>

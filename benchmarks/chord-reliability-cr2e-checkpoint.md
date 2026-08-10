@@ -15,6 +15,11 @@ real application setup. CR3–CR5 should not resume automatically: the next step
 is a product-owner decision on whether to stop automatic chord-analysis work or
 reframe it around a different validation strategy.
 
+Subsequent direction: the product owner selected `REFRAME` in issue #10. Decision
+40 authorizes a separate bounded qualitative review documented in
+`chord-reliability-cr2e-manual-review.md`. It does not change this failed result
+or authorize integration.
+
 ## Frozen aggregate gate
 
 All accuracy and boundary values are percentages. Density is estimated chord

@@ -10,7 +10,8 @@ The project currently uses date-based development milestones rather than numbere
 
 - Marked the four-track CR2E RWC-P holdout as consumed after Chordino missed the
   frozen oracle root threshold. Product integration and the manual target-domain
-  review remain blocked pending a STOP/REFRAME decision.
+  gate remain failed; a subsequent product-owner reframe authorizes only a
+  bounded qualitative review before a separate integration decision.
 - Replaced the custom multipart decoder with Node's native `FormData` parser
   and consolidated server-side chord/Harmony validation onto the shared browser
   model helpers.
@@ -63,6 +64,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a local-only Chordino review page and frozen three-recording qualitative
+  packet for the product-owner-authorized CR2E reframe. It does not integrate
+  Chordino or change the recorded failed gate.
 - Added the terminal CR2E checkpoint comparing the unchanged local analyzer and
   Chordino across aggregate accuracy, boundary, density, runtime, and per-track
   holdout results without changing application dependencies or behavior.

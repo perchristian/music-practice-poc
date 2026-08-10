@@ -2,20 +2,21 @@
 
 ## Next Task
 
-Product-owner direction after CR2E's frozen RWC-P gate returned
-`STOP/REFRAME`. Automatic chord-analysis work must not continue until the owner
-chooses whether to stop it for this POC or authorize a newly scoped validation
-strategy that does not reuse the consumed holdout.
+Product-owner qualitative review after selecting `REFRAME` in issue #10. Inspect
+the three fixed screen-recording scenarios using the prepared local Chordino
+viewer and answer the frozen correction-burden verdict in
+`benchmarks/chord-reliability-cr2e-manual-review.md`.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
 `BR1` practice target and `BR2` stem import — which are ready but do not preempt
-the required STOP/REFRAME decision.
+the required qualitative review.
 
 CR2E consumed the four-track holdout once after issue #8 froze the gate.
 Chordino materially outperformed the local baseline and passed every aggregate
-check except oracle root accuracy: 73.1% against the 75.0% minimum. The approved
-manual domain check and product adapter therefore remain blocked.
+check except oracle root accuracy: 73.1% against the 75.0% minimum. Decision 40
+keeps that failure intact while authorizing one bounded qualitative review; the
+product adapter remains blocked.
 
 Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
@@ -25,8 +26,8 @@ Ownership. They are not duplicated here.
 | ID | Task | Status |
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
-| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Automated gate failed — human direction required** |
-| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending product direction |
+| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Reframed manual review ready — human action** |
+| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending manual verdict |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
@@ -160,6 +161,8 @@ Files and symbols:
 - `scripts/benchmark-chords.js`: local/Chordino analyzer selection
 - `benchmarks/chordino-transform.n3`: pinned external transform
 - `benchmarks/chord-reliability-cr2-checkpoint.md`: development evidence
+- `benchmarks/chordino-manual-review.html`: local synchronized review
+- `benchmarks/chord-reliability-cr2e-manual-review.md`: reframed verdict contract
 - product harmony adapter only after the locked evaluation authorizes it
 
 Goal:
@@ -196,8 +199,11 @@ Milestone:
 Status: Automated portion complete as owner-agent issue #10. Chordino improved
 holdout oracle MajMin from 59.0% to 73.9% and boundary F1 from 53.6% to 72.9%,
 but oracle root reached 73.1% against the frozen 75.0% minimum. The holdout is
-consumed, the manual-domain step is blocked, and the bounded recommendation is
-`STOP/REFRAME`. See `benchmarks/chord-reliability-cr2e-checkpoint.md`.
+consumed and the automated gate remains failed. The product owner selected
+`REFRAME`; the three-recording qualitative packet is ready and awaits the exact
+PASS/FAIL response. Product integration remains unauthorized. See
+`benchmarks/chord-reliability-cr2e-checkpoint.md` and
+`benchmarks/chord-reliability-cr2e-manual-review.md`.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
@@ -232,8 +238,8 @@ Verify:
 Milestone:
 - Milestone 3 passes.
 
-Status: Deferred pending product-owner direction after CR2E's `STOP/REFRAME`
-result. Do not resume local heuristics or reuse the consumed holdout.
+Status: Deferred pending the reframed manual review verdict. Do not resume local
+heuristics or reuse the consumed holdout.
 
 ### CR4: Validate repeated-section evidence pooling with known groups
 

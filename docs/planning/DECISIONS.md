@@ -1162,3 +1162,43 @@ that is a product-owner decision.
 
 Date:
 2026-08-10
+
+## Decision 40
+
+Decision:
+Accept the product owner's issue #10 `REFRAME` response and authorize one bounded
+three-recording qualitative Chordino review under the existing correction-burden
+criteria. Keep CR2E recorded as failed, do not reuse the consumed RWC holdout,
+and do not authorize product integration from this decision.
+
+Reason:
+Chordino's large MajMin, boundary, density, and runtime gains retain learning
+value despite missing the frozen oracle root threshold by 1.9 points. A local
+review can now answer the narrower product question: whether its labels form a
+useful editable starting chart on compressed screen recordings without checking
+every beat. This does not reinterpret the automated gate.
+
+Alternatives considered:
+- Stop immediately. Advantages: no further dependency, licensing, or evaluation
+  cost. Disadvantages: discards the strongest analyzer evidence before checking
+  the actual product domain. Effort and risk are low; learning value is lower.
+- Treat CR2E as passed and integrate Chordino. Advantages: fastest route to the
+  stronger analyzer. Disadvantages: violates the frozen gate and the owner's
+  explicit instruction not to integrate yet. Effort is medium and validation
+  risk is high.
+- Build a scored target holdout. Advantages: stronger quantitative evidence.
+  Disadvantages: requires new recordings and independent references beyond the
+  bounded POC decision. Effort is high and near-term learning is slower.
+
+Tradeoffs:
+The review is qualitative and uses previously consumed local recordings, so it
+cannot establish general accuracy. In exchange, it directly tests correction
+burden across the approved full-band, no-bass, and ornament/repeat scenarios
+without changing the application or analyzer.
+
+Confidence:
+High that this preserves CR2E's failed status and is the smallest useful next
+experiment; medium that the three recordings represent future user material.
+
+Date:
+2026-08-10

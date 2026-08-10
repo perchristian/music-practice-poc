@@ -23,6 +23,19 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 These are the dated narrative entries previously kept under `## Current Status`.
 They are in the original order, oldest editorial additions last as written.
 
+CR2E qualitative reframe packet prepared on 2026-08-10 after Per replied
+`REFRAME` in issue #10. Decision 40 preserves the automated failure and consumed
+holdout while authorizing one bounded local review across `TeAmo`, `Changes part
+1`, and `ShapeOfMyHeart`. A standalone dependency-free HTML page synchronizes
+the ignored WAV and Chordino `.lab` artifacts without touching product code.
+The packet freezes the existing 300-second correction maximum, 4/5 usefulness
+minimum, no-every-beat rule, scenario coverage, misleading-root stop rule, and
+exact PASS/FAIL response. Product integration remains unauthorized. The
+`ponytail:ponytail` and `github:github` skills were used; no agents were
+delegated and no model switch occurred. `npm test` passed 58 tests with one
+optional calibration skip, and the focused Chromium review-page check passed.
+Automated suites used isolated temporary data and created no application jobs.
+
 CR2E automated holdout gate completed on 2026-08-10. After issue #8 approved
 the exact thresholds, the unchanged local CR1 baseline and Chordino each ran
 once on the four-track RWC-P holdout with oracle and end-to-end timing. Chordino

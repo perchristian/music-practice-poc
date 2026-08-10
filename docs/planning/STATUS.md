@@ -136,21 +136,21 @@ Local web POC:
   [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
   (`owner:per`; closed after approving the proposed thresholds and three
   recommended recording scenarios).
-- Agent task completed locally; GitHub state reconciliation is blocked:
+- Current human review handoff:
   [#10 — CR2E Chordino holdout and screen-recording validation](https://github.com/perchristian/music-practice-poc/issues/10)
-  (`owner:agent`, `state:ready`; still open because local `gh` authentication is
-  invalid and the connected GitHub app does not expose issue-state writes. A
-  checkpoint-comment attempt was rejected by its external-disclosure policy.)
-- Required next ownership: one `owner:per`, `state:ready` STOP/REFRAME decision
-  issue after GitHub write access is restored. No competing human issue is open.
+  (Per selected `REFRAME` in its comment thread; the prepared qualitative review
+  now awaits PASS/FAIL. Its stale `owner:agent` label should switch to
+  `owner:per`; local `gh` authentication remains invalid and the connected app
+  does not expose issue-state writes.)
 
 ## In Progress
 
-- No implementation phase is currently in progress. CR2E's automated gate is
-  complete and failed one frozen metric. The detailed result is in
-  `benchmarks/chord-reliability-cr2e-checkpoint.md`.
-- Chordino remains benchmark-only. The manual screen-recording gate, product
-  adapter, and CR3–CR5 are blocked pending product-owner STOP/REFRAME direction.
+- No implementation phase is currently in progress. CR2E's automated gate
+  remains failed, and Decision 40 records the subsequent `REFRAME` direction.
+- The local-only three-recording qualitative packet is ready in
+  `benchmarks/chord-reliability-cr2e-manual-review.md`, with synchronized review
+  in `benchmarks/chordino-manual-review.html`. Chordino remains benchmark-only;
+  product integration and CR3–CR5 await the manual verdict.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -170,15 +170,11 @@ Local web POC:
 
 ## Next Recommended Task
 
-Product owner: choose one exact response after reviewing
-`benchmarks/chord-reliability-cr2e-checkpoint.md`:
-
-- `STOP — end automatic chord-analysis replacement work for this POC.`
-- `REFRAME — authorize a new validation direction that keeps CR2E recorded as a
-  failed gate and does not reuse the consumed holdout.`
-
-GitHub write access must be restored before this can be represented as the one
-ready `owner:per` issue and issue #10 can be closed.
+Product owner: follow
+`benchmarks/chord-reliability-cr2e-manual-review.md`, then reply on issue #10
+with the packet's exact `PASS` or `FAIL` format. A pass makes a separate product-
+integration decision ready; it does not authorize integration. Also replace
+the issue's stale `owner:agent` label with `owner:per` while the review is yours.
 
 ## Context Recovery Review Result
 
@@ -199,17 +195,17 @@ Summary:
   metronome, timing editor/map, editable Harmony chart, mock pipeline, real
   six-stem Demucs pipeline, and CR0–CR2E automated chord-reliability work are
   implemented and verified. CR2E consumed the locked holdout and returned
-  `STOP/REFRAME` after Chordino missed oracle root by 1.9 points.
-- Remaining work: product-owner direction is required before any chord-analysis
-  work continues. The manual target-domain check, CR3–CR5, practice-target,
-  stem-import, and timeline-hardening work remain blocked behind that decision.
-- Next recommended task: product-owner STOP/REFRAME decision after GitHub issue
-  state is reconciled.
+  `STOP/REFRAME` after Chordino missed oracle root by 1.9 points. The owner then
+  selected `REFRAME`, and the bounded qualitative packet is ready.
+- Remaining work: product-owner PASS/FAIL review across the three fixed screen
+  recordings. Product integration, CR3–CR5, practice-target, stem-import, and
+  timeline-hardening remain blocked behind that verdict.
+- Next recommended task: issue #10 qualitative review.
 
 Gaps found:
-- GitHub issue state is stale: issue #10 remains open and no ready owner issue
-  can be created until `gh` authentication is restored or the connector gains
-  issue write support. The technical continuation state is otherwise explicit.
+- GitHub issue #10 has the owner's `REFRAME` comment but retains the stale
+  `owner:agent` label because available tooling cannot change issue state. The
+  technical continuation and exact human response are explicit.
 
 Result:
 PASS
@@ -217,19 +213,20 @@ PASS
 ## Skills Used
 
 - Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2E.
-  - Purpose: reuse the frozen evaluator and avoid speculative product or manual-
-    review code after the automated gate failed.
-  - Result: the holdout ran once; the exact failed threshold stopped product
-    integration and the blocked manual step.
+  - Purpose: reuse the frozen evaluator, then implement the authorized reframe
+    through the smallest native local review surface without product changes.
+  - Result: the holdout ran once; after Per selected `REFRAME`, one standalone
+    page and packet made the three-recording qualitative check ready while
+    keeping product integration blocked.
   - Reproducibility: commands, frozen thresholds, and aggregate/per-track
     checkpoint results are version-controlled; the skill is not required.
 - Used Codex skill `github:github` on 2026-08-10 for issue #10 orientation and
   attempted ownership reconciliation.
   - Purpose: read issues #8 and #10 and preserve the issue ownership contract.
-  - Result: approvals and issue scope were verified, but issue creation and
-    closure are blocked because local `gh` authentication is invalid and the
-    connected app does not expose issue-state writes; its policy also rejected
-    posting the benchmark summary without explicit disclosure approval.
+  - Result: approvals, scope, and Per's `REFRAME` response were verified. Issue
+    state changes remain blocked because local `gh` authentication is invalid
+    and the connected app does not expose them; issue #10 therefore still needs
+    its ownership label changed manually for the review.
   - Reproducibility: local execution does not depend on the skill; GitHub state
     must be reconciled after authentication is restored.
 - No sub-agent delegation or model switch was used for CR2E; the session retained
