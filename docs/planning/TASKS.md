@@ -213,6 +213,43 @@ unauthorized. See
 
 ### CR2F: Stabilize Chordino on the musical grid
 
+Problem:
+- Raw Chordino can turn the note-by-note resolution of an arpeggio into several
+  chord changes. In the target review this made `ShapeOfMyHeart` noisy enough to
+  require a rewrite and included repeated confidently wrong roots, so the chart
+  was not a useful learning aid.
+
+Evidence:
+- CR2E's manual review scored `ShapeOfMyHeart` 2/5 while `TeAmo` and
+  `Changes part 1` remained useful at 4/5.
+- Raw Chordino already had near-reference aggregate cue density, so the open
+  question was localized musical-window churn and persistent roots rather than
+  broad over-segmentation across the corpus.
+
+Hypothesis:
+- Candidate A: choosing the raw label with the greatest duration inside each
+  authoritative beat will make brief arpeggio-resolution labels lose to the
+  prevailing harmony while preserving real changes that occupy musical windows.
+- Conditional Candidate B: if confidently wrong roots persist, beat-aggregated
+  bass and treble chroma may distinguish the harmonic root from the arpeggiated
+  upper notes without changing Chordino parameters or vocabulary.
+
+Test strategy:
+- Compare each candidate with immutable raw Chordino on the locked eight-track
+  development split using reference timing first and end-to-end timing only as
+  a separate diagnostic.
+- Admit a candidate to the existing three-recording listening comparison only
+  after it passes the frozen automated retention gate. Run Candidate B only if
+  that review specifically returns `PERSISTENT_ROOTS`.
+
+Decision rule:
+- The automated gate means only that a candidate is safe enough for targeted
+  human review; it does not demonstrate a meaningful improvement by itself.
+- `PASS` in the listening review makes a separate fresh-validation decision
+  ready. `PERSISTENT_ROOTS` authorizes Candidate B. `FAIL_OTHER` or failure of
+  the final candidate stops CR2F. No result in this task authorizes product
+  integration.
+
 Files and symbols:
 - `scripts/benchmark-chords.js`: `parseChordinoCsv`,
   `alignChordinoToSegments`, and explicit development-only candidate selection
@@ -285,6 +322,21 @@ Verify:
   4/5 and no systematic late-resolution timing remains.
 - `npm test`, syntax/diff checks, and the manual-viewer Playwright test pass; no
   application server is started and no test-created jobs or songs remain.
+
+Metric interpretation:
+- Boundary precision/recall/F1 uses one-to-one matching of predicted and
+  reference chord-change times. The 250 ms window is a conventional
+  time-domain comparison tolerance, not a musical claim that 250 ms represents
+  the same fraction of a beat or bar at every tempo. The benchmark also reports
+  100 ms diagnostically.
+- A false-extra boundary is an unmatched predicted chord change. A missing
+  boundary is an unmatched reference chord change. Cue density is the number of
+  predicted changes per minute after adjacent equal labels are merged.
+- The three constraints work together as a retention guard: reduce spurious
+  changes, do not erase more than 5% additional real changes, and do not make
+  the chart busier overall. Future gates should additionally precommit a
+  tempo-normalized beat-fraction or exact-grid-position metric; that metric must
+  not be added retroactively to this already-frozen candidate decision.
 
 Milestone:
 - `STOP`: neither candidate passes; keep automatic harmony explicitly

@@ -14,6 +14,12 @@ The pass makes the three-recording raw-versus-candidate review ready in issue
 #12. Candidate B remains conditional: it is authorized only if that review
 confirms persistent confidently wrong roots.
 
+The automated pass is a safety/retention result, not a demonstrated-benefit
+result. Candidate A removed one false-extra boundary while adding nine missing
+boundaries and lowering F1 by 0.52 points. Those values satisfy the frozen
+limits but do not establish a meaningful musical improvement; issue #12 carries
+that judgment.
+
 ## Frozen development gate
 
 All accuracy and boundary values are percentages. The missing-boundary increase

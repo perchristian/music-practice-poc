@@ -227,6 +227,24 @@ PASS
 
 ## Skills Used
 
+- Used Codex skill `github:github` on 2026-08-10 to clarify issue #11's problem,
+  hypothesis, test strategy, decision scope, and boundary metrics.
+  - Purpose: reconcile the GitHub issue contract with its durable local task and
+    frozen benchmark contract before changing the planning format.
+  - Result: the frozen gate remains unchanged but is now identified as a
+    retention gate; local documentation explains its metrics and requires a
+    causal, falsifiable task contract for future work.
+  - Reproducibility: the task, candidate contract, evaluator, and checkpoint are
+    version-controlled; no execution depends on the skill.
+- Used Codex skill `github:github` on 2026-08-10 to orient this music-theory
+  scope discussion against issues #11 and #12.
+  - Purpose: verify CR2F's frozen candidate contract and current human-review
+    dependency before recommending where theory knowledge belongs.
+  - Result: theory documentation is relevant, but adding new theory-driven
+    analyzer rules inside issue #11 would exceed its authorized scope.
+  - Reproducibility: the issue contracts and supporting harmonic-analysis
+    documents are version-controlled; the recommendation does not depend on the
+    skill.
 - Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2F execution.
   - Purpose: reuse raw Chordino intervals, existing beat grids, and isolated-
     change behavior for the smallest bounded Candidate A.

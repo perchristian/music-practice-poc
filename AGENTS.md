@@ -427,6 +427,24 @@ Use this compact shape for tasks written into `docs/planning/TASKS.md`:
 ```md
 ### Task: Short title
 
+Problem:
+- Observable user or engineering failure, why it matters, and who it affects.
+
+Evidence:
+- Measurements, observations, or prior results that show the problem exists.
+- Separate known evidence from assumptions that still need testing.
+
+Hypothesis:
+- Falsifiable explanation of what may improve the outcome and why.
+
+Test strategy:
+- Baseline, isolated change, evaluation data, and comparison needed to test the
+  hypothesis.
+
+Decision rule:
+- Evidence required to retain, adjust, stop, or escalate the proposed change,
+  and exactly what a passing result authorizes.
+
 Files and symbols:
 - `path/to/file`: `relevantSymbol`
 
@@ -443,6 +461,10 @@ Verify:
 - Focused test
 - Full regression suite
 - Required human or hardware gate
+
+Result and learning (complete only after execution):
+- Whether the hypothesis was supported, the evidence produced, and the next
+  decision it enables.
 ```
 
 ---

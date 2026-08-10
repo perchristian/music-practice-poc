@@ -32,6 +32,30 @@ if all of these hold for oracle timing:
 
 End-to-end results are diagnostic and cannot override the oracle decision.
 
+This is a retention gate: passing means only that the candidate is safe enough
+for the targeted listening review. It is not evidence by itself that the
+candidate materially improves the learning chart.
+
+### Metric interpretation and limitation
+
+- A boundary is a chord-label change after adjacent equal labels are merged.
+  Predicted and reference boundaries are matched one-to-one.
+- `250 ms boundary F1` counts a match when the two change times are within 250
+  ms. This is the frozen conventional time-domain comparison tolerance, not a
+  tempo-normalized musical threshold. The benchmark also reports 100 ms as a
+  diagnostic.
+- A false-extra boundary is an unmatched predicted change. A missing boundary
+  is an unmatched reference change. Cue density is predicted changes per minute.
+- Requiring false extras to decrease targets chart churn. Limiting additional
+  misses guards against achieving that reduction by deleting real changes.
+  Preventing a density increase guards against making the chart busier through
+  a different redistribution of changes.
+
+A fixed millisecond tolerance represents different fractions of a beat at
+different tempos. Any future gate should therefore precommit an additional
+beat-normalized tolerance or exact musical-grid-position measure. The metric
+must not be changed retroactively for this frozen, already-run candidate.
+
 ## Stop and escalation
 
 If Candidate A passes, prepare the raw/candidate local comparison before asking
