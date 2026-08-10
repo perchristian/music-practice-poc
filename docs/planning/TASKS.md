@@ -2,10 +2,12 @@
 
 ## Next Task
 
-CR2F Candidate A passed its development gate and is waiting on the raw-versus-
-candidate review in product-owner issue #12. Candidate B remains conditional on
-a `PERSISTENT_ROOTS` response. Do not reopen the consumed RWC holdout or add
-Chordino to the product.
+CR2F Candidate A passed its numerical retention gate, but Decision 42 pauses the
+one-line raw-versus-candidate verdict. Complete MR0 first: establish the
+professional musical review and progressive complexity ladder, then apply that
+report to the pending comparison. Candidate B requires a supported musical
+root-cause theory, not only a `PERSISTENT_ROOTS` code. Do not reopen the consumed
+RWC holdout or add Chordino to the product.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
@@ -29,7 +31,8 @@ Ownership. They are not duplicated here.
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
 | [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
-| [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | **Waiting on review issue #12** |
+| [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | Paused for MR0 musical review |
+| [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | **Next** |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
@@ -240,15 +243,16 @@ Test strategy:
   a separate diagnostic.
 - Admit a candidate to the existing three-recording listening comparison only
   after it passes the frozen automated retention gate. Run Candidate B only if
-  that review specifically returns `PERSISTENT_ROOTS`.
+  the musical case report returns `PERSISTENT_ROOTS`, supports the proposed
+  root-evidence mechanism, and identifies a simple discriminating test.
 
 Decision rule:
 - The automated gate means only that a candidate is safe enough for targeted
   human review; it does not demonstrate a meaningful improvement by itself.
 - `PASS` in the listening review makes a separate fresh-validation decision
-  ready. `PERSISTENT_ROOTS` authorizes Candidate B. `FAIL_OTHER` or failure of
-  the final candidate stops CR2F. No result in this task authorizes product
-  integration.
+  ready. A musically supported `PERSISTENT_ROOTS` authorizes Candidate B.
+  `FAIL_OTHER` or failure of the final candidate stops CR2F. No result in this
+  task authorizes product integration.
 
 Files and symbols:
 - `scripts/benchmark-chords.js`: `parseChordinoCsv`,
@@ -346,10 +350,87 @@ Milestone:
   subprocess memory, and failure behavior. This task never authorizes product
   integration by itself.
 
-Status: Candidate A passed the frozen development gate on 2026-08-10. Issue #11
-is waiting on the raw-versus-candidate review in ready product-owner issue #12.
-Candidate B remains conditional on a `PERSISTENT_ROOTS` response; the holdout
-was not reopened and product behavior remains unchanged.
+Status: Candidate A passed the frozen development gate on 2026-08-10. Decision
+42 now requires MR0 and a thorough musical case report before issue #12 returns
+its workflow code. Candidate B remains conditional on evidence supporting a
+persistent-root mechanism; the holdout was not reopened and product behavior
+remains unchanged.
+
+### MR0: Establish progressive musical chord review
+
+Problem:
+- The current evaluation can describe aggregate accuracy and boundary counts
+  without explaining whether a change makes the chart more musical or why a
+  failure occurs. Candidate A's technical pass is the immediate example: one
+  false-extra boundary disappeared while nine additional real boundaries were
+  missed.
+
+Evidence:
+- CR2E's human review found musically patterned failures—wrong roots,
+  arpeggio-driven churn, and late resolution—that aggregate metrics did not
+  explain.
+- The pending CR2F response reduces the judgment to a score and workflow code,
+  with no required musical map, competing causal theories, or discriminating
+  tests.
+
+Hypothesis:
+- A reproducible theory-led review, applied first to simple material and then to
+  one added source of complexity at a time, will isolate failure mechanisms and
+  produce better-founded analyzer experiments than aggregate selection alone.
+
+Test strategy:
+- Freeze a small Level-1 set of user-held, licensed, or generated passages with
+  clear triads, roots, timing, and reference interpretations.
+- Review each passage using
+  `docs/research/musical-chord-review-method.md`, then add Level-2 material only
+  after unexplained rewrite-level failures are resolved or bounded.
+- Re-review the three consumed CR2F recordings as diagnostic cases, not fresh
+  validation, and require musical evidence for and against each root-cause
+  theory before authorizing another analyzer candidate.
+
+Decision rule:
+- Advance a complexity level only when there are no unexplained rewrite-level
+  failures and leading causal theories have discriminating evidence.
+- Repeat the level, simplify the passage, or stop/reshape when the cause remains
+  unknown. Numerical gates remain regression evidence and never authorize
+  advancement alone.
+
+Files and symbols:
+- `docs/research/musical-chord-review-method.md`: review protocol and report
+  contract
+- `benchmarks/chord-reliability-cr2f-manual-review.md`: amended pending review
+- future committed musical-review reports and complexity manifest
+
+Goal:
+- Produce a professional, reproducible understanding of which harmonies the
+  analyzer handles, which it does not, and the most plausible causal theories
+  before another algorithmic change.
+
+Contracts to preserve:
+- Protected holdouts remain unavailable for tuning or agent context.
+- Consumed local recordings are diagnostic evidence only.
+- Musical ambiguity and alternate valid readings remain explicit.
+- The Workspace Agent advises; durable evidence and decisions remain in Git.
+
+Non-goals:
+- Building a theory engine, notation system, or new analyzer candidate.
+- Selecting complex songs before Level 1 is understood.
+- Replacing benchmark regression checks with unstructured opinion.
+
+Verify:
+- At least one complete report follows every required section in the method.
+- Findings cite timestamps and musical grid positions when available.
+- Each material failure has evidence for and against at least one causal theory
+  plus a smallest discriminating test.
+- Product owner confirms the report is understandable and useful before the
+  next analyzer experiment.
+
+Milestone:
+- MR0 passes when the Level-1 review is complete and the evidence supports
+  either advancing to Level 2 or a specific bounded correction at Level 1.
+
+Status: Next. Create the executable GitHub issue only after the first Level-1
+material and review packet are ready.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 

@@ -43,6 +43,7 @@ explicitly superseded. Do not treat these as current unless the header says so.
 - [chord-reliability-cr0-contract.md](research/chord-reliability-cr0-contract.md)
 - [chord-reliability-cr0-approval-packet.md](research/chord-reliability-cr0-approval-packet.md)
 - [chord-analysis-benchmark-strategy.md](research/chord-analysis-benchmark-strategy.md)
+- [musical-chord-review-method.md](research/musical-chord-review-method.md) — progressive, theory-led review method for automatic chord charts
 - [section-structure-prototype-plan.md](research/section-structure-prototype-plan.md)
 - [section-structure-prototype-results.md](research/section-structure-prototype-results.md)
 - [open-knowledge-format-context-assessment.md](research/open-knowledge-format-context-assessment.md)

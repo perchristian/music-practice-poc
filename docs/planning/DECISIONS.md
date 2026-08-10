@@ -1262,3 +1262,55 @@ NNLS chroma fallback.
 
 Date:
 2026-08-10
+
+## Decision 42
+
+Decision:
+Make professional musical case analysis the primary interpretation layer for
+chord-analyzer experiments. Retain quantitative benchmarks as regression and
+comparison evidence, but do not advance from aggregate pass/fail gates alone.
+Build evidence progressively from simple harmonic material to diatonic songs,
+context-dependent harmony, advanced/ambiguous harmony, and finally performance
+and capture variation. Amend the pending CR2F human review so its workflow code
+follows a thorough musical report instead of replacing it.
+
+Reason:
+Candidate A passed its automated retention gate by removing one false-extra
+boundary while adding nine missing boundaries and lowering boundary F1 by 0.52
+points. That proves only that it stayed inside frozen loss limits. It does not
+explain whether the chart became more musical, why `ShapeOfMyHeart` fails, or
+which intervention addresses the failure. A musician interprets harmony through
+tonal function, harmonic rhythm, bass motion, voice-leading, non-chord tones,
+form, and familiar patterns; an evaluation method must inspect those causes
+directly and preserve alternative readings.
+
+Alternatives considered:
+- Continue the frozen pass/fail workflow unchanged. Advantages: fastest and
+  statistically comparable. Disadvantages: can accept negligible or musically
+  perverse tradeoffs and provides little causal learning. Effort is low,
+  technical risk is low, and expected learning quality is poor.
+- Replace quantitative evaluation entirely with expert listening. Advantages:
+  musically direct. Disadvantages: vulnerable to inconsistent judgment,
+  confirmation bias, and unmeasured regressions. Effort is medium, technical
+  risk is medium, and reproducibility is weak.
+- Combine locked numerical evidence with a reproducible musical report and
+  progressive complexity ladder. Advantages: preserves regression protection
+  while producing causal, learner-centered understanding. Disadvantages:
+  requires more careful listening, curated material, and written analysis.
+  Effort is medium, technical risk is low, and expected learning quality is
+  highest.
+
+Tradeoffs:
+Chord work will advance more slowly and simple-song coverage must be curated
+before broad claims. In exchange, each experiment states what musical problem it
+addresses, what theory may explain it, what evidence contradicts that theory,
+and what should be tried next. The Workspace Agent is useful assistance but not
+a project dependency; the version-controlled method and reports remain the
+source of truth.
+
+Confidence:
+High that aggregate gates alone are insufficient for the product question.
+Medium that the first complexity ladder will need adjustment after real reviews.
+
+Date:
+2026-08-10

@@ -82,8 +82,13 @@ bounded follow-up. The measured position is:
 - CR2F Candidate A passes its frozen development gate: oracle root 80.9%,
   MajMin 78.1%, boundary F1 75.1%, 306 false extras, 194 missing boundaries,
   and 30.7 changes/minute. All regression limits pass, including the 4.86%
-  missing-boundary increase. The three-recording comparison is ready in issue
-  #12; Candidate B remains conditional on persistent wrong roots.
+  missing-boundary increase. The comparison assets are ready, but Decision 42
+  replaces issue #12's former one-line review with a musical case report;
+  Candidate B remains conditional on a supported persistent-root theory.
+- Decision 42 reframes that pass as regression evidence only. MR0 must now
+  establish the progressive professional musical-review method and a Level-1
+  baseline before another analyzer candidate. The pending three-recording
+  comparison requires a musical case report before its workflow code.
 
 Chord accuracy is therefore the open core question. Timing, transport,
 persistence, and the editable chart are not.
@@ -152,17 +157,22 @@ Local web POC:
 - Waiting agent task:
   [#11 — CR2F musical-grid stabilization](https://github.com/perchristian/music-practice-poc/issues/11)
   (`owner:agent`, `state:waiting`). Candidate A passed development; Candidate B
-  is conditional on the review response.
+  is conditional on a musically supported root-cause theory.
 - Current human action:
   [#12 — Review CR2F musical-window candidate](https://github.com/perchristian/music-practice-poc/issues/12)
-  (`owner:per`, `state:ready`).
+  (`owner:per`, `state:ready` on GitHub, but its local review packet was amended
+  by Decision 42 and must not use the former one-line response alone).
 
 ## In Progress
 
 - CR2F Candidate A implementation and automated development evaluation are
-  complete. Its raw-versus-candidate review is waiting on issue #12.
-- Candidate B may run only if issue #12 returns `PERSISTENT_ROOTS`. The consumed
-  holdout is unavailable and product integration remains unauthorized.
+  complete. The raw-versus-candidate review now requires the Decision 42 musical
+  case report.
+- MR0 is next: freeze Level-1 material, perform the first professional musical
+  review, and use the result to decide whether to advance or isolate a simpler
+  correction. Candidate B requires evidence for the proposed root mechanism;
+  the consumed holdout is unavailable and product integration remains
+  unauthorized.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -182,10 +192,12 @@ Local web POC:
 
 ## Next Recommended Task
 
-Product owner: complete issue #12 using its exact `PASS`, `PERSISTENT_ROOTS`, or
-`FAIL_OTHER` response. `PERSISTENT_ROOTS` unblocks Candidate B; `FAIL_OTHER`
-stops CR2F; `PASS` makes a separate fresh-validation decision ready. None of
-these responses authorizes product integration.
+Complete MR0 before resuming issue #11: select and freeze the first Level-1
+material, then produce the report defined in
+`docs/research/musical-chord-review-method.md`. The existing three-recording
+comparison remains useful diagnostic evidence, but its workflow code follows
+the musical analysis rather than replacing it. No result authorizes product
+integration.
 
 ## Context Recovery Review Result
 
@@ -212,21 +224,35 @@ Summary:
   Candidate A subsequently passed its development gate and its comparison
   packet is ready.
 - Remaining work: issue #12 must assess Candidate A on the three consumed local
-  recordings. Candidate B is conditional on persistent wrong roots. Product
-  integration, CR3–CR5, practice-target, stem-import, and timeline-hardening
-  remain blocked behind that bounded result.
-- Next recommended task: product-owner issue #12.
+  recordings through the Decision 42 case-report method. MR0 must first freeze
+  and review Level-1 material; Candidate B is conditional on musical evidence
+  for the proposed persistent-root mechanism. Product integration, CR3–CR5,
+  practice-target, stem-import, and timeline-hardening remain blocked behind
+  that learning sequence.
+- Next recommended task: MR0 Level-1 material and first musical report.
 
 Gaps found:
-- No material documentation gaps. All available RWC holdout and local manual
-  recordings are consumed; a successful Candidate A or B still needs fresh
-  validation before any replacement claim.
+- MR0 has no frozen Level-1 material or executable GitHub issue yet. All
+  available RWC holdout and local manual recordings are consumed; a successful
+  Candidate A or B still needs fresh validation before any replacement claim.
 
 Result:
 PASS
 
 ## Skills Used
 
+- Used Codex skill `workspace-agents:workspace-agents-build-agent` on
+  2026-08-10 to create the draft `Musical Harmony Reviewer`.
+  - Purpose: provide a professional musical reviewer that separates acoustic
+    observation, harmonic interpretation, and analyzer behavior; maintains a
+    progressive song ladder; and produces causal theories rather than a bare
+    pass/fail result.
+  - Result: an unpublished draft was created with four starter prompts and
+    per-user Memory for a song-complexity ladder and hypothesis ledger.
+  - Reproducibility: the agent is optional. Decision 42 and
+    `docs/research/musical-chord-review-method.md` contain the complete review
+    contract, so a human or any capable agent can reproduce the work without
+    the skill or workspace agent.
 - Used Codex skill `github:github` on 2026-08-10 to clarify issue #11's problem,
   hypothesis, test strategy, decision scope, and boundary metrics.
   - Purpose: reconcile the GitHub issue contract with its durable local task and
@@ -376,6 +402,10 @@ Older skill use is recorded in `docs/archive/STATUS_ARCHIVE.md`.
 
 ## Agent and Model Use
 
+- Created the unpublished Workspace Agent draft `Musical Harmony Reviewer` with
+  its workspace default `gpt-5.3-codex` model. It has not yet judged project
+  evidence or changed repository files; its future output is advisory and must
+  be committed as an ordinary review report before it affects a decision.
 - CR1 used one read-only `gpt-5.6-terra` agent at high reasoning for routine
   generator, benchmark-adapter, and test reconnaissance. It recommended the
   opt-in diagnostic seam and identified the fixture/test risks; it changed no

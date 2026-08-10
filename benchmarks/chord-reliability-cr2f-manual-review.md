@@ -26,14 +26,28 @@ validation decision, but it cannot validate or authorize product integration.
 | `Changes part 1` | `no-dedicated-bass` | `_vamp_nnls-chroma_chordino_simplechord.lab` | `_chordino-musical-window-v1.lab` |
 | `ShapeOfMyHeart` | `ornament-heavy-repeat` | `_vamp_nnls-chroma_chordino_simplechord.lab` | `_chordino-musical-window-v1.lab` |
 
-## Frozen response
+## Decision 42 amendment — required musical report
 
-Reply on issue #12 with exactly one of:
+Do not return the prior one-line response by itself. First complete the report
+defined in `docs/research/musical-chord-review-method.md`:
+
+1. review question and evidence;
+2. musical map for each relevant passage;
+3. what works and why;
+4. what needs improvement, with timestamps and bar/beat positions;
+5. competing causal theories, evidence for and against, confidence, and the
+   smallest discriminating test;
+6. what the metrics support and hide;
+7. recommended experiments from simple to complex;
+8. judgment and learning.
+
+After the report, end with one workflow code so issue ownership remains clear:
 
 - `PASS — Shape: <1-5>/5; TeAmo: <1-5>/5; Changes: <1-5>/5; repeated wrong roots: no; rewrite churn: no; systematic late timing: no; notes: <short notes>.`
 - `PERSISTENT_ROOTS — Shape: <1-5>/5; repeated wrong roots: yes; examples: <timestamps/labels>; other notes: <short notes>.`
 - `FAIL_OTHER — scenario: <name>; reason: <non-root failure>; notes: <short notes>.`
 
 `PASS` makes fresh validation and adapter feasibility ready without authorizing
-integration. `PERSISTENT_ROOTS` authorizes the already bounded NNLS bass/treble
-Candidate B. `FAIL_OTHER` ends CR2F without Candidate B.
+integration. `PERSISTENT_ROOTS` authorizes Candidate B only when the report also
+supports the proposed root-evidence mechanism and identifies a discriminating
+simple test. `FAIL_OTHER` ends CR2F without Candidate B.
