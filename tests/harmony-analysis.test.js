@@ -20,7 +20,7 @@ before(async () => {
   cr1Fixtures = JSON.parse(await readFile(join(cr1Root, "fixtures.json"), "utf8")).fixtures;
 });
 
-async function analyzeCr1Fixture(id, includeDiagnostics = true) {
+async function analyzeCr1Fixture(id, includeDiagnostics = true, evidencePolicy = "legacy") {
   const fixture = cr1Fixtures.find((candidate) => candidate.id === id);
   const beatDurationSeconds = 60 / fixture.bpm;
   const barDurationSeconds = beatDurationSeconds * fixture.beatsPerBar;
@@ -43,7 +43,8 @@ async function analyzeCr1Fixture(id, includeDiagnostics = true) {
         beatsPerBar: fixture.beatsPerBar,
         bars
       },
-      includeDiagnostics
+      includeDiagnostics,
+      evidencePolicy
     }
   );
 }
@@ -185,5 +186,66 @@ describe("CR1 evidence diagnostics", () => {
 
     const variation = await analyzeCr1Fixture("legitimate-repeat-variation");
     assert.deepEqual(variation.chords.map((chord) => chord.name), ["C", "F", "C", "G"]);
+  });
+});
+
+describe("CR2 accompaniment-first evidence", () => {
+  it("keeps full-mix chord evidence only as a fallback", async () => {
+    const legacy = await analyzeCr1Fixture("vocal-melody", true, "legacy");
+    const role = await analyzeCr1Fixture("vocal-melody", true, "accompaniment-role");
+    const analyzeWithoutStems = (evidencePolicy) => analyzeHarmonyFromAudio(
+      { path: join(cr1Root, "vocal-melody/source-audio.wav"), durationSeconds: 8 },
+      { outputs: [] },
+      {
+        timingGrid: {
+          bpm: 120,
+          beatDurationSeconds: 0.5,
+          beatsPerBar: 4,
+          bars: [1, 2, 3, 4].map((bar) => ({ bar, start: (bar - 1) * 2, end: bar * 2 }))
+        },
+        includeDiagnostics: true,
+        evidencePolicy
+      }
+    );
+    const fallback = await analyzeWithoutStems("accompaniment-role");
+    const fullMixControl = await analyzeWithoutStems("legacy");
+
+    assert.equal(sourceAt(legacy, 0, "fullMix").harmonicIncluded, true);
+    assert.equal(sourceAt(role, 0, "fullMix").harmonicIncluded, false);
+    assert.equal(sourceAt(role, 0, "piano").harmonicIncluded, true);
+    assert.equal(sourceAt(fallback, 0, "fullMix").harmonicIncluded, true);
+    assert.deepEqual(fallback.chords, fullMixControl.chords);
+    const rawChangeCount = (result) => result.diagnostics.beats
+      .slice(1)
+      .filter((beat, index) => beat.selectedWinner.name !== result.diagnostics.beats[index].selectedWinner.name)
+      .length;
+    assert.equal(rawChangeCount(legacy), 2);
+    assert.equal(rawChangeCount(role), 0);
+  });
+
+  it("uses chordality only in the chordal variant and preserves bass evidence", async () => {
+    const role = await analyzeCr1Fixture("brief-ornament", true, "accompaniment-role");
+    const chordal = await analyzeCr1Fixture("brief-ornament", true, "accompaniment-chordal");
+    const bassControl = await analyzeCr1Fixture("comp-bass-fallback", true, "legacy");
+    const bassVariant = await analyzeCr1Fixture("comp-bass-fallback", true, "accompaniment-chordal");
+
+    assert.equal(sourceAt(role, 1, "other").harmonicIncluded, true);
+    assert.equal(sourceAt(chordal, 1, "other").harmonicIncluded, false);
+    assert.equal(sourceAt(chordal, 1, "other").measuredFeaturesAffectScoring, true);
+    assert.deepEqual(
+      bassVariant.diagnostics.beats.map((beat) => beat.combined.bassChroma),
+      bassControl.diagnostics.beats.map((beat) => beat.combined.bassChroma)
+    );
+    assert.deepEqual(
+      bassVariant.diagnostics.beats.map((beat) => beat.combined.bassWeight),
+      bassControl.diagnostics.beats.map((beat) => beat.combined.bassWeight)
+    );
+  });
+
+  it("rejects unknown evidence policies", async () => {
+    await assert.rejects(
+      analyzeCr1Fixture("vocal-melody", false, "unknown"),
+      /Unsupported harmonic evidence policy/
+    );
   });
 });

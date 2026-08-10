@@ -60,6 +60,14 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added selectable CR2 accompaniment-first benchmark policies with generated
+  melody-suppression, full-mix-fallback, chordality-gate, and bass-invariance
+  coverage. The existing `legacy` policy remains the product default because
+  both experimental policies regressed the locked development split.
+- Added an optional Chordino/Sonic Annotator benchmark adapter with pinned
+  transform parameters and the existing `mir_eval` report. Chordino is a
+  benchmark-only replacement candidate and is not required by mock or real
+  application setup.
 - Added opt-in, benchmark-only chord evidence diagnostics with per-beat source
   chroma, low-note and bass-reliability measurements, persistence/chordality
   features, complete candidate score breakdowns, and winner-change reasons.

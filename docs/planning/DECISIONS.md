@@ -1054,3 +1054,61 @@ appropriate for this POC.
 
 Date:
 2026-08-09
+
+## Decision 38
+
+Decision:
+Reject both CR2 accompaniment-first variants as product defaults, stop local
+chord-weight tuning, and advance Chordino as the replacement candidate for the
+locked RWC holdout and final manual screen-recording check. Do not integrate it
+into real mode unless those gates authorize replacement.
+
+Reason:
+Both precommitted local variants fixed the isolated vocal-melody fixture but
+regressed the locked eight-track RWC-P development split. The role-only variant
+improved 1/8 oracle MajMin tracks and fell 3.3 aggregate points; the chordality-
+gated variant improved 2/8 and fell 2.9 points. False-extra boundaries did not
+fall. This triggered Decision 30's COMPARE/REPLACE rule.
+
+Chordino, run on the unchanged full mix through the same evaluator, reached
+78.1% oracle MajMin and 75.6% boundary F1 versus 61.0% and 53.0% locally. It
+improved every development track, reduced oracle false extras from 1,400 to
+307, and ran at 0.013 real time. This is too large and consistent a gap to
+justify CR3–CR5 custom heuristics before testing the external candidate.
+
+Alternatives considered:
+- Keep the role-only variant because it fixes the generated melody fixture.
+  Advantages: smallest local behavior change and no dependency. Disadvantages:
+  it regresses seven of eight oracle tracks and does not reduce corpus false
+  extras. Effort is low, technical risk is low, and expected chord quality is
+  worse.
+- Tune full-mix or stem weights again. Advantages: may recover some local
+  accuracy. Disadvantages: violates the two-attempt stop rule and optimizes a
+  front end that is 17.1 MajMin points behind the external control. Effort is
+  open-ended, overfit risk is high, and expected learning value is low.
+- Continue to CR3–CR5 before comparing replacement. Advantages: completes the
+  original hypothesis sequence. Disadvantages: spends several iterations on
+  custom evidence logic despite a materially stronger existing analyzer.
+  Effort and technical risk are high; expected demo quality is uncertain.
+- Integrate Chordino immediately. Advantages: fastest path to the stronger
+  development result. Disadvantages: consumes a GPL/AGPL external runtime
+  dependency before the locked holdout and compressed target domain validate
+  it. Effort is medium, packaging/licensing risk is medium, and expected demo
+  quality is promising but unconfirmed.
+
+Tradeoffs:
+The local analyzer remains in the product until the gate completes, so users do
+not receive the stronger development result yet. Chordino would add separate
+Sonic Annotator/Vamp setup and licensing review to real mode. In exchange, the
+project stops spending effort on non-generalizing weights, preserves the clean
+mock boundary, and tests the most promising candidate before accepting its
+dependency cost. The four-track holdout remains untouched until issue #8 locks
+its thresholds.
+
+Confidence:
+High that both CR2 variants should be rejected and local tuning should stop;
+high that Chordino is the correct next candidate; medium that it should become
+the product analyzer until the holdout and screen-recording review pass.
+
+Date:
+2026-08-10

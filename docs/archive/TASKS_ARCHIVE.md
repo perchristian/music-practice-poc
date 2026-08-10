@@ -461,3 +461,48 @@ Verification:
 
 Status: Complete. Milestone 1 passed; details are in
 `benchmarks/chord-reliability-cr1-checkpoint.md`.
+
+### CR2: Validate accompaniment-first melody suppression
+
+Completed: 2026-08-10
+
+Files and symbols:
+- `server.js`: selectable chord-quality evidence policies
+- `tests/harmony-analysis.test.js`: melody suppression, fallback, and bass
+  invariance coverage
+- `scripts/benchmark-chords.js`: selectable local variants and external analyzer
+  adapter
+- `benchmarks/chordino-transform.n3`: pinned Chordino transform
+- `benchmarks/chord-reliability-cr2-checkpoint.md`: result and decision report
+
+Outcome:
+- Two precommitted local variants removed a false vocal-driven change from the
+  generated melody fixture while preserving full-mix fallback and bass evidence.
+- Neither variant generalized. Oracle MajMin fell from 61.0% to 57.7% and
+  58.1%; false extras stayed flat or worsened. Neither became the product
+  default.
+- The mandatory external control ran through the same evaluator. Chordino
+  reached 78.1% oracle MajMin and 75.6% boundary F1, improving every
+  development track and bringing cue density close to reference.
+- The RWC holdout remained unopened because issue #8 has not approved its
+  thresholds and manual-domain-check scope.
+
+Contracts preserved:
+- Bass scoring, isolated-beat smoothing, user-owned charts, and immutable
+  provenance did not change.
+- `legacy` remains the product default; tested variants remain selectable only
+  for reproduction.
+- Sonic Annotator and Chordino are optional benchmark tools and are not mock or
+  application dependencies.
+- No benchmark run created an application job.
+
+Verification:
+- Generated melody-heavy and control fixtures.
+- Focused harmony and benchmark adapter tests.
+- Full eight-track development runs for both local variants with oracle and
+  end-to-end timing.
+- Full eight-track Chordino development control through the same evaluator.
+- Full regression suite and chord-contract verification.
+
+Status: Complete by following Milestone 2's external-analyzer escape rule.
+CR2E owns the guarded holdout and manual-domain decision after issue #8.

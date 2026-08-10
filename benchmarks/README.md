@@ -68,6 +68,37 @@ remain under ignored `benchmark-results/`. The new low-note reliability,
 persistence, and chordality measurements are explicitly diagnostic-only in CR1;
 they do not alter weights, candidate scores, or labels.
 
+## CR2 variants and Chordino control
+
+CR2 keeps three local evidence policies selectable with `--evidence-policy`:
+
+- `legacy` — unchanged product/default behavior;
+- `accompaniment-role` — accompaniment stems are primary and full mix is
+  chord-quality fallback only;
+- `accompaniment-chordal` — the same role gate plus a four-subframe polyphony
+  check.
+
+The two accompaniment variants failed the locked development rule and are not
+product defaults. The benchmark also accepts `--analyzer chordino`, using the
+pinned `chordino-transform.n3` and the same evaluator. Install the optional
+[Sonic Annotator 1.7](https://github.com/sonic-visualiser/sonic-annotator/releases/tag/sonic-annotator-1.7)
+and [Vamp Plugin Pack 2.0](https://github.com/vamp-plugins/vamp-plugin-pack/releases/tag/v2.0),
+selecting Chordino and NNLS Chroma from the plugin installer. Then run:
+
+```sh
+npm run benchmark:chords -- \
+  --manifest benchmarks/chord-reliability-rwc-v1.json \
+  --audio .benchmark-data/chord-reliability-rwc-audio \
+  --split development --timing both --analyzer chordino \
+  --sonic-annotator /path/to/sonic-annotator \
+  --output benchmark-results/chord-reliability/cr2/chordino
+```
+
+Sonic Annotator and Chordino remain optional benchmark tools. They are not
+installed by `npm install`, required by mock mode, or integrated into the real
+pipeline. See `chord-reliability-cr2-checkpoint.md` for results and the guarded
+next step. Do not run the holdout command until issue #8 is approved.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:

@@ -2,17 +2,18 @@
 
 ## Next Task
 
-CR2: validate accompaniment-first melody suppression against the generated
-failure fixtures and locked RWC-P development split.
+CR2E: validate the Chordino replacement candidate on the locked RWC-P holdout
+and representative iOS screen recordings.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
 `BR1` practice target and `BR2` stem import — which are ready but do not preempt
-CR2.
+CR2E.
 
-CR1 is complete. One product-owner input is ready — approving the proposed RWC
-primary gate thresholds and final manual-domain-check scope — but it is required
-only before the RWC **holdout** is opened, not before CR2 development starts.
+CR2 is complete by following its external-analyzer escape rule. Both local
+variants failed development; Chordino substantially outperformed the local
+baseline. Product-owner issue #8 must approve the proposed RWC primary gate
+thresholds and final manual-domain-check scope before CR2E opens the holdout.
 
 Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
@@ -22,12 +23,12 @@ Ownership. They are not duplicated here.
 | ID | Task | Status |
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
-| [CR2](#cr2-validate-accompaniment-first-melody-suppression) | Accompaniment-first melody suppression | **Ready — next task** |
-| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Planned after CR2 |
+| [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | **Waiting on issue #8 — next gate** |
+| [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2E |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
-| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2 |
+| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2E |
 | [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
@@ -151,44 +152,47 @@ remains open is one ready product-owner input: approving or replacing the
 proposed `thresholds.rwcPrimaryGate` values before the RWC holdout is opened,
 and agreeing the scope of the final manual domain check.
 
-### CR2: Validate accompaniment-first melody suppression
+### CR2E: Validate the Chordino replacement candidate
 
 Files and symbols:
-- analyzer module containing `loadAnalysisStemAudios`,
-  `chromaEvidenceForBar`, and `estimateChord` after the smallest justified
-  extraction from `server.js`
-- `tests/harmony-analysis.test.js`
-- chord benchmark scripts and result report
+- `scripts/benchmark-chords.js`: local/Chordino analyzer selection
+- `benchmarks/chordino-transform.n3`: pinned external transform
+- `benchmarks/chord-reliability-cr2-checkpoint.md`: development evidence
+- product harmony adapter only after the locked evaluation authorizes it
 
 Goal:
-- Make stable comp instruments primary chord-quality evidence, prevent vocal or
-  melody-like evidence from independently creating chord labels or boundaries,
-  and make full mix a reliability-gated fallback.
+- Decide whether Chordino should replace the local chord analyzer by running the
+  same locked holdout evaluator and then the approved manual target-domain check.
 
 Contracts to preserve:
-- Bass evidence remains separate from chord-quality evidence.
-- Full mix remains available when separation is missing or unreliable.
-- Every tested variant is individually selectable and benchmarked.
+- Do not open the four-track RWC holdout until issue #8 is approved.
+- Compare the unchanged local CR1 baseline and Chordino through the same
+  evaluator; do not tune either against holdout results.
+- Mock mode and normal application setup remain free of Chordino, Sonic
+  Annotator, and Vamp dependencies.
+- User-owned charts and immutable analyzer provenance remain authoritative.
 
 Non-goals:
-- Bass fallback changes.
-- Ornament persistence changes.
-- Repeated-section pooling.
+- CR3–CR5 local heuristics.
+- Product integration before the holdout and manual gate pass.
+- Broader chord vocabulary or UI changes.
 
 Verify:
-- Melody-heavy generated fixtures.
-- RWC development gate; the RWC holdout is opened only at the precommitted
-  milestone gate and only after the primary gate thresholds are approved.
-- False-extra and missing-change comparison.
-- Optional informal listening on a local target recording as a sanity check; the
-  scored target-domain review no longer gates this milestone.
+- One guarded local-baseline and Chordino holdout run with oracle and end-to-end
+  timing, after approval.
+- Approved primary thresholds, density, regression, runtime, and per-track
+  comparison.
+- A just-in-time `owner:per` manual-domain packet covering the approved screen-
+  recording scenarios and requested answer format.
+- Full regression suite; no application jobs created.
 
 Milestone:
-- Milestone 2 passes or the project follows its external-analyzer comparison
-  escape rule.
+- Make a bounded COMPARE/REPLACE or STOP/REFRAME recommendation. Schedule a
+  product adapter only if the locked and manual gates authorize it.
 
-Status: Ready. CR1 passed on 2026-08-10. Product-owner threshold approval is
-required before opening the RWC holdout, not before development experiments.
+Status: Waiting on product-owner issue #8. Chordino improved development oracle
+MajMin from 61.0% to 78.1% and boundary F1 from 53.0% to 75.6%; the holdout is
+still unopened.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
@@ -223,7 +227,8 @@ Verify:
 Milestone:
 - Milestone 3 passes.
 
-Status: Planned after CR2.
+Status: Deferred pending CR2E. Do not add more local heuristics while the
+external candidate is materially ahead on every development track.
 
 ### CR4: Validate repeated-section evidence pooling with known groups
 

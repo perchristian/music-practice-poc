@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { analyzeHarmonyFromAudio, readPcm16WavFromFile } from "../server.js";
+import {
+  analyzeHarmonyFromAudio,
+  chordSegmentsForTimingGrid,
+  readPcm16WavFromFile
+} from "../server.js";
 import {
   audioCandidates,
   buildOracleTimingGrid,
@@ -23,12 +27,14 @@ const defaults = {
   audio: join(repoRoot, ".benchmark-data", "rwc-pilot-audio"),
   manifest: join(repoRoot, "benchmarks", "rwc-popular-pilot.json"),
   output: join(repoRoot, "benchmark-results"),
-  python: join(repoRoot, ".venv-eval", "bin", "python")
+  python: join(repoRoot, ".venv-eval", "bin", "python"),
+  chordinoTransform: join(repoRoot, "benchmarks", "chordino-transform.n3"),
+  sonicAnnotator: process.env.SONIC_ANNOTATOR || "sonic-annotator"
 };
 
 function usage() {
   return `Usage:
-  npm run benchmark:chords -- --timing oracle|estimated|both [--split development|holdout|all] [--smoothing isolated|none] [--limit N]
+  npm run benchmark:chords -- --timing oracle|estimated|both [--analyzer local|chordino] [--split development|holdout|all] [--smoothing isolated|none] [--evidence-policy POLICY] [--limit N]
   npm run benchmark:chords -- --create-manifest [--exclude-manifest PATH] [--count N] [--holdout-count N]
 
 Options:
@@ -43,6 +49,13 @@ Options:
   --track RWC_Pxxx     run one manifest track
   --split NAME         defaults to development, protecting the holdout
   --smoothing NAME     isolated (product default) or none (baseline control)
+  --evidence-policy NAME
+                       legacy, accompaniment-role, or accompaniment-chordal
+  --analyzer NAME      local (default) or chordino external control
+  --sonic-annotator PATH
+                       Sonic Annotator executable used by --analyzer chordino
+  --chordino-transform PATH
+                       fixed Chordino transform configuration
   --limit N            run the first N selected tracks
   --count N            manifest creation only; defaults to 12
   --holdout-count N    manifest creation only; defaults to 4
@@ -57,6 +70,8 @@ function parseArgs(argv) {
     timing: "oracle",
     split: "development",
     smoothing: "isolated",
+    evidencePolicy: "legacy",
+    analyzer: "local",
     limit: null,
     track: null,
     dryRun: false,
@@ -66,7 +81,10 @@ function parseArgs(argv) {
     holdoutCount: 4,
     allowHoldout: false
   };
-  const pathKeys = new Set(["annotations", "audio", "stems", "manifest", "output", "python", "exclude-manifest"]);
+  const pathKeys = new Set([
+    "annotations", "audio", "stems", "manifest", "output", "python", "exclude-manifest",
+    "sonic-annotator", "chordino-transform"
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help" || argument === "-h") return { help: true };
@@ -83,7 +101,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = argument.startsWith("--") ? argument.slice(2) : null;
-    if (![...pathKeys, "timing", "split", "smoothing", "limit", "track", "count", "holdout-count"].includes(key)) {
+    if (![...pathKeys, "timing", "split", "smoothing", "evidence-policy", "analyzer", "limit", "track", "count", "holdout-count"].includes(key)) {
       throw new Error(`Unknown argument: ${argument}`);
     }
     const value = argv[index + 1];
@@ -93,8 +111,12 @@ function parseArgs(argv) {
     result[normalizedKey] = pathKeys.has(key) ? resolve(value) : value;
   }
   if (!new Set(["oracle", "estimated", "both"]).has(result.timing)) throw new Error(`Invalid timing mode: ${result.timing}`);
+  if (!new Set(["local", "chordino"]).has(result.analyzer)) throw new Error(`Invalid analyzer: ${result.analyzer}`);
   if (!new Set(["development", "holdout", "all"]).has(result.split)) throw new Error(`Invalid split: ${result.split}`);
   if (!new Set(["isolated", "none"]).has(result.smoothing)) throw new Error(`Invalid smoothing mode: ${result.smoothing}`);
+  if (!new Set(["legacy", "accompaniment-role", "accompaniment-chordal"]).has(result.evidencePolicy)) {
+    throw new Error(`Invalid evidence policy: ${result.evidencePolicy}`);
+  }
   for (const [key, flag] of [["limit", "--limit"], ["count", "--count"], ["holdoutCount", "--holdout-count"]]) {
     if (result[key] === null) continue;
     result[key] = Number(result[key]);
@@ -242,6 +264,64 @@ function runProcess(command, args) {
   });
 }
 
+function mergeAdjacentIntervals(intervals) {
+  const merged = [];
+  for (const interval of intervals) {
+    const previous = merged.at(-1);
+    if (previous?.label === interval.label && Math.abs(previous.end - interval.start) < 0.001) {
+      previous.end = interval.end;
+    } else {
+      merged.push({ ...interval });
+    }
+  }
+  return merged;
+}
+
+export function parseChordinoCsv(text, durationSeconds) {
+  const events = String(text).trim().split("\n").filter(Boolean).map((line, index) => {
+    const match = line.match(/^(?:"(?:[^"]|"")*"|),([0-9.]+),"([^"]+)"$/);
+    if (!match) throw new Error(`Malformed Chordino CSV row ${index + 1}.`);
+    return { time: Number(match[1]), label: match[2] };
+  }).filter((event) => event.time < durationSeconds);
+  if (!events.length) throw new Error("Chordino returned no chord events.");
+  if (events.some((event, index) => index && event.time <= events[index - 1].time)) {
+    throw new Error("Chordino events must be strictly increasing.");
+  }
+  return mergeAdjacentIntervals(events.map((event, index) => ({
+    start: event.time,
+    end: events[index + 1]?.time ?? durationSeconds,
+    label: event.label
+  })).filter((interval) => interval.end > interval.start));
+}
+
+function labelAt(intervals, time) {
+  return intervals.find((interval) => interval.start <= time && interval.end > time)?.label || "N";
+}
+
+export function alignChordinoToSegments(intervals, segments) {
+  return mergeAdjacentIntervals(segments.map((segment) => ({
+    start: segment.start,
+    end: segment.end,
+    label: labelAt(intervals, (segment.start + segment.end) / 2)
+  })));
+}
+
+async function analyzeWithChordino(options, audioPath, durationSeconds, cache) {
+  if (!cache.has(audioPath)) {
+    cache.set(audioPath, (async () => {
+      const startedAt = performance.now();
+      const stdout = await runProcess(options.sonicAnnotator, [
+        "-q", "-t", options.chordinoTransform, "-w", "csv", "--csv-stdout", audioPath
+      ]);
+      return {
+        intervals: parseChordinoCsv(stdout, durationSeconds),
+        runtimeMs: performance.now() - startedAt
+      };
+    })());
+  }
+  return cache.get(audioPath);
+}
+
 function percent(value) {
   return `${(Number(value || 0) * 100).toFixed(1)}%`;
 }
@@ -254,7 +334,7 @@ function markdownReport(report, jsonFilename) {
   const lines = [
     `# RWC-P ${report.timing} ${report.split} report`,
     "",
-    `Tracks: ${report.trackCount} · evidence: ${report.evidenceMode} · smoothing: ${report.smoothing} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
+    `Tracks: ${report.trackCount} · analyzer: ${report.analyzer} · evidence: ${report.evidenceMode}/${report.evidencePolicy} · smoothing: ${report.smoothing} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
     "",
     "| Metric | Duration weighted | Track median | OOV seconds |",
     "| --- | ---: | ---: | ---: |",
@@ -305,7 +385,7 @@ async function evaluateWithMirEval(options, payload) {
   }
 }
 
-async function runTimingMode(options, manifest, selectedTracks, timing) {
+async function runTimingMode(options, manifest, selectedTracks, timing, chordinoCache) {
   const predictions = [];
   let peakResidentMemoryEstimateBytes = process.memoryUsage().rss;
   for (const [index, selected] of selectedTracks.entries()) {
@@ -316,29 +396,40 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
       throw new Error(`${track.trackId} audio duration ${audio.durationSeconds.toFixed(3)}s does not match metadata ${track.durationSeconds.toFixed(3)}s.`);
     }
     console.log(`[${index + 1}/${selectedTracks.length}] ${timing} ${track.trackId} (${audio.durationSeconds.toFixed(1)}s)`);
-    const outputs = await findStemOutputs(options.stems, track.trackId);
+    const outputs = options.analyzer === "local" ? await findStemOutputs(options.stems, track.trackId) : [];
     if (options.dryRun) continue;
-    const result = await analyzeHarmonyFromAudio(
-      { path: audioPath, durationSeconds: audio.durationSeconds },
-      { outputs },
-      {
-        ...(timing === "oracle" ? { timingGrid: buildOracleTimingGrid(track) } : {}),
-        sequenceSmoothing: options.smoothing,
-        includeDiagnostics: true
-      }
-    );
+    const result = options.analyzer === "local"
+      ? await analyzeHarmonyFromAudio(
+        { path: audioPath, durationSeconds: audio.durationSeconds },
+        { outputs },
+        {
+          ...(timing === "oracle" ? { timingGrid: buildOracleTimingGrid(track) } : {}),
+          sequenceSmoothing: options.smoothing,
+          evidencePolicy: options.evidencePolicy,
+          includeDiagnostics: true
+        }
+      )
+      : await analyzeWithChordino(options, audioPath, audio.durationSeconds, chordinoCache);
+    const estimated = options.analyzer === "local"
+      ? predictionsToIntervals(result.chords)
+      : timing === "oracle"
+        ? alignChordinoToSegments(
+          result.intervals,
+          chordSegmentsForTimingGrid(buildOracleTimingGrid(track), audio.durationSeconds)
+        )
+        : result.intervals;
     peakResidentMemoryEstimateBytes = Math.max(peakResidentMemoryEstimateBytes, process.memoryUsage().rss);
     predictions.push({
       trackId: track.trackId,
       split: selected.split,
       stratum: selected.stratum,
       durationSeconds: audio.durationSeconds,
-      runtimeMs: result.analysis.durationMs,
+      runtimeMs: options.analyzer === "local" ? result.analysis.durationMs : result.runtimeMs,
       reference: track.chords,
-      estimated: predictionsToIntervals(result.chords),
-      estimatedKey: result.key,
-      analyzer: result.analysis.name,
-      diagnostics: diagnosticsForBenchmarkResult(result)
+      estimated,
+      estimatedKey: options.analyzer === "local" ? result.key : null,
+      analyzer: options.analyzer === "local" ? result.analysis.name : "chordino-v5",
+      ...(options.analyzer === "local" ? { diagnostics: diagnosticsForBenchmarkResult(result) } : {})
     });
   }
   if (options.dryRun) return null;
@@ -346,23 +437,28 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
   const evaluation = await evaluateWithMirEval(options, {
     tracks: predictions.map(({ diagnostics, ...prediction }) => prediction)
   });
-  const diagnostics = predictions.map(({ trackId, diagnostics }) => ({ trackId, ...diagnostics }));
+  const diagnostics = predictions
+    .filter((prediction) => prediction.diagnostics)
+    .map(({ trackId, diagnostics }) => ({ trackId, ...diagnostics }));
   const diagnosticBeats = diagnostics.flatMap((track) => track.beats);
   const winnerChangeCounts = {};
   for (const change of diagnosticBeats.flatMap((beat) => beat.winnerChanges)) {
     winnerChangeCounts[change.evidence] = (winnerChangeCounts[change.evidence] || 0) + 1;
   }
   const report = {
-    version: 2,
+    version: 4,
     createdAt: new Date().toISOString(),
     timing,
     split: options.split,
     smoothing: options.smoothing,
-    evidenceMode: options.stems ? "demucs-assisted" : "full-mix",
+    analyzer: options.analyzer,
+    evidencePolicy: options.analyzer === "local" ? options.evidencePolicy : "chordino-defaults",
+    evidenceMode: options.analyzer === "local" && options.stems ? "demucs-assisted" : "full-mix",
     manifest: options.manifest,
     dataset: manifest.dataset,
     trackCount: predictions.length,
     peakResidentMemoryEstimateBytes,
+    memoryMeasurement: options.analyzer === "local" ? "benchmark-process" : "benchmark-driver-only",
     diagnosticsSummary: {
       beatCount: diagnosticBeats.length,
       sourceIds: [...new Set(diagnostics.flatMap((track) => track.sourceIds))],
@@ -372,7 +468,7 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
     evaluation
   };
   await mkdir(options.output, { recursive: true });
-  const filename = `rwc-popular-${timing}-${report.evidenceMode}-${options.smoothing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  const filename = `rwc-popular-${timing}-${report.analyzer}-${report.evidenceMode}-${report.evidencePolicy}-${options.smoothing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   const outputPath = join(options.output, filename);
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   const markdownPath = outputPath.replace(/\.json$/, ".md");
@@ -403,7 +499,8 @@ export async function main(argv = process.argv.slice(2)) {
   if (!selectedTracks.length) throw new Error("No manifest tracks matched the requested selection.");
   assertHoldoutAccess(selectedTracks, options);
   const modes = options.timing === "both" ? ["oracle", "estimated"] : [options.timing];
-  for (const timing of modes) await runTimingMode(options, manifest, selectedTracks, timing);
+  const chordinoCache = new Map();
+  for (const timing of modes) await runTimingMode(options, manifest, selectedTracks, timing, chordinoCache);
 }
 
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);

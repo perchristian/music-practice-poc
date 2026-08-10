@@ -44,7 +44,8 @@ chord chart, sections, and Harmony view are separate user-owned state.
 ### Current checkpoint
 
 The chord-reliability validation gate is the committed line of work. Everything
-else is deferred behind it. CR1 passed on 2026-08-10. The measured position is:
+else is deferred behind it. CR2 completed on 2026-08-10 by following its
+external-analyzer escape rule. The measured position is:
 
 - On the locked CR0 development split, full-mix MajMin is 53.6% with oracle
   timing and 48.1% end-to-end; real Demucs evidence improves those to 61.0% and
@@ -54,6 +55,13 @@ else is deferred behind it. CR1 passed on 2026-08-10. The measured position is:
 - Opt-in benchmark artifacts now expose per-source chroma, low-note and
   reliability measurements, persistence/chordality, all candidate score
   components, and winner-change evidence. Six generated CR1 scenarios pass.
+- Both CR2 local variants remove the synthetic vocal-driven false change but
+  regress RWC-P development: oracle MajMin falls to 57.7% and 58.1%, and false
+  extras remain flat or worsen. Neither is the application default.
+- The Chordino external control reaches 78.1% oracle MajMin, 75.6% boundary F1,
+  and 30.9 changes/minute, improving all eight development tracks over the
+  61.0%, 53.0%, and 65.0 local baseline. End-to-end Chordino reaches 77.5%
+  MajMin and 77.7% boundary F1.
 - The Phase 2J holdout is consumed and fixed at 49.0% oracle and 39.9%
   end-to-end. It must never be used for tuning.
 - The new four-track RWC holdout remains unopened.
@@ -104,25 +112,32 @@ Local web POC:
   pure, unit-tested model code. Chord-chart, Harmony-view, and section validation
   are shared with `server.js` so frontend and backend persistence cannot diverge.
 - `scripts/` — benchmark, fixture, and contract-verification tooling. None of it
-  touches the application library. CR1 diagnostics are requested only by the
-  benchmark CLI and remain outside job metadata.
+  touches the application library. CR1 diagnostics and CR2 local/Chordino
+  variants are requested only by the benchmark CLI and remain outside job
+  metadata. Sonic Annotator and Chordino are optional benchmark tools.
 
 ## Active Work Ownership
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/music-practice-poc/issues/1)
-- Current agent task: None open. CR2 is ready and needs an `owner:agent` issue
-  when work begins.
+- Completed agent task:
+  [#9 — CR2 accompaniment-first melody suppression](https://github.com/perchristian/music-practice-poc/issues/9)
+  (`owner:agent`; completed in this CR2 iteration).
 - Current human action:
   [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
   (`owner:per`, `state:ready`). Reply in the exact `APPROVE` or `CHANGES` format
   requested in the issue.
-- Blocked by human action: CR2 development is not blocked. Opening the RWC
-  holdout is blocked until #8 is answered.
+- Blocked by human action: CR2E cannot open the RWC holdout until #8 is
+  answered. No other `owner:per` issue should be made ready first.
 
 ## In Progress
 
 - No implementation phase is currently in progress.
+- CR2 is complete. Both local variants were rejected by their precommitted
+  development rule; the mandatory Chordino comparison materially outperformed
+  the local baseline. Decision 38 stops CR3–CR5 pending the guarded replacement
+  evaluation in CR2E. Details are in
+  `benchmarks/chord-reliability-cr2-checkpoint.md`.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -142,16 +157,14 @@ Local web POC:
 
 ## Next Recommended Task
 
-CR2: validate accompaniment-first melody suppression against the generated
-fixtures and locked RWC-P development split. See `docs/planning/TASKS.md` for
-the task contract.
-
-Issue #8 is not needed to start CR2 development; it is needed before the RWC
-holdout is opened.
+Product owner: answer issue #8 in its exact `APPROVE` or `CHANGES` format. After
+approval, the next agent task is CR2E: run the unchanged local baseline and
+Chordino on the locked RWC-P holdout, then prepare the approved manual-domain
+review packet. See `docs/planning/TASKS.md`.
 
 ## Context Recovery Review Result
 
-Type: Fresh Session
+Type: Simulated
 
 Files used:
 - `docs/planning/STATUS.md`
@@ -166,25 +179,42 @@ Summary:
   analyzer suggestions.
 - Completed work: the end-to-end library, practice workspace, mixer, transport,
   metronome, timing editor/map, editable Harmony chart, mock pipeline, real
-  six-stem Demucs pipeline, and CR0/CR1 chord-reliability work are implemented
-  and verified.
-- Remaining work: chord reliability remains the decisive validation gate.
-  CR2–CR6 remain, with the four-track RWC holdout blocked on product-owner
-  approval of thresholds and manual domain-check scope. Practice-target,
-  stem-import, and timeline-hardening work remain behind the gate.
-- Next recommended task: CR2 — validate accompaniment-first melody suppression
-  on generated fixtures and the locked RWC-P development split; create its
-  `owner:agent` issue when starting.
+  six-stem Demucs pipeline, and CR0–CR2 chord-reliability work are implemented
+  and verified. CR2 rejected two local variants and established Chordino as the
+  replacement candidate on development.
+- Remaining work: chord reliability remains the decisive validation gate. CR2E
+  must evaluate Chordino on the four-track RWC holdout and representative screen
+  recordings; CR3–CR5 are deferred behind that replacement decision. Practice-
+  target, stem-import, and timeline-hardening work remain behind the gate.
+- Next recommended task: product-owner issue #8, then CR2E.
 
 Gaps found:
-- No material gaps. The four files consistently identify CR2 as the next task,
-  the chord-reliability gate as the active priority, and issue #8 as required
-  only before opening the RWC holdout.
+- No material gaps. The four files identify Chordino as the development winner,
+  CR2E as the next agent task after issue #8, and the unopened holdout plus
+  manual screen-recording check as the remaining decision evidence.
 
 Result:
 PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR2 implementation.
+  - Purpose: test the two smallest isolated evidence policies, preserve the
+    existing product default after both failed, and reuse the benchmark/evaluator
+    seams for the mandatory external control.
+  - Result: both local variants were rejected without product behavior change;
+    the optional Chordino adapter established a materially stronger development
+    candidate without adding an application dependency.
+  - Reproducibility: all policies, tests, transform parameters, commands, and
+    aggregate results are version-controlled; the skill is not required.
+- Used Codex skill `github:github` on 2026-08-10 for CR2 ownership tracking.
+  - Purpose: satisfy the GitHub-Issue execution contract.
+  - Result: created owner-agent issue #9; issue #8 remains the only ready human
+    action and blocks opening the holdout.
+  - Reproducibility: issue state is visible on GitHub and local execution does
+    not depend on the skill.
+- No sub-agent delegation or model switch was used for CR2; the session retained
+  high reasoning throughout.
 
 - Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR1 implementation.
   - Purpose: expose the required benchmark diagnostics and fixtures through the

@@ -247,6 +247,20 @@ reanalysis callers do not request it, so public analyzer metadata and immutable
 provenance remain unchanged. The CR1 measured features are diagnostic-only;
 later hypotheses must benchmark any scoring use as a separate analyzer change.
 
+CR2 adds three explicitly selectable benchmark policies: `legacy`,
+`accompaniment-role`, and `accompaniment-chordal`. The latter two gate full-mix
+chord-quality evidence behind usable accompaniment; the chordal policy also
+requires polyphony in at least half of four subframes. Bass evidence is
+unchanged. Both local variants failed the locked RWC-P development rule, so
+`legacy` remains the product default and CR3–CR5 local heuristics are deferred.
+
+The benchmark runner can also invoke Chordino through Sonic Annotator using the
+versioned `benchmarks/chordino-transform.n3` and the same evaluator. This is an
+optional external control, not part of mock setup or the real pipeline. Its
+development result materially exceeds the local analyzer, but product
+integration is blocked on the unopened RWC holdout and manual screen-recording
+gate recorded in Decision 38.
+
 Corrected-timing reanalysis stores the same two immutable analyzer layers inside `metadata.correctedTimingAnalysis`; `effectiveMetadata` selects those together so suggestions cannot be mixed across analyzer timing versions. Already recovered suggestions are hidden by matching their musical position and label against the working chart.
 
 `Back to analysis` is distinct from adding one suggestion. It requires confirmation whenever a working chart exists, snapshots that exact chart with the active analysis identity and reason, then resets presentation to the current conservative analyzer layer. `Undo reset` restores the snapshot once only when the song still has no newer working chart and the same analysis identity remains active. Corrected-timing reanalysis assigns a new identity and creates an undoable snapshot only when it actually displaces a working chart; stale backups are cleared rather than carried across analyses. Neither path merges or trains on user edits.

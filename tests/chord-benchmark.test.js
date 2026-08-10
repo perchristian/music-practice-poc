@@ -13,7 +13,12 @@ import {
   validateAudioFilename,
   validateIntervals
 } from "../scripts/chord-benchmark-lib.js";
-import { assertHoldoutAccess, lockedHoldoutIndexes } from "../scripts/benchmark-chords.js";
+import {
+  alignChordinoToSegments,
+  assertHoldoutAccess,
+  lockedHoldoutIndexes,
+  parseChordinoCsv
+} from "../scripts/benchmark-chords.js";
 import { selectArchiveMembers } from "../scripts/extract-rwc-pilot.js";
 
 describe("RWC chord benchmark contract", () => {
@@ -118,6 +123,32 @@ describe("RWC chord benchmark contract", () => {
     assert.throws(
       () => diagnosticsForBenchmarkResult({ diagnostics: { version: 1, beats: [{}] } }),
       /per-source evidence/
+    );
+  });
+
+  it("parses and reference-aligns Chordino output", () => {
+    const intervals = parseChordinoCsv([
+      '"fixture.wav",0.000000000,"N"',
+      ',0.050000000,"C"',
+      ',1.100000000,"G:7"'
+    ].join("\n"), 2);
+    assert.deepEqual(intervals, [
+      { start: 0, end: 0.05, label: "N" },
+      { start: 0.05, end: 1.1, label: "C" },
+      { start: 1.1, end: 2, label: "G:7" }
+    ]);
+    assert.deepEqual(alignChordinoToSegments(intervals, [
+      { start: 0, end: 0.5 },
+      { start: 0.5, end: 1 },
+      { start: 1, end: 1.5 },
+      { start: 1.5, end: 2 }
+    ]), [
+      { start: 0, end: 1, label: "C" },
+      { start: 1, end: 2, label: "G:7" }
+    ]);
+    assert.throws(
+      () => parseChordinoCsv(',1.000000000,"C"\n,0.500000000,"G"', 2),
+      /strictly increasing/
     );
   });
 });

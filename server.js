@@ -61,6 +61,13 @@ const HARMONIC_STEM_WEIGHTS = {
   guitar: 0.9,
   piano: 0.7
 };
+const HARMONIC_EVIDENCE_POLICIES = new Set([
+  "legacy",
+  "accompaniment-role",
+  "accompaniment-chordal"
+]);
+const DEFAULT_HARMONIC_EVIDENCE_POLICY = "legacy";
+const MIN_CHORDAL_SUBFRAME_RATIO = 0.5;
 const BASS_STEM_WEIGHTS = {
   bass: 1.6,
   accompaniment: 0.4
@@ -964,35 +971,54 @@ async function loadAnalysisStemAudios(extracted, separation, { includeDiagnostic
   return loaded;
 }
 
-function chromaEvidenceForBar(audio, stemAudios, bar, { includeDiagnostics = false } = {}) {
+function chromaEvidenceForBar(
+  audio,
+  stemAudios,
+  bar,
+  { includeDiagnostics = false, evidencePolicy = DEFAULT_HARMONIC_EVIDENCE_POLICY } = {}
+) {
   const chroma = Array(12).fill(0);
   const bassChroma = Array(12).fill(0);
   let harmonicWeight = 0;
   let bassWeight = 0;
 
   const sourceEvidence = includeDiagnostics
-    ? sourceDiagnostics("fullMix", audio, bar, 0.45, 0.7, true)
+    ? sourceDiagnostics("fullMix", audio, bar, 0, 0.7, true)
     : null;
   const sourceChroma = sourceEvidence?.chroma ||
     pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
   const sourceBassChroma = sourceEvidence?.bassChroma ||
     pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
-  addWeightedChroma(chroma, sourceChroma, 0.45);
+  let fullMixHarmonicWeight = evidencePolicy === "legacy" ? 0.45 : 0;
+  if (fullMixHarmonicWeight) {
+    addWeightedChroma(chroma, sourceChroma, fullMixHarmonicWeight);
+    harmonicWeight += fullMixHarmonicWeight;
+  }
   addWeightedChroma(bassChroma, sourceBassChroma, 0.7);
-  harmonicWeight += 0.45;
   bassWeight += 0.7;
   const diagnosticSources = sourceEvidence ? [sourceEvidence.public] : [];
 
   for (const stem of stemAudios) {
     const audible = segmentRms(stem.audio, bar.start, bar.end) >= MIN_ANALYSIS_STEM_RMS;
-    const included = audible && Boolean(stem.harmonicWeight || stem.bassWeight);
-    const evidence = includeDiagnostics
-      ? sourceDiagnostics(stem.id, stem.audio, bar, stem.harmonicWeight, stem.bassWeight, included, audible)
+    const evidence = includeDiagnostics || evidencePolicy === "accompaniment-chordal"
+      ? sourceDiagnostics(stem.id, stem.audio, bar, stem.harmonicWeight, stem.bassWeight, false, audible)
       : null;
-    if (evidence) diagnosticSources.push(evidence.public);
+    const harmonicIncluded = audible && Boolean(stem.harmonicWeight) && (
+      evidencePolicy !== "accompaniment-chordal" ||
+      evidence.public.chordality.polyphonicSubframeRatio >= MIN_CHORDAL_SUBFRAME_RATIO
+    );
+    const bassIncluded = audible && Boolean(stem.bassWeight);
+    if (evidence) {
+      evidence.public.included = harmonicIncluded || bassIncluded;
+      evidence.public.harmonicIncluded = harmonicIncluded;
+      evidence.public.bassIncluded = bassIncluded;
+      evidence.public.measuredFeaturesAffectScoring =
+        evidencePolicy === "accompaniment-chordal" && Boolean(stem.harmonicWeight);
+      diagnosticSources.push(evidence.public);
+    }
     if (!audible) continue;
 
-    if (stem.harmonicWeight) {
+    if (harmonicIncluded) {
       const stemChroma = evidence?.chroma ||
         pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
       addWeightedChroma(chroma, stemChroma, stem.harmonicWeight);
@@ -1007,6 +1033,17 @@ function chromaEvidenceForBar(audio, stemAudios, bar, { includeDiagnostics = fal
     }
   }
 
+  if (evidencePolicy !== "legacy" && harmonicWeight === 0) {
+    fullMixHarmonicWeight = 0.45;
+    addWeightedChroma(chroma, sourceChroma, fullMixHarmonicWeight);
+    harmonicWeight += fullMixHarmonicWeight;
+  }
+  if (sourceEvidence) {
+    sourceEvidence.public.harmonicWeight = fullMixHarmonicWeight;
+    sourceEvidence.public.harmonicIncluded = Boolean(fullMixHarmonicWeight);
+    sourceEvidence.public.bassIncluded = true;
+  }
+
   const combinedChroma = normalizeChroma(harmonicWeight ? chroma.map((value) => value / harmonicWeight) : chroma);
   const combinedBassChroma = normalizeChroma(bassWeight ? bassChroma.map((value) => value / bassWeight) : bassChroma);
   return {
@@ -1019,7 +1056,8 @@ function chromaEvidenceForBar(audio, stemAudios, bar, { includeDiagnostics = fal
           chroma: roundedChroma(combinedChroma),
           bassChroma: roundedChroma(combinedBassChroma),
           harmonicWeight: Number(harmonicWeight.toFixed(3)),
-          bassWeight: Number(bassWeight.toFixed(3))
+          bassWeight: Number(bassWeight.toFixed(3)),
+          evidencePolicy
         },
         sourceOnly: { chroma: sourceChroma, bassChroma: sourceBassChroma }
       }
@@ -1317,9 +1355,13 @@ async function analyzeHarmonyFromAudio(
     timingGrid = null,
     fixedKey = null,
     sequenceSmoothing = "isolated",
-    includeDiagnostics = false
+    includeDiagnostics = false,
+    evidencePolicy = DEFAULT_HARMONIC_EVIDENCE_POLICY
   } = {}
 ) {
+  if (!HARMONIC_EVIDENCE_POLICIES.has(evidencePolicy)) {
+    throw new Error(`Unsupported harmonic evidence policy: ${evidencePolicy}`);
+  }
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
   const stemAudios = await loadAnalysisStemAudios(extracted, separation, { includeDiagnostics });
@@ -1330,7 +1372,10 @@ async function analyzeHarmonyFromAudio(
   const diagnosticBeats = [];
 
   for (const segment of segments) {
-    const evidence = chromaEvidenceForBar(audio, stemAudios, segment, { includeDiagnostics });
+    const evidence = chromaEvidenceForBar(audio, stemAudios, segment, {
+      includeDiagnostics,
+      evidencePolicy
+    });
     const { chroma, bassChroma } = evidence;
     for (let index = 0; index < 12; index += 1) {
       aggregateChroma[index] += chroma[index];
@@ -1433,6 +1478,7 @@ async function analyzeHarmonyFromAudio(
       durationMs: Date.now() - startedAt,
       keySource: key.source === "user" ? "user-override" : "estimated",
       sequenceSmoothing,
+      evidencePolicy,
       rawChordCueCount: chordDrafts.length,
       suppressedChordCount: suppressedChordSuggestions.length,
       sources: {
