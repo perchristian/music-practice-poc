@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   analyzeHarmonyFromAudio,
+  chordSegmentsForBeatGrid,
   chordSegmentsForTimingGrid,
+  estimateBeatGrid,
   readPcm16WavFromFile
 } from "../server.js";
 import {
@@ -34,7 +36,7 @@ const defaults = {
 
 function usage() {
   return `Usage:
-  npm run benchmark:chords -- --timing oracle|estimated|both [--analyzer local|chordino] [--split development|holdout|all] [--smoothing isolated|none] [--evidence-policy POLICY] [--limit N]
+  npm run benchmark:chords -- --timing oracle|estimated|both [--analyzer local|chordino] [--chordino-policy raw|musical-window] [--split development|holdout|all] [--smoothing isolated|none] [--evidence-policy POLICY] [--limit N]
   npm run benchmark:chords -- --create-manifest [--exclude-manifest PATH] [--count N] [--holdout-count N]
 
 Options:
@@ -52,6 +54,8 @@ Options:
   --evidence-policy NAME
                        legacy, accompaniment-role, or accompaniment-chordal
   --analyzer NAME      local (default) or chordino external control
+  --chordino-policy NAME
+                       raw (default) or musical-window development candidate
   --sonic-annotator PATH
                        Sonic Annotator executable used by --analyzer chordino
   --chordino-transform PATH
@@ -72,6 +76,7 @@ function parseArgs(argv) {
     smoothing: "isolated",
     evidencePolicy: "legacy",
     analyzer: "local",
+    chordinoPolicy: "raw",
     limit: null,
     track: null,
     dryRun: false,
@@ -101,7 +106,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = argument.startsWith("--") ? argument.slice(2) : null;
-    if (![...pathKeys, "timing", "split", "smoothing", "evidence-policy", "analyzer", "limit", "track", "count", "holdout-count"].includes(key)) {
+    if (![...pathKeys, "timing", "split", "smoothing", "evidence-policy", "analyzer", "chordino-policy", "limit", "track", "count", "holdout-count"].includes(key)) {
       throw new Error(`Unknown argument: ${argument}`);
     }
     const value = argv[index + 1];
@@ -112,6 +117,9 @@ function parseArgs(argv) {
   }
   if (!new Set(["oracle", "estimated", "both"]).has(result.timing)) throw new Error(`Invalid timing mode: ${result.timing}`);
   if (!new Set(["local", "chordino"]).has(result.analyzer)) throw new Error(`Invalid analyzer: ${result.analyzer}`);
+  if (!new Set(["raw", "musical-window"]).has(result.chordinoPolicy)) {
+    throw new Error(`Invalid Chordino policy: ${result.chordinoPolicy}`);
+  }
   if (!new Set(["development", "holdout", "all"]).has(result.split)) throw new Error(`Invalid split: ${result.split}`);
   if (!new Set(["isolated", "none"]).has(result.smoothing)) throw new Error(`Invalid smoothing mode: ${result.smoothing}`);
   if (!new Set(["legacy", "accompaniment-role", "accompaniment-chordal"]).has(result.evidencePolicy)) {
@@ -169,6 +177,16 @@ export function lockedHoldoutIndexes(count, holdoutCount) {
 export function assertHoldoutAccess(selectedTracks, { dryRun, allowHoldout }) {
   if (!dryRun && selectedTracks.some((track) => track.split === "holdout") && !allowHoldout) {
     throw new Error("Holdout analyzer results are locked. Re-run with --allow-holdout only at a precommitted milestone gate.");
+  }
+}
+
+export function assertChordinoPolicyAccess(selectedTracks, { analyzer, chordinoPolicy }) {
+  if (
+    analyzer === "chordino" &&
+    chordinoPolicy === "musical-window" &&
+    selectedTracks.some((track) => track.split === "holdout")
+  ) {
+    throw new Error("The CR2F musical-window policy is development-only; the consumed holdout is unavailable.");
   }
 }
 
@@ -306,6 +324,71 @@ export function alignChordinoToSegments(intervals, segments) {
   })));
 }
 
+function durationEvidence(intervals, segment) {
+  const durations = new Map();
+  for (const interval of intervals) {
+    const overlap = Math.max(0, Math.min(interval.end, segment.end) - Math.max(interval.start, segment.start));
+    if (overlap > 0) durations.set(interval.label, (durations.get(interval.label) || 0) + overlap);
+  }
+  if (!durations.size) return { label: "N", occupancy: 1, labelCount: 0 };
+  const maximum = Math.max(...durations.values());
+  const midpoint = labelAt(intervals, (segment.start + segment.end) / 2);
+  const tied = [...durations].filter(([, duration]) => Math.abs(duration - maximum) < 1e-9).map(([label]) => label);
+  return {
+    label: tied.includes(midpoint) ? midpoint : tied.sort()[0],
+    occupancy: maximum / (segment.end - segment.start),
+    labelCount: durations.size
+  };
+}
+
+function nearestDistance(value, points) {
+  return Math.min(...points.map((point) => Math.abs(value - point)));
+}
+
+export function diagnoseChordinoMusicalWindows(intervals, segments) {
+  const beatPoints = [...segments.map((segment) => segment.start), segments.at(-1)?.end]
+    .filter(Number.isFinite);
+  const offBeatPoints = segments.map((segment) => (segment.start + segment.end) / 2);
+  const boundaries = intervals.slice(1).map((interval) => interval.start);
+  const evidence = segments.map((segment) => durationEvidence(intervals, segment));
+  const distances = boundaries.map((boundary) => ({
+    beat: nearestDistance(boundary, beatPoints),
+    offBeat: nearestDistance(boundary, offBeatPoints)
+  }));
+  return {
+    rawBoundaryCount: boundaries.length,
+    boundariesNearBeat100ms: distances.filter((distance) => distance.beat <= 0.1).length,
+    boundariesNearOffBeat100ms: distances.filter((distance) => distance.offBeat <= 0.1).length,
+    boundariesFartherThan250ms: distances.filter((distance) => Math.min(distance.beat, distance.offBeat) > 0.25).length,
+    multiLabelWindowCount: evidence.filter((item) => item.labelCount > 1).length,
+    churnWindowCount: evidence.filter((item) => item.labelCount > 2).length,
+    midpointDisagreementCount: segments.filter((segment, index) =>
+      labelAt(intervals, (segment.start + segment.end) / 2) !== evidence[index].label
+    ).length,
+    meanWinnerOccupancy: evidence.length
+      ? evidence.reduce((sum, item) => sum + item.occupancy, 0) / evidence.length
+      : 0
+  };
+}
+
+export function alignChordinoToMusicalWindows(intervals, segments, { smoothing = "isolated" } = {}) {
+  const aligned = segments.map((segment) => ({
+    start: segment.start,
+    end: segment.end,
+    label: durationEvidence(intervals, segment).label
+  }));
+  const smoothed = smoothing === "isolated"
+    ? aligned.map((interval, index) => {
+      const previous = aligned[index - 1];
+      const next = aligned[index + 1];
+      return previous && next && previous.label === next.label && interval.label !== previous.label
+        ? { ...interval, label: previous.label }
+        : interval;
+    })
+    : aligned;
+  return mergeAdjacentIntervals(smoothed);
+}
+
 async function analyzeWithChordino(options, audioPath, durationSeconds, cache) {
   if (!cache.has(audioPath)) {
     cache.set(audioPath, (async () => {
@@ -410,14 +493,25 @@ async function runTimingMode(options, manifest, selectedTracks, timing, chordino
         }
       )
       : await analyzeWithChordino(options, audioPath, audio.durationSeconds, chordinoCache);
+    const chordinoSegments = options.analyzer === "chordino" && options.chordinoPolicy === "musical-window"
+      ? timing === "oracle"
+        ? chordSegmentsForTimingGrid(buildOracleTimingGrid(track), audio.durationSeconds)
+        : chordSegmentsForBeatGrid(estimateBeatGrid(audio), audio.durationSeconds)
+      : null;
     const estimated = options.analyzer === "local"
       ? predictionsToIntervals(result.chords)
-      : timing === "oracle"
-        ? alignChordinoToSegments(
+      : options.chordinoPolicy === "musical-window"
+        ? alignChordinoToMusicalWindows(
           result.intervals,
-          chordSegmentsForTimingGrid(buildOracleTimingGrid(track), audio.durationSeconds)
+          chordinoSegments,
+          { smoothing: options.smoothing }
         )
-        : result.intervals;
+        : timing === "oracle"
+          ? alignChordinoToSegments(
+            result.intervals,
+            chordSegmentsForTimingGrid(buildOracleTimingGrid(track), audio.durationSeconds)
+          )
+          : result.intervals;
     peakResidentMemoryEstimateBytes = Math.max(peakResidentMemoryEstimateBytes, process.memoryUsage().rss);
     predictions.push({
       trackId: track.trackId,
@@ -428,14 +522,21 @@ async function runTimingMode(options, manifest, selectedTracks, timing, chordino
       reference: track.chords,
       estimated,
       estimatedKey: options.analyzer === "local" ? result.key : null,
-      analyzer: options.analyzer === "local" ? result.analysis.name : "chordino-v5",
+      analyzer: options.analyzer === "local"
+        ? result.analysis.name
+        : options.chordinoPolicy === "raw"
+          ? "chordino-v5"
+          : "chordino-v5-musical-window-v1",
+      ...(chordinoSegments ? {
+        chordinoDiagnostics: diagnoseChordinoMusicalWindows(result.intervals, chordinoSegments)
+      } : {}),
       ...(options.analyzer === "local" ? { diagnostics: diagnosticsForBenchmarkResult(result) } : {})
     });
   }
   if (options.dryRun) return null;
 
   const evaluation = await evaluateWithMirEval(options, {
-    tracks: predictions.map(({ diagnostics, ...prediction }) => prediction)
+    tracks: predictions.map(({ diagnostics, chordinoDiagnostics, ...prediction }) => prediction)
   });
   const diagnostics = predictions
     .filter((prediction) => prediction.diagnostics)
@@ -452,7 +553,11 @@ async function runTimingMode(options, manifest, selectedTracks, timing, chordino
     split: options.split,
     smoothing: options.smoothing,
     analyzer: options.analyzer,
-    evidencePolicy: options.analyzer === "local" ? options.evidencePolicy : "chordino-defaults",
+    evidencePolicy: options.analyzer === "local"
+      ? options.evidencePolicy
+      : options.chordinoPolicy === "raw"
+        ? "chordino-defaults"
+        : "chordino-musical-window-v1",
     evidenceMode: options.analyzer === "local" && options.stems ? "demucs-assisted" : "full-mix",
     manifest: options.manifest,
     dataset: manifest.dataset,
@@ -465,6 +570,9 @@ async function runTimingMode(options, manifest, selectedTracks, timing, chordino
       winnerChangeCounts
     },
     diagnostics,
+    chordinoDiagnostics: predictions
+      .filter((prediction) => prediction.chordinoDiagnostics)
+      .map(({ trackId, chordinoDiagnostics }) => ({ trackId, ...chordinoDiagnostics })),
     evaluation
   };
   await mkdir(options.output, { recursive: true });
@@ -498,6 +606,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (options.limit !== null) selectedTracks = selectedTracks.slice(0, options.limit);
   if (!selectedTracks.length) throw new Error("No manifest tracks matched the requested selection.");
   assertHoldoutAccess(selectedTracks, options);
+  assertChordinoPolicyAccess(selectedTracks, options);
   const modes = options.timing === "both" ? ["oracle", "estimated"] : [options.timing];
   const chordinoCache = new Map();
   for (const timing of modes) await runTimingMode(options, manifest, selectedTracks, timing, chordinoCache);

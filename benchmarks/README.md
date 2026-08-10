@@ -118,6 +118,31 @@ without treating CR2E as passed or authorizing integration. Use
 frozen steps and response format in
 `chord-reliability-cr2e-manual-review.md`.
 
+## CR2F musical-window candidate
+
+Candidate A is selected explicitly with `--chordino-policy musical-window`. It
+uses duration evidence inside authoritative beat windows, preserves raw
+Chordino intervals, and records the derived identity
+`chordino-v5-musical-window-v1`. It is a benchmark policy, not an application
+analyzer. The CLI rejects this policy for holdout tracks even when
+`--allow-holdout` is supplied.
+
+```sh
+npm run benchmark:chords -- \
+  --manifest benchmarks/chord-reliability-rwc-v1.json \
+  --audio .benchmark-data/chord-reliability-rwc-audio \
+  --split development --timing both --analyzer chordino \
+  --chordino-policy musical-window \
+  --sonic-annotator /path/to/sonic-annotator \
+  --output benchmark-results/chord-reliability/cr2f/candidate-a
+npm run prepare:cr2f-review
+```
+
+The candidate passed its frozen development gate. Review details and the exact
+human response are in `chord-reliability-cr2f-checkpoint.md` and
+`chord-reliability-cr2f-manual-review.md`. Do not run Candidate B unless that
+review returns `PERSISTENT_ROOTS`.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:

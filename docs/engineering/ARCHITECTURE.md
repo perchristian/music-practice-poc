@@ -257,9 +257,12 @@ unchanged. Both local variants failed the locked RWC-P development rule, so
 The benchmark runner can also invoke Chordino through Sonic Annotator using the
 versioned `benchmarks/chordino-transform.n3` and the same evaluator. This is an
 optional external control, not part of mock setup or the real pipeline. Its
-development result materially exceeds the local analyzer, but product
-integration is blocked on the unopened RWC holdout and manual screen-recording
-gate recorded in Decision 38.
+development result materially exceeds the local analyzer, but it failed the
+consumed CR2E holdout and manual screen-recording gates. CR2F adds a separate
+benchmark-only `chordino-v5-musical-window-v1` identity that assigns raw labels
+by duration within authoritative beats and applies isolated-beat smoothing. It
+passed its development gate, but product integration remains blocked pending
+the raw-versus-candidate review and any later fresh validation.
 
 Corrected-timing reanalysis stores the same two immutable analyzer layers inside `metadata.correctedTimingAnalysis`; `effectiveMetadata` selects those together so suggestions cannot be mixed across analyzer timing versions. Already recovered suggestions are hidden by matching their musical position and label against the working chart.
 

@@ -64,6 +64,10 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added the benchmark-only CR2F musical-window Chordino policy, frozen
+  development gate, boundary/occupancy diagnostics, and synchronized raw-versus-
+  candidate review. Candidate A passed development; it does not change product
+  analysis or reopen the consumed holdout.
 - Added a local-only Chordino review page and frozen three-recording qualitative
   packet for the product-owner-authorized CR2E reframe. It does not integrate
   Chordino or change the recorded failed gate.

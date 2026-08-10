@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "policy": "Frozen user-corrected timing used for the consumed CR2F local comparison.",
+  "scenarios": [
+    {
+      "id": "full-band-three-minute",
+      "sourceId": "te-amo",
+      "sourceSha256": "9c16e17784a18b5d4bf95905e795f3260eb653403786e7b8c9afd27021cce4d1",
+      "grid": {
+        "bpm": 119.3,
+        "beatDurationSeconds": 0.503,
+        "beatsPerBar": 4,
+        "beatUnit": 4,
+        "downbeatOffsetSeconds": 1.406,
+        "timingMap": {
+          "version": 2,
+          "events": [
+            { "bar": 1, "timeSeconds": 1.247, "timeSignature": { "beatsPerBar": 4, "beatUnit": 4 } }
+          ]
+        }
+      }
+    },
+    {
+      "id": "no-dedicated-bass",
+      "sourceId": "changes-part-1",
+      "sourceSha256": "838e34d054af3921eb2acd3641a1d31504c2a1877838cd37f4c7a066c958e930",
+      "grid": {
+        "bpm": 108.5,
+        "beatDurationSeconds": 0.553,
+        "beatsPerBar": 4,
+        "beatUnit": 4,
+        "downbeatOffsetSeconds": 1.406,
+        "timingMap": {
+          "version": 2,
+          "events": [
+            { "bar": 1, "timeSeconds": 0.552, "timeSignature": { "beatsPerBar": 4, "beatUnit": 4 } },
+            { "bar": 2, "timeSeconds": 2.898 },
+            { "bar": 3, "timeSeconds": 5.193 },
+            { "bar": 4, "timeSeconds": 7.44 },
+            { "bar": 5, "timeSeconds": 9.656 },
+            { "bar": 6, "timeSeconds": 11.884 },
+            { "bar": 8, "timeSeconds": 16.245 },
+            { "bar": 10, "timeSeconds": 20.575 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ornament-heavy-repeat",
+      "sourceId": "shape-of-my-heart",
+      "sourceSha256": "bfdb6584f46db5ed0dbcac0729661b16032f734d4e8cb5c7c41e3e44b77fbc46",
+      "grid": {
+        "bpm": 85.4,
+        "beatDurationSeconds": 0.703,
+        "beatsPerBar": 4,
+        "beatUnit": 4,
+        "downbeatOffsetSeconds": 1.756,
+        "timingMap": {
+          "version": 2,
+          "events": [
+            { "bar": 1, "timeSeconds": 1.606, "timeSignature": { "beatsPerBar": 4, "beatUnit": 4 } },
+            { "bar": 2, "timeSeconds": 4.481 },
+            { "bar": 3, "timeSeconds": 7.364 },
+            { "bar": 4, "timeSeconds": 10.158 },
+            { "bar": 5, "timeSeconds": 13.09 },
+            { "bar": 6, "timeSeconds": 15.916 },
+            { "bar": 7, "timeSeconds": 18.739 },
+            { "bar": 8, "timeSeconds": 21.615 },
+            { "bar": 11, "timeSeconds": 30.194 }
+          ]
+        }
+      }
+    }
+  ]
+}

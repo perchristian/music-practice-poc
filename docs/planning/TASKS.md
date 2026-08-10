@@ -2,10 +2,10 @@
 
 ## Next Task
 
-CR2F bounded Chordino timing and arpeggio stabilization. Diagnose whether the
-`ShapeOfMyHeart` failure is predominantly musical-boundary placement and
-short-lived label churn, then test at most two development-only candidates. Do
-not reopen the consumed RWC holdout or add Chordino to the product.
+CR2F Candidate A passed its development gate and is waiting on the raw-versus-
+candidate review in product-owner issue #12. Candidate B remains conditional on
+a `PERSISTENT_ROOTS` response. Do not reopen the consumed RWC holdout or add
+Chordino to the product.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
@@ -29,7 +29,7 @@ Ownership. They are not duplicated here.
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
 | [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
-| [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | **Ready — bounded agent experiment** |
+| [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | **Waiting on review issue #12** |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
@@ -294,10 +294,10 @@ Milestone:
   subprocess memory, and failure behavior. This task never authorizes product
   integration by itself.
 
-Status: Ready after the product owner authorized the scoped follow-up on
-2026-08-10. A dedicated `owner:agent` GitHub issue remains to be created because
-local `gh` authentication is invalid and the connected app exposes issue reads
-but not issue creation/state changes.
+Status: Candidate A passed the frozen development gate on 2026-08-10. Issue #11
+is waiting on the raw-versus-candidate review in ready product-owner issue #12.
+Candidate B remains conditional on a `PERSISTENT_ROOTS` response; the holdout
+was not reopened and product behavior remains unchanged.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 

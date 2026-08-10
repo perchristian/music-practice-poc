@@ -14,8 +14,11 @@ import {
   validateIntervals
 } from "../scripts/chord-benchmark-lib.js";
 import {
+  alignChordinoToMusicalWindows,
   alignChordinoToSegments,
+  assertChordinoPolicyAccess,
   assertHoldoutAccess,
+  diagnoseChordinoMusicalWindows,
   lockedHoldoutIndexes,
   parseChordinoCsv
 } from "../scripts/benchmark-chords.js";
@@ -111,6 +114,17 @@ describe("RWC chord benchmark contract", () => {
     assert.doesNotThrow(() => assertHoldoutAccess(tracks, { dryRun: false, allowHoldout: true }));
   });
 
+  it("never allows the CR2F development candidate to reopen the consumed holdout", () => {
+    const tracks = [{ trackId: "RWC_P024", split: "holdout" }];
+    assert.throws(
+      () => assertChordinoPolicyAccess(tracks, { analyzer: "chordino", chordinoPolicy: "musical-window" }),
+      /development-only/
+    );
+    assert.doesNotThrow(
+      () => assertChordinoPolicyAccess(tracks, { analyzer: "chordino", chordinoPolicy: "raw" })
+    );
+  });
+
   it("adapts only complete analyzer diagnostics into benchmark artifacts", () => {
     const beat = { sources: [{ id: "fullMix" }], candidateScores: [{ name: "C", score: 1 }] };
     assert.deepEqual(diagnosticsForBenchmarkResult({ diagnostics: { version: 1, beats: [beat] } }), {
@@ -150,5 +164,68 @@ describe("RWC chord benchmark contract", () => {
       () => parseChordinoCsv(',1.000000000,"C"\n,0.500000000,"G"', 2),
       /strictly increasing/
     );
+  });
+
+  it("selects duration evidence instead of a transient midpoint label", () => {
+    const intervals = [
+      { start: 0, end: 0.49, label: "C" },
+      { start: 0.49, end: 0.6, label: "G" },
+      { start: 0.6, end: 1, label: "C" }
+    ];
+    const segments = [{ start: 0, end: 1 }];
+
+    assert.equal(alignChordinoToSegments(intervals, segments)[0].label, "G");
+    assert.deepEqual(alignChordinoToMusicalWindows(intervals, segments), [
+      { start: 0, end: 1, label: "C" }
+    ]);
+  });
+
+  it("smooths one isolated beat but preserves a short change across two windows", () => {
+    const segments = [
+      { start: 0, end: 0.5 },
+      { start: 0.5, end: 1 },
+      { start: 1, end: 1.5 },
+      { start: 1.5, end: 2 }
+    ];
+    const isolated = [
+      { start: 0, end: 0.5, label: "C" },
+      { start: 0.5, end: 1, label: "G" },
+      { start: 1, end: 2, label: "C" }
+    ];
+    assert.deepEqual(alignChordinoToMusicalWindows(isolated, segments), [
+      { start: 0, end: 2, label: "C" }
+    ]);
+
+    const shortOffBeat = [
+      { start: 0, end: 0.7, label: "C" },
+      { start: 0.7, end: 1.3, label: "G" },
+      { start: 1.3, end: 2, label: "C" }
+    ];
+    assert.deepEqual(alignChordinoToMusicalWindows(shortOffBeat, segments), [
+      { start: 0, end: 0.5, label: "C" },
+      { start: 0.5, end: 1.5, label: "G" },
+      { start: 1.5, end: 2, label: "C" }
+    ]);
+  });
+
+  it("reports beat occupancy and raw-boundary distance diagnostics", () => {
+    const intervals = [
+      { start: 0, end: 0.45, label: "C" },
+      { start: 0.45, end: 0.55, label: "G" },
+      { start: 0.55, end: 2, label: "C" }
+    ];
+    assert.deepEqual(diagnoseChordinoMusicalWindows(intervals, [
+      { start: 0, end: 1 },
+      { start: 1, end: 2 }
+    ]), {
+      rawBoundaryCount: 2,
+      boundariesNearBeat100ms: 0,
+      boundariesNearOffBeat100ms: 2,
+      boundariesFartherThan250ms: 0,
+      multiLabelWindowCount: 1,
+      churnWindowCount: 0,
+      midpointDisagreementCount: 1,
+      meanWinnerOccupancy: 0.95
+    });
   });
 });

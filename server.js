@@ -3165,6 +3165,7 @@ async function route(req, res) {
 
 export {
   analyzeHarmonyFromAudio,
+  chordSegmentsForBeatGrid,
   chordSegmentsForTimingGrid,
   estimateBeatGrid,
   readPcm16WavFromFile,

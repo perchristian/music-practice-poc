@@ -71,5 +71,7 @@ of the day it was moved.
 - [benchmarks/README.md](../benchmarks/README.md) — benchmark datasets, contracts, and baselines
 - [chord-reliability-cr1-checkpoint.md](../benchmarks/chord-reliability-cr1-checkpoint.md) — inspectable full-mix/Demucs development baseline and dominant error review
 - [chord-reliability-cr2-checkpoint.md](../benchmarks/chord-reliability-cr2-checkpoint.md) — rejected accompaniment variants, Chordino development control, and replacement gate
+- [chord-reliability-cr2f-checkpoint.md](../benchmarks/chord-reliability-cr2f-checkpoint.md) — musical-window Candidate A development gate and diagnostic result
+- [chord-reliability-cr2f-manual-review.md](../benchmarks/chord-reliability-cr2f-manual-review.md) — raw-versus-candidate review packet and frozen response
 - [assets/design-screenshots/](../assets/design-screenshots/) — prototype screenshots used by the design brief
 - [assets/moises-screenshots/](../assets/moises-screenshots/) — Moises reference captures used by the competitive analysis
