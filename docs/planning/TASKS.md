@@ -381,6 +381,9 @@ Hypothesis:
 Test strategy:
 - Freeze a small Level-1 set of user-held, licensed, or generated passages with
   clear triads, roots, timing, and reference interpretations.
+- Run the staged specialist capability experiment: blind audio through a
+  separately configured audio-input model, neutral beat/pitch evidence through
+  the current reviewer, candidate labels next, and ground truth last.
 - Review each passage using
   `docs/research/musical-chord-review-method.md`, then add Level-2 material only
   after unexplained rewrite-level failures are resolved or bounded.
@@ -398,6 +401,8 @@ Decision rule:
 Files and symbols:
 - `docs/research/musical-chord-review-method.md`: review protocol and report
   contract
+- `docs/research/specialist-harmony-agent-capability-test.md`: staged-disclosure
+  capability experiment
 - `benchmarks/chord-reliability-cr2f-manual-review.md`: amended pending review
 - future committed musical-review reports and complexity manifest
 
@@ -411,6 +416,8 @@ Contracts to preserve:
 - Consumed local recordings are diagnostic evidence only.
 - Musical ambiguity and alternate valid readings remain explicit.
 - The Workspace Agent advises; durable evidence and decisions remain in Git.
+- The current `gpt-5.3-codex` reviewer never claims direct listening; it receives
+  text/image musical evidence until a separate audio-capable path is validated.
 
 Non-goals:
 - Building a theory engine, notation system, or new analyzer candidate.

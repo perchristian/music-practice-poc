@@ -241,6 +241,17 @@ PASS
 
 ## Skills Used
 
+- Used Codex skill `openai-docs` on 2026-08-10 to verify the draft reviewer's
+  audio capability before treating it as a musical listener.
+  - Purpose: distinguish direct audio perception from theory-led reasoning over
+    representations, analyzer labels, and ground truth.
+  - Result: official model documentation confirms that the draft's
+    `gpt-5.3-codex` model supports text and image input but not audio. MR0 now
+    requires a staged capability experiment and reserves blind audio for a
+    separately configured audio-input model.
+  - Reproducibility: the documented model modality and the version-controlled
+    experiment contract are sufficient; the project does not depend on the
+    skill.
 - Used Codex skill `workspace-agents:workspace-agents-build-agent` on
   2026-08-10 to create the draft `Musical Harmony Reviewer`.
   - Purpose: provide a professional musical reviewer that separates acoustic
@@ -403,9 +414,11 @@ Older skill use is recorded in `docs/archive/STATUS_ARCHIVE.md`.
 ## Agent and Model Use
 
 - Created the unpublished Workspace Agent draft `Musical Harmony Reviewer` with
-  its workspace default `gpt-5.3-codex` model. It has not yet judged project
-  evidence or changed repository files; its future output is advisory and must
-  be committed as an ordinary review report before it affects a decision.
+  its workspace default `gpt-5.3-codex` model. That model does not support audio
+  input, so the draft is a text/image musical reasoner rather than a direct
+  listener. It has not yet judged project evidence or changed repository files;
+  its future output is advisory and must be committed as an ordinary review
+  report before it affects a decision.
 - CR1 used one read-only `gpt-5.6-terra` agent at high reasoning for routine
   generator, benchmark-adapter, and test reconnaissance. It recommended the
   opt-in diagnostic seam and identified the fixture/test risks; it changed no
