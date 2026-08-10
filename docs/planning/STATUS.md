@@ -36,8 +36,9 @@ Implemented and verified by automated backend and browser tests:
   analysis.
 
 Persisted state: constant corrections in `practiceState.gridOverrides`; sparse
-variable timing and meter changes in version-2 `practiceState.timingMap` with
-deterministic version-1 migration; viewing in `practiceState.timelineView`. Key,
+variable timing and meter changes in version-2 `practiceState.timingMap`; viewing
+in `practiceState.timelineView`. Disposable version-1 runtime jobs are no longer
+migrated. Key,
 chord chart, sections, and Harmony view are separate user-owned state.
 
 ### Current checkpoint
@@ -93,8 +94,8 @@ Local web POC:
 - `public/app.js` — DOM rendering, transport, persistence, and timeline input.
   The largest integration file.
 - `public/chord-chart.js`, `public/tempo-map.js`, `public/section-ranges.js` —
-  pure, unit-tested model code. `section-ranges.js` is shared with `server.js` so
-  frontend validation and backend persistence cannot diverge.
+  pure, unit-tested model code. Chord-chart, Harmony-view, and section validation
+  are shared with `server.js` so frontend and backend persistence cannot diverge.
 - `scripts/` — benchmark, fixture, and contract-verification tooling. None of it
   touches the application library.
 
@@ -139,12 +140,23 @@ the RWC holdout is opened.
 
 ## Skills Used
 
+- Used Codex skill `ponytail:ponytail` on 2026-08-09 to apply the saved
+  over-engineering audit with deletion and native/shared platform features first.
+  - Purpose: remove retired compatibility and duplicate implementation while
+    preserving the current demo and verification contracts.
+  - Result: the FFmpeg spectral separator and legacy job adapters were removed;
+    multipart parsing and model validation now use native/shared implementations;
+    dead UI, tooling, planning, and screenshot artifacts were deleted. All ten
+    audit findings were applied and verified.
+  - Reproducibility: every change is ordinary version-controlled JavaScript,
+    CSS, tests, and documentation; the skill is not required to run or verify it.
 - Used Codex skill `ponytail:ponytail-audit` on 2026-08-09 for a read-only,
   repository-wide over-engineering audit.
   - Purpose: rank code, compatibility, tooling, styling, and documentation that
     could be deleted or simplified without performing a correctness review.
-  - Result: saved ten unapplied findings and an estimated reduction of about
-    900 lines in `docs/research/ponytail-audit-2026-08-09.md`.
+  - Result: saved ten findings and an estimated reduction of about 900 lines in
+    `docs/research/ponytail-audit-2026-08-09.md`; the follow-up implementation
+    applied all ten.
   - Reproducibility: the report names every target and replacement; the audit
     can be repeated with ordinary repository inspection without the skill.
 - Used Codex skill `github:github` on 2026-07-24 to inspect CR0 issue #2 and its

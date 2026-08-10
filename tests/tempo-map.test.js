@@ -6,16 +6,12 @@ import {
   enumerateBeatTimes,
   localTempoAtSeconds,
   normalizeTimingMap,
-  normalizeTempoMap,
   secondsToAbsoluteBeat,
   secondsToMusicalPosition,
   segmentAroundSeconds,
   timeSignatureAtBar,
-  timingMapFromTempoMap,
   timingMapWithEvent,
-  timingMapWithoutEventAspect,
-  tempoMapWithAnchor,
-  tempoMapWithoutAnchor
+  timingMapWithoutEventAspect
 } from "../public/tempo-map.js";
 import { chordSegmentsForTimingGrid } from "../server.js";
 
@@ -27,36 +23,14 @@ const baseGrid = {
   downbeatOffsetSeconds: 0
 };
 
-describe("tempo map", () => {
-  it("normalizes strictly ordered downbeat anchors", () => {
-    assert.deepEqual(normalizeTempoMap({
-      version: 1,
-      anchors: [
-        { bar: 1, timeSeconds: 0.6549 },
-        { bar: 5, timeSeconds: 17.1254 }
-      ]
-    }), {
-      version: 1,
-      anchors: [
-        { bar: 1, timeSeconds: 0.655 },
-        { bar: 5, timeSeconds: 17.125 }
-      ]
-    });
-
-    assert.equal(normalizeTempoMap({ version: 1, anchors: [{ bar: 2, timeSeconds: 1 }] }), null);
-    assert.equal(normalizeTempoMap({
-      version: 1,
-      anchors: [{ bar: 1, timeSeconds: 1 }, { bar: 3, timeSeconds: 0.5 }]
-    }), null);
-  });
-
+describe("timing map", () => {
   it("maps beats piecewise between sparse downbeats and inverts the mapping", () => {
     const grid = {
       ...baseGrid,
-      tempoMap: {
-        version: 1,
-        anchors: [
-          { bar: 1, timeSeconds: 0 },
+      timingMap: {
+        version: 2,
+        events: [
+          { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
           { bar: 3, timeSeconds: 10 },
           { bar: 5, timeSeconds: 18 }
         ]
@@ -78,10 +52,10 @@ describe("tempo map", () => {
   it("extrapolates with the nearest segment and enumerates click times", () => {
     const grid = {
       ...baseGrid,
-      tempoMap: {
-        version: 1,
-        anchors: [
-          { bar: 1, timeSeconds: 1 },
+      timingMap: {
+        version: 2,
+        events: [
+          { bar: 1, timeSeconds: 1, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
           { bar: 2, timeSeconds: 5 }
         ]
       }
@@ -98,24 +72,13 @@ describe("tempo map", () => {
     );
   });
 
-  it("adds, replaces, and removes anchors while preserving monotonic order", () => {
-    const initial = { version: 1, anchors: [{ bar: 1, timeSeconds: 0 }] };
-    const withBarThree = tempoMapWithAnchor(initial, { bar: 3, timeSeconds: 9 });
-    assert.equal(withBarThree.anchors[1].bar, 3);
-    const replaced = tempoMapWithAnchor(withBarThree, { bar: 3, timeSeconds: 8.5 });
-    assert.equal(replaced.anchors[1].timeSeconds, 8.5);
-    assert.equal(tempoMapWithAnchor(replaced, { bar: 2, timeSeconds: 9 }), null);
-    assert.deepEqual(tempoMapWithoutAnchor(replaced, 3), initial);
-    assert.deepEqual(tempoMapWithoutAnchor(replaced, 1), replaced);
-  });
-
   it("creates chord-analysis windows from corrected variable-tempo beat boundaries", () => {
     const segments = chordSegmentsForTimingGrid({
       ...baseGrid,
-      tempoMap: {
-        version: 1,
-        anchors: [
-          { bar: 1, timeSeconds: 0 },
+      timingMap: {
+        version: 2,
+        events: [
+          { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
           { bar: 2, timeSeconds: 4 },
           { bar: 3, timeSeconds: 10 }
         ]
@@ -129,22 +92,6 @@ describe("tempo map", () => {
       { bar: 1, beat: 4, start: 3, end: 4 },
       { bar: 2, beat: 1, start: 4, end: 5.5 }
     ]);
-  });
-
-  it("migrates version-one anchors into ordered version-two timing events", () => {
-    assert.deepEqual(timingMapFromTempoMap({
-      version: 1,
-      anchors: [
-        { bar: 1, timeSeconds: 0.5 },
-        { bar: 4, timeSeconds: 12.5 }
-      ]
-    }, { timeSignature: { beatsPerBar: 3, beatUnit: 4 } }), {
-      version: 2,
-      events: [
-        { bar: 1, timeSeconds: 0.5, timeSignature: { beatsPerBar: 3, beatUnit: 4 } },
-        { bar: 4, timeSeconds: 12.5 }
-      ]
-    });
   });
 
   it("maps and inverts written beats across a mid-song meter change", () => {

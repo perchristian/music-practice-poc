@@ -59,7 +59,6 @@ async function run() {
   console.log("2. Creating mock song...");
   const jobId = await createProcessedJob(page, "screenshot-design-TeAmo.mov");
   await page.waitForTimeout(800);
-  await shot(page, "02-library-with-song");
 
   // ── 3. Open the song ──────────────────────────────────────────────────────
   console.log("3. Opening song...");
@@ -80,11 +79,6 @@ async function run() {
   await chordList.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await shot(page, "05-chord-grid-basic", { clip: await chordList.boundingBox() });
-
-  // ── 6. Chord grid with section info on (default) ─────────────────────────
-  // sectionInfoVisible defaults to true in app.js, so "+" buttons are already visible
-  console.log("6. Chord grid with section info on...");
-  await shot(page, "06-chord-grid-section-info");
 
   // ── 7. Bar range selection screenshot ────────────────────────────────────
   // Click bottom-half of bar segments to avoid the "+" section-add-bar button at top
@@ -107,14 +101,12 @@ async function run() {
   await page.getByTestId("section-add-bar-1").click();
   await page.getByTestId("section-create-dialog").waitFor({ state: "visible" });
   await page.waitForTimeout(200);
-  await shot(page, "08-section-create-dialog-empty");
   await page.getByTestId("section-create-symbol").fill("Verse");
   await page.getByTestId("section-create-label").fill("First Verse");
   await shot(page, "08b-section-create-dialog-filled");
   await page.getByTestId("section-create-save").click();
   await page.getByTestId("section-create-dialog").waitFor({ state: "hidden" });
   await page.waitForTimeout(400);
-  await shot(page, "09-chord-grid-one-section");
 
   // ── 9. Add second section via "+" on bar 2 ───────────────────────────────
   console.log("9. Adding second section (bar 2, green)...");
@@ -127,18 +119,6 @@ async function run() {
   await page.getByTestId("section-create-dialog").waitFor({ state: "hidden" });
   await page.waitForTimeout(400);
   await shot(page, "09b-chord-grid-two-sections");
-
-  // ── 10. Section edit dialog ───────────────────────────────────────────────
-  console.log("10. Section edit dialog...");
-  const editBtn = page.getByTestId("section-edit-1");
-  if (await editBtn.isVisible()) {
-    await editBtn.click();
-    await page.getByTestId("section-edit-dialog").waitFor({ state: "visible" });
-    await page.waitForTimeout(200);
-    await shot(page, "10-section-edit-dialog");
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(200);
-  }
 
   // ── 11. Loop enabled on chord grid ───────────────────────────────────────
   console.log("11. Loop on chord grid");
@@ -156,32 +136,8 @@ async function run() {
     await editTimingBtn.click();
     await page.waitForTimeout(500);
     await shot(page, "12-timing-edit-mode");
-    // Close-up of timeline area
-    const viewport = page.locator(".timeline-viewport");
-    if (await viewport.isVisible()) {
-      await shot(page, "12b-waveform-close", { clip: await viewport.boundingBox() });
-    }
-    // Anchor panel
-    const anchorPanel = page.locator('[data-testid="timing-editor-controls"]');
-    if (await anchorPanel.isVisible()) {
-      await shot(page, "12c-timing-anchor-panel", { clip: await anchorPanel.boundingBox() });
-    }
     await page.locator('[data-testid="timing-done"]').click();
     await page.waitForTimeout(300);
-  }
-
-  // ── 13. Transport / time controls ────────────────────────────────────────
-  console.log("13. Transport controls");
-  const timePanel = page.locator('[aria-labelledby="timeTitle"]');
-  if (await timePanel.isVisible()) {
-    await shot(page, "13-time-panel", { clip: await timePanel.boundingBox() });
-  }
-
-  // ── 14. Speed controls close-up ──────────────────────────────────────────
-  console.log("14. Speed controls + transport");
-  const transport = page.locator(".transport");
-  if (await transport.isVisible()) {
-    await shot(page, "14-transport-controls", { clip: await transport.boundingBox() });
   }
 
   // ── 15. Chord grid bars-per-row = 4 ──────────────────────────────────────
@@ -193,11 +149,6 @@ async function run() {
     await shot(page, "15-chord-grid-4-per-row");
     await barsPerRow.selectOption("2");
   }
-
-  // ── 16. Full practice view — labelled regions ─────────────────────────────
-  console.log("16. Full view (annotated)");
-  await page.waitForTimeout(300);
-  await shot(page, "16-practice-view-final");
 
   // ── Clean up ──────────────────────────────────────────────────────────────
   await deleteJob(page, jobId);

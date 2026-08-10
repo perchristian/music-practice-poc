@@ -31,7 +31,6 @@ Ownership. They are not duplicated here.
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
 | [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR1 |
 | [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
-| [WP0](#wp0-backlog-grooming-and-sprint-planning) | Backlog grooming and sprint planning | Superseded |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
 | [WP3](#wp3-user-test-readiness-stabilization) | User-test readiness stabilization | Proposed |
@@ -448,29 +447,6 @@ request and temporarily departs from the default prioritization order above.
 
 Do not start implementation from this list while the chord-reliability gate is
 active.
-
-### WP0: Backlog Grooming and Sprint Planning
-
-Purpose:
-- Review completed capability, known risks, current evidence, and remaining
-  feature ideas from the broader product perspective.
-- Decide which work is necessary before product-owner-led piano-player testing.
-- Select one bounded sprint and explicitly defer or park the rest.
-
-Inputs:
-- `docs/planning/RETROSPECTIVES.md`
-- `docs/engineering/AI_TOKEN_OPTIMIZATION.md`
-- current planned phases in this file
-- `docs/planning/RISKS.md`, `docs/planning/STATUS.md`, and `docs/product/IDEAS.md`
-
-Output:
-- one agreed sprint goal
-- selected tasks with symbol-based file anchors, preserved contracts, non-goals,
-  verification, and human gates
-- explicit deferred and conditional work
-
-Status: Superseded by the committed Chord Reliability Validation Gate; retain as
-historical grooming context.
 
 ### WP1: AI Execution Baseline and Context Foundations
 

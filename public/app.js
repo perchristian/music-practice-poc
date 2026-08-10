@@ -254,9 +254,9 @@ const statusLabels = {
 
 const pipelineStageLabels = {
   "source-audio-extraction": "Extracting audio",
-  "piano-focused-separation": "Separating stems",
+  "stem-separation": "Separating stems",
   "audio-analysis": "Analyzing harmony",
-  "piano-focused-separated": "Preparing result"
+  "complete": "Preparing result"
 };
 
 const minBarStartSeconds = -60;
@@ -317,12 +317,6 @@ function parseKeyValue(value) {
     return null;
   }
   return { tonic, mode };
-}
-
-function keyTempoLabel(metadata) {
-  const key = keyLabel(metadata);
-  const tempo = tempoLabel(metadata);
-  return tempo ? `${key} · ${tempo}` : key;
 }
 
 function roundedBpm(value) {
@@ -411,7 +405,7 @@ function metadataGridFromTimingSnapshot(metadata, timing = null) {
   const downbeatOffsetSeconds = hasGridOverride(overrides, "downbeatOffsetSeconds")
     ? overrides.downbeatOffsetSeconds
     : defaults.downbeatOffsetSeconds;
-  const snapshotTimingMap = normalizeTimingMap(timing?.timingMap || timing?.tempoMap, {
+  const snapshotTimingMap = normalizeTimingMap(timing?.timingMap, {
     baseTimeSignature: { beatsPerBar, beatUnit }
   });
   return {
@@ -427,7 +421,7 @@ function metadataGridFromTimingSnapshot(metadata, timing = null) {
 function normalizedPracticeTimingMap(state = null, metadata = currentAnalyzedMetadata) {
   const overrides = normalizedGridOverrides(state);
   const defaults = metadataGridDefaults(metadata);
-  return normalizeTimingMap(state?.timingMap || state?.tempoMap, {
+  return normalizeTimingMap(state?.timingMap, {
     baseTimeSignature: {
       beatsPerBar: overrides.beatsPerBar || defaults.beatsPerBar,
       beatUnit: overrides.beatUnit || defaults.beatUnit
@@ -460,7 +454,7 @@ function effectiveMetadata(metadata) {
     ? gridOverrides.downbeatOffsetSeconds
     : defaults.downbeatOffsetSeconds;
   const downbeatOffsetSeconds = roundedSeconds(baseDownbeat, minBarStartSeconds, maxBarStartSeconds) ?? 0;
-  const analyzerTimingMap = normalizeTimingMap(metadata.beatGrid?.timingMap || metadata.beatGrid?.tempoMap, {
+  const analyzerTimingMap = normalizeTimingMap(metadata.beatGrid?.timingMap, {
     baseTimeSignature: { beatsPerBar, beatUnit }
   });
   const activeTimingMap = timingMap || analyzerTimingMap;
@@ -476,8 +470,7 @@ function effectiveMetadata(metadata) {
       beatsPerBar,
       beatUnit,
       downbeatOffsetSeconds,
-      timingMap: activeTimingMap,
-      tempoMap: null
+      timingMap: activeTimingMap
     }
     : null;
   const hasTimingGridOverride =
@@ -541,7 +534,7 @@ function normalizedBeatGrid(metadata, durationFallback = null) {
   const beatsPerBar = Number(grid.beatsPerBar || grid.meter?.beatsPerBar || grid.timeSignature?.beatsPerBar) || 4;
   const beatUnit = Number(grid.beatUnit || grid.meter?.beatUnit || grid.timeSignature?.beatUnit) || 4;
   const downbeatOffsetSeconds = Number(grid.downbeatOffsetSeconds ?? grid.beatOffsetSeconds ?? 0) || 0;
-  const effectiveTimingMap = normalizeTimingMap(grid.timingMap || grid.tempoMap, {
+  const effectiveTimingMap = normalizeTimingMap(grid.timingMap, {
     baseTimeSignature: { beatsPerBar, beatUnit }
   });
   const metadataDuration = Number(metadata?.durationSeconds ?? metadata?.duration);
@@ -569,9 +562,7 @@ function statusLabel(status) {
 
 function separatorLabel(settings) {
   if (settings?.mode !== "real" || !settings.realSeparator) return "";
-  return settings.realSeparator === "ffmpeg-spectral-piano-v1"
-    ? " · FFmpeg fallback"
-    : ` · ${settings.realSeparator}`;
+  return ` · ${settings.realSeparator}`;
 }
 
 function backendReadyLabel(settings, suffix = "") {
@@ -921,10 +912,6 @@ function selectSectionBar(bar, extend = false) {
   setSelectedSectionRange(bar, bar, bar);
 }
 
-function sectionCreateDialogSupported() {
-  return typeof sectionCreateDialog?.showModal === "function";
-}
-
 function setSectionCreateError(message = "") {
   if (sectionCreateError) {
     sectionCreateError.textContent = message;
@@ -946,22 +933,13 @@ function openSectionCreateDialog(range) {
   if (sectionCreateLabelInput) sectionCreateLabelInput.value = "";
   if (sectionCreateColorInput) sectionCreateColorInput.value = "";
 
-  if (sectionCreateDialogSupported()) {
-    sectionCreateDialog.showModal();
-  } else {
-    sectionCreateDialog?.removeAttribute("hidden");
-    sectionCreateSymbolInput?.focus();
-  }
+  sectionCreateDialog.showModal();
 }
 
 function closeSectionCreateDialog() {
   pendingSectionCreateRange = null;
   setSectionCreateError("");
-  if (sectionCreateDialog?.open) {
-    sectionCreateDialog.close();
-  } else {
-    sectionCreateDialog?.setAttribute("hidden", "");
-  }
+  if (sectionCreateDialog?.open) sectionCreateDialog.close();
 }
 
 function createSectionFromDialog() {
@@ -1003,10 +981,6 @@ function commitSections(nextSections) {
 
 let editingSectionId = null;
 
-function sectionDialogSupported() {
-  return typeof sectionEditDialog?.showModal === "function";
-}
-
 function setSectionEditError(message = "") {
   if (sectionEditError) {
     sectionEditError.textContent = message;
@@ -1030,22 +1004,13 @@ function openSectionEditDialog(sectionId) {
   if (sectionEditStartInput) sectionEditStartInput.value = String(section.startBar);
   if (sectionEditEndInput) sectionEditEndInput.value = String(section.endBar);
 
-  if (sectionDialogSupported()) {
-    sectionEditDialog.showModal();
-  } else {
-    sectionEditDialog?.removeAttribute("hidden");
-    sectionEditSymbolInput?.focus();
-  }
+  sectionEditDialog.showModal();
 }
 
 function closeSectionEditDialog() {
   editingSectionId = null;
   setSectionEditError("");
-  if (sectionEditDialog?.open) {
-    sectionEditDialog.close();
-  } else {
-    sectionEditDialog?.setAttribute("hidden", "");
-  }
+  if (sectionEditDialog?.open) sectionEditDialog.close();
 }
 
 function saveSectionEdit() {
@@ -1091,7 +1056,6 @@ function practiceStatePayload() {
     lastPosition: transportTime(),
     metronomeEnabled,
     metronomeVolume,
-    metronomeAccent: true,
     metronomeSolo,
     gridOverrides,
     timingMap,
@@ -1392,9 +1356,7 @@ function renderCompletedJob(job) {
   currentJobId = job.id;
   selectedQueueLocalId = null;
   selectedReadyJobId = null;
-  const stems = job.result.stems?.length
-    ? job.result.stems
-    : [{ id: "piano", name: "Piano", audioUrl: job.result.audioUrl }];
+  const stems = job.result.stems || [];
   gridOverrides = normalizedGridOverrides(job.practiceState);
   timingMap = normalizedPracticeTimingMap(job.practiceState, job.result?.metadata);
   keyOverride = normalizedKeyOverride(job.practiceState);
@@ -2316,7 +2278,6 @@ function commitTimingMap(nextMap, selectedBar = selectedTimingAnchorBar) {
   selectedTimingAnchorBar = Number.isInteger(Number(selectedBar)) ? Number(selectedBar) : null;
   if (currentJob?.practiceState) {
     currentJob.practiceState.timingMap = timingMap;
-    delete currentJob.practiceState.tempoMap;
   }
   resetMetronomeSchedule();
   renderMetadata(currentAnalyzedMetadata);

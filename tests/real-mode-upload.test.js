@@ -15,10 +15,8 @@ const maxUploadBytes = 650 * 1024 * 1024;
 const maxUploadRequestBytes = maxUploadBytes + 1024 * 1024;
 let server;
 let extractionServer;
-let demucsServer;
 let testDataDir;
 let extractionDataDir;
-let demucsDataDir;
 
 async function waitForHealth(url = baseUrl) {
   const deadline = Date.now() + 10_000;
@@ -272,7 +270,7 @@ describe("real-mode upload contract with missing FFmpeg", () => {
   });
 });
 
-describe("real-mode FFmpeg extraction", () => {
+describe("real-mode extraction and separation", () => {
   before(async (t) => {
     const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
     if (ffmpegCheck.status !== 0) {
@@ -281,12 +279,43 @@ describe("real-mode FFmpeg extraction", () => {
     }
 
     extractionDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-extraction-"));
+    const fakeDemucsPython = join(extractionDataDir, "fake-python.mjs");
+    await writeFile(
+      fakeDemucsPython,
+      `#!/usr/bin/env node
+import { copyFile, mkdir } from "node:fs/promises";
+import { join, parse } from "node:path";
+
+const invocation = process.argv.slice(2);
+if (invocation[0] !== "-m" || invocation[1] !== "demucs") process.exit(2);
+const args = invocation.slice(2);
+if (args.includes("--version")) {
+  console.log("fake-demucs 0.0.0");
+  process.exit(0);
+}
+const model = args[args.indexOf("-n") + 1];
+const outDir = args[args.indexOf("--out") + 1];
+const input = args.at(-1);
+const targetDir = join(outDir, model, parse(input).name);
+await mkdir(targetDir, { recursive: true });
+for (const percent of [10, 45, 80, 100]) {
+  process.stderr.write(percent + "%| fake-demucs progress\\n");
+  await new Promise((resolve) => setTimeout(resolve, 150));
+}
+for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
+  await copyFile(input, join(targetDir, stem + ".wav"));
+}
+`
+    );
+    await chmod(fakeDemucsPython, 0o755);
     extractionServer = spawn(process.execPath, ["server.js"], {
       env: {
         ...process.env,
         PORT: String(extractionPort),
         PIPELINE_MODE: "real",
-        REAL_SEPARATOR: "ffmpeg-spectral",
+        DEMUCS_PATH: "",
+        DEMUCS_PYTHON: fakeDemucsPython,
+        DEMUCS_MODEL: "fake_model",
         DATA_DIR: extractionDataDir
       },
       stdio: ["ignore", "pipe", "pipe"]
@@ -306,7 +335,7 @@ describe("real-mode FFmpeg extraction", () => {
     }
   });
 
-  it("extracts source audio, creates piano-focused stems, and exposes them as a practice result", async (t) => {
+  it("extracts source audio, reports progress, and exposes six practice stems", async (t) => {
     const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
     if (ffmpegCheck.status !== 0) {
       t.skip("FFmpeg is not available; skipping real-mode extraction smoke.");
@@ -314,10 +343,14 @@ describe("real-mode FFmpeg extraction", () => {
     }
 
     const { job: createdJob } = await uploadSample(extractionBaseUrl, "phase-2g-piano-mix.wav");
+    const progressJob = await waitForProgressAtLeast(createdJob.id, 60, extractionBaseUrl);
+    assert.equal(progressJob.pipelineStage, "stem-separation");
     const completedJob = await waitForComplete(createdJob.id, extractionBaseUrl);
     assert.equal(completedJob.status, "complete");
     assert.equal(completedJob.progress, 100);
-    assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), ["accompaniment", "piano"]);
+    assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), [
+      "bass", "drums", "guitar", "other", "piano", "vocals"
+    ]);
     assert.equal(completedJob.result.metadata.ffmpeg.available, true);
     assert.equal(completedJob.result.metadata.ffmpeg.outputFilename, "source-audio.wav");
     assert.equal(completedJob.result.metadata.ffmpeg.outputCodec, "pcm_s16le");
@@ -325,10 +358,10 @@ describe("real-mode FFmpeg extraction", () => {
     assert.equal(completedJob.result.metadata.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
     assert.equal(completedJob.result.metadata.separator.available, true);
-    assert.equal(completedJob.result.metadata.separator.name, "ffmpeg-spectral-piano-v1");
+    assert.equal(completedJob.result.metadata.separator.name, "demucs-fake_model");
     assert.ok(completedJob.result.metadata.separator.durationMs >= 0);
-    assert.equal(completedJob.result.metadata.separator.outputs.length, 2);
-    assert.match(completedJob.result.metadata.separator.version, /^ffmpeg version /);
+    assert.equal(completedJob.result.metadata.separator.outputs.length, 6);
+    assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
     assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");
     assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v3");
     assert.ok(Array.isArray(completedJob.result.metadata.suppressedChordSuggestions));
@@ -344,21 +377,12 @@ describe("real-mode FFmpeg extraction", () => {
     const jobDir = join(extractionDataDir, "jobs", createdJob.id);
     const output = await stat(join(jobDir, "source-audio.wav"));
     assert.ok(output.size > 44);
-    const piano = await stat(join(jobDir, "stems", "piano.wav"));
-    const accompaniment = await stat(join(jobDir, "stems", "accompaniment.wav"));
-    assert.ok(piano.size > 44);
-    assert.ok(accompaniment.size > 44);
-
     for (const stem of completedJob.result.stems) {
       const audioResponse = await fetch(`${extractionBaseUrl}${stem.audioUrl}`);
       assert.equal(audioResponse.status, 200);
       assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
       assert.ok((await audioResponse.arrayBuffer()).byteLength > 44);
     }
-
-    const pianoResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/piano.wav`);
-    assert.equal(pianoResponse.status, 200);
-    assert.match(pianoResponse.headers.get("content-type"), /^audio\/wav/);
 
     const sourceAudioResponse = await fetch(`${extractionBaseUrl}/api/jobs/${completedJob.id}/source-audio.wav`);
     assert.equal(sourceAudioResponse.status, 200);
@@ -407,10 +431,10 @@ describe("real-mode FFmpeg extraction", () => {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        tempoMap: {
-          version: 1,
-          anchors: [
-            { bar: 1, timeSeconds: 0.65 },
+        timingMap: {
+          version: 2,
+          events: [
+            { bar: 1, timeSeconds: 0.65, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
             { bar: 2, timeSeconds: 4.65 },
             { bar: 3, timeSeconds: 8.65 }
           ]
@@ -497,131 +521,6 @@ describe("real-mode FFmpeg extraction", () => {
     const restoredJob = await undoReanalysisResponse.json();
     assert.equal(restoredJob.practiceState.chordChart.chords[0].raw, "C");
     assert.equal(restoredJob.practiceState.chordChartBackup, null);
-  });
-});
-
-describe("real-mode Demucs separator contract", () => {
-  const demucsPort = Number(process.env.REAL_DEMUCS_TEST_PORT || 3213);
-  const demucsBaseUrl = `http://127.0.0.1:${demucsPort}`;
-
-  before(async (t) => {
-    const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
-    if (ffmpegCheck.status !== 0) {
-      t.skip("FFmpeg is not available; skipping Demucs separator contract smoke.");
-      return;
-    }
-
-    demucsDataDir = await mkdtemp(join(tmpdir(), "piano-poc-real-demucs-"));
-    const fakeDemucsPython = join(demucsDataDir, "fake-python.mjs");
-    await writeFile(
-      fakeDemucsPython,
-      `#!/usr/bin/env node
-import { copyFile, mkdir } from "node:fs/promises";
-import { join, parse } from "node:path";
-
-const invocation = process.argv.slice(2);
-if (invocation[0] !== "-m" || invocation[1] !== "demucs") {
-  console.error("Expected relocatable python -m demucs invocation");
-  process.exit(2);
-}
-const args = invocation.slice(2);
-if (args.includes("--version")) {
-  console.log("fake-demucs 0.0.0");
-  process.exit(0);
-}
-
-const model = args[args.indexOf("-n") + 1];
-const outDir = args[args.indexOf("--out") + 1];
-const input = args[args.length - 1];
-const targetDir = join(outDir, model, parse(input).name);
-await mkdir(targetDir, { recursive: true });
-for (const percent of [10, 45, 80, 100]) {
-  process.stderr.write(percent + "%| fake-demucs progress\\n");
-  await new Promise((resolve) => setTimeout(resolve, 150));
-}
-for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
-  await copyFile(input, join(targetDir, stem + ".wav"));
-}
-`
-    );
-    await chmod(fakeDemucsPython, 0o755);
-
-    demucsServer = spawn(process.execPath, ["server.js"], {
-      env: {
-        ...process.env,
-        PORT: String(demucsPort),
-        PIPELINE_MODE: "real",
-        REAL_SEPARATOR: "demucs",
-        DEMUCS_PATH: "",
-        DEMUCS_PYTHON: fakeDemucsPython,
-        DEMUCS_MODEL: "fake_model",
-        TORCH_HOME: join(demucsDataDir, "torch-cache"),
-        DATA_DIR: demucsDataDir
-      },
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-
-    demucsServer.stderr.on("data", (chunk) => {
-      process.stderr.write(chunk);
-    });
-
-    await waitForHealth(demucsBaseUrl);
-  });
-
-  after(async () => {
-    demucsServer?.kill();
-    if (demucsDataDir) {
-      await rm(demucsDataDir, { recursive: true, force: true });
-    }
-  });
-
-  it("uses relocatable python module invocation and exposes six practice stems", async (t) => {
-    const ffmpegCheck = spawnSync(process.env.FFMPEG_PATH || "ffmpeg", ["-version"], { stdio: "ignore" });
-    if (ffmpegCheck.status !== 0) {
-      t.skip("FFmpeg is not available; skipping Demucs separator contract smoke.");
-      return;
-    }
-
-    const { job: createdJob } = await uploadSample(demucsBaseUrl, "phase-2g-piano-mix.wav");
-    const progressJob = await waitForProgressAtLeast(createdJob.id, 60, demucsBaseUrl);
-    assert.equal(progressJob.pipelineStage, "piano-focused-separation");
-    assert.ok(progressJob.progress > 55);
-    assert.ok(progressJob.progress < 100);
-
-    const completedJob = await waitForComplete(createdJob.id, demucsBaseUrl);
-
-    assert.equal(completedJob.status, "complete");
-    assert.deepEqual(completedJob.result.stems.map((stem) => stem.id).sort(), [
-      "bass",
-      "drums",
-      "guitar",
-      "other",
-      "piano",
-      "vocals"
-    ]);
-    assert.equal(completedJob.result.metadata.separator.available, true);
-    assert.equal(completedJob.result.metadata.separator.name, "demucs-fake_model");
-    assert.equal(completedJob.result.metadata.separator.model, "fake_model");
-    assert.equal(completedJob.result.metadata.separator.outputs.length, 6);
-    assert.match(completedJob.result.metadata.separator.version, /fake-demucs/);
-    assert.equal(
-      completedJob.result.metadata.separator.command,
-      `${join(demucsDataDir, "fake-python.mjs")} -m demucs`
-    );
-    assert.deepEqual(completedJob.result.metadata.separator.args.slice(0, 2), ["-m", "demucs"]);
-    assert.equal(completedJob.result.metadata.durationSeconds, 6);
-    assert.equal(completedJob.result.metadata.ffmpeg.durationSeconds, 6);
-    assert.equal(completedJob.result.metadata.harmonySource, "real-audio-analysis-v2");
-    assert.equal(completedJob.result.metadata.analysis.name, "beat-aware-chroma-v3");
-
-    const jobDir = join(demucsDataDir, "jobs", createdJob.id);
-    for (const stemId of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
-      const output = await stat(join(jobDir, "stems", `${stemId}.wav`));
-      assert.ok(output.size > 44);
-      const audioResponse = await fetch(`${demucsBaseUrl}/api/jobs/${completedJob.id}/stems/${stemId}.wav`);
-      assert.equal(audioResponse.status, 200);
-      assert.match(audioResponse.headers.get("content-type"), /^audio\/wav/);
-    }
   });
 });
 

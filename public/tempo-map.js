@@ -1,6 +1,4 @@
-export const tempoMapVersion = 1;
 export const timingMapVersion = 2;
-export const maxTempoMapAnchors = 2048;
 export const maxTimingMapEvents = 2048;
 
 const defaultSignature = Object.freeze({ beatsPerBar: 4, beatUnit: 4 });
@@ -42,70 +40,14 @@ export function meterPulseShape(signature) {
   };
 }
 
-export function normalizeTempoMap(value, {
-  maxBar = 10000,
-  minTimeSeconds = -60,
-  maxTimeSeconds = 60 * 60,
-  maxAnchors = maxTempoMapAnchors,
-  requireBarOne = true
-} = {}) {
-  if (value == null) return null;
-  if (typeof value !== "object" || Number(value.version) !== tempoMapVersion || !Array.isArray(value.anchors)) {
-    return null;
-  }
-
-  if (!value.anchors.length || value.anchors.length > maxAnchors) return null;
-
-  const anchors = [];
-  for (const candidate of value.anchors) {
-    const bar = Math.round(Number(candidate?.bar));
-    const timeSeconds = finiteNumber(candidate?.timeSeconds);
-    if (
-      !Number.isInteger(bar) ||
-      bar < 1 ||
-      bar > maxBar ||
-      timeSeconds === null ||
-      timeSeconds < minTimeSeconds ||
-      timeSeconds > maxTimeSeconds
-    ) {
-      return null;
-    }
-
-    const anchor = { bar, timeSeconds: Number(timeSeconds.toFixed(3)) };
-    const previous = anchors.at(-1);
-    if (previous && (anchor.bar <= previous.bar || anchor.timeSeconds <= previous.timeSeconds)) return null;
-    anchors.push(anchor);
-  }
-
-  if (requireBarOne && anchors[0]?.bar !== 1) return null;
-  return { version: tempoMapVersion, anchors };
-}
-
-export function timingMapFromTempoMap(value, { timeSignature = defaultSignature } = {}) {
-  const legacy = normalizeTempoMap(value);
-  if (!legacy) return null;
-  const signature = normalizeTimeSignature(timeSignature, defaultSignature);
-  return {
-    version: timingMapVersion,
-    events: legacy.anchors.map((anchor, index) => ({
-      ...anchor,
-      ...(index === 0 ? { timeSignature: signature } : {})
-    }))
-  };
-}
-
 export function normalizeTimingMap(value, {
   maxBar = 10000,
   minTimeSeconds = -60,
   maxTimeSeconds = 60 * 60,
   maxEvents = maxTimingMapEvents,
-  requireBarOne = true,
-  baseTimeSignature = defaultSignature
+  requireBarOne = true
 } = {}) {
   if (value == null) return null;
-  if (Number(value?.version) === tempoMapVersion && Array.isArray(value?.anchors)) {
-    value = timingMapFromTempoMap(value, { timeSignature: baseTimeSignature });
-  }
   if (typeof value !== "object" || Number(value.version) !== timingMapVersion || !Array.isArray(value.events)) {
     return null;
   }
@@ -144,21 +86,11 @@ export function normalizeTimingMap(value, {
 }
 
 export function gridTimingMap(grid) {
-  const signature = baseSignature(grid);
-  return normalizeTimingMap(grid?.timingMap, { baseTimeSignature: signature })
-    || normalizeTimingMap(grid?.tempoMap, { baseTimeSignature: signature });
-}
-
-function eventOptions(options = {}) {
-  return {
-    ...options,
-    baseTimeSignature: normalizeTimeSignature(options.baseTimeSignature, defaultSignature)
-  };
+  return normalizeTimingMap(grid?.timingMap);
 }
 
 export function timingMapWithEvent(value, nextEvent, options = {}) {
-  const normalizedOptions = eventOptions(options);
-  const current = normalizeTimingMap(value, { ...normalizedOptions, requireBarOne: false });
+  const current = normalizeTimingMap(value, { ...options, requireBarOne: false });
   const bar = Math.round(Number(nextEvent?.bar));
   if (!Number.isInteger(bar) || bar < 1) return null;
   const events = [...(current?.events || [])];
@@ -179,39 +111,17 @@ export function timingMapWithEvent(value, nextEvent, options = {}) {
   else events.push(merged);
   events.sort((left, right) => left.bar - right.bar);
   if (!events.length) return null;
-  return normalizeTimingMap({ version: timingMapVersion, events }, normalizedOptions);
+  return normalizeTimingMap({ version: timingMapVersion, events }, options);
 }
 
 export function timingMapWithoutEventAspect(value, bar, aspect, options = {}) {
-  if (!["timeSeconds", "timeSignature"].includes(aspect)) return normalizeTimingMap(value, eventOptions(options));
-  return timingMapWithEvent(value, { bar, [aspect]: null }, eventOptions(options));
+  if (!["timeSeconds", "timeSignature"].includes(aspect)) return normalizeTimingMap(value, options);
+  return timingMapWithEvent(value, { bar, [aspect]: null }, options);
 }
 
 export function timingMapTimeEvents(value, options = {}) {
-  return (normalizeTimingMap(value, eventOptions(options))?.events || [])
+  return (normalizeTimingMap(value, options)?.events || [])
     .filter((event) => Number.isFinite(event.timeSeconds));
-}
-
-// Legacy edit helpers remain available for old callers and tests.
-export function tempoMapWithAnchor(value, anchor, options = {}) {
-  const current = normalizeTempoMap(value, { ...options, requireBarOne: false });
-  const nextAnchor = { bar: Math.round(Number(anchor?.bar)), timeSeconds: Number(anchor?.timeSeconds) };
-  if (!Number.isInteger(nextAnchor.bar) || !Number.isFinite(nextAnchor.timeSeconds)) return null;
-  const anchors = [...(current?.anchors || [])];
-  const existingIndex = anchors.findIndex((entry) => entry.bar === nextAnchor.bar);
-  if (existingIndex >= 0) anchors[existingIndex] = nextAnchor;
-  else anchors.push(nextAnchor);
-  anchors.sort((left, right) => left.bar - right.bar);
-  return normalizeTempoMap({ version: tempoMapVersion, anchors }, options);
-}
-
-export function tempoMapWithoutAnchor(value, bar, options = {}) {
-  const current = normalizeTempoMap(value, options);
-  if (!current || Number(bar) === 1) return current;
-  return normalizeTempoMap({
-    version: tempoMapVersion,
-    anchors: current.anchors.filter((anchor) => anchor.bar !== Number(bar))
-  }, options);
 }
 
 function basePulseDuration(grid) {

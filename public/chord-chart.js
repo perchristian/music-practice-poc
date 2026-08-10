@@ -120,7 +120,6 @@ export function fallbackChartGrid(grid = null) {
     beatUnit: Number(grid?.beatUnit) || defaultTimeSignature.beatUnit,
     downbeatOffsetSeconds: Number(grid?.downbeatOffsetSeconds) || 0,
     timingMap: grid?.timingMap || null,
-    tempoMap: grid?.tempoMap || null,
     durationSeconds: Number(grid?.durationSeconds) || null
   };
 }

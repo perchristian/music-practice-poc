@@ -139,23 +139,6 @@ async function dragChordToBarBeat(page, chordIndex, bar, beat) {
   });
 }
 
-async function resizeChordToBarBoundary(page, chordIndex, bar, boundaryBeat) {
-  const handle = page.getByTestId(`chord-resize-${chordIndex}`);
-  const target = page.locator(`.chord-bar-segment[data-bar="${bar}"]`);
-  await handle.scrollIntoViewIfNeeded();
-  const handleBox = await handle.boundingBox();
-  const targetBox = await target.boundingBox();
-  const beatsPerBar = await target.evaluate((element) => Number(getComputedStyle(element).getPropertyValue("--beats-per-bar")) || 4);
-  if (!handleBox || !targetBox) {
-    throw new Error("Could not resolve resize target boxes.");
-  }
-
-  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(targetBox.x + targetBox.width * (boundaryBeat / beatsPerBar), targetBox.y + targetBox.height / 2);
-  await page.mouse.up();
-}
-
 async function beginLoopHandleDragToBar(page, action, fromBar, toBar) {
   const handle = page.getByTestId(`chord-loop-${action}-${fromBar}`);
   const target = page.locator(`.chord-bar-segment[data-bar="${toBar}"]`);
@@ -172,11 +155,6 @@ async function beginLoopHandleDragToBar(page, action, fromBar, toBar) {
   return async () => {
     await page.mouse.up();
   };
-}
-
-async function dragLoopHandleToBar(page, action, fromBar, toBar) {
-  const finishDrag = await beginLoopHandleDragToBar(page, action, fromBar, toBar);
-  await finishDrag();
 }
 
 async function selectSectionBars(page, startBar, endBar = startBar) {

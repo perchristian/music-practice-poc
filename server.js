@@ -6,14 +6,17 @@ import { dirname, extname, join, normalize, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { resolveDemucsInvocation } from "./demucs-command.js";
+import {
+  normalizedChordChart as normalizeSharedChordChart,
+  normalizedHarmonyView as normalizeSharedHarmonyView
+} from "./public/chord-chart.js";
 import { normalizeSections as normalizeSectionRanges } from "./public/section-ranges.js";
 import { fitStableTimingSpans } from "./timing-analysis.js";
 import {
   enumerateGridBeats,
   gridTimingMap,
   normalizeTimeSignature,
-  normalizeTimingMap,
-  timingMapFromTempoMap
+  normalizeTimingMap
 } from "./public/tempo-map.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -22,13 +25,10 @@ const HOST = process.env.HOST || "127.0.0.1";
 const startupPipelineMode = process.env.PIPELINE_MODE === "real" ? "real" : "mock";
 let activePipelineMode = startupPipelineMode;
 const FFMPEG_PATH = process.env.FFMPEG_PATH || "ffmpeg";
-const REAL_SEPARATOR = process.env.REAL_SEPARATOR === "ffmpeg-spectral" ? "ffmpeg-spectral" : "demucs";
 const DEMUCS_MODEL = process.env.DEMUCS_MODEL || "htdemucs_6s";
 const DEMUCS_INVOCATION = resolveDemucsInvocation({ repoRoot: __dirname });
 const DEMUCS_TORCH_HOME = process.env.TORCH_HOME || join(__dirname, ".cache", "torch");
-const FFMPEG_SEPARATOR_NAME = "ffmpeg-spectral-piano-v1";
 const DEMUCS_SEPARATOR_NAME = `demucs-${DEMUCS_MODEL}`;
-const REAL_SEPARATOR_NAME = REAL_SEPARATOR === "ffmpeg-spectral" ? FFMPEG_SEPARATOR_NAME : DEMUCS_SEPARATOR_NAME;
 const SOURCE_AUDIO_FILENAME = "source-audio.wav";
 const WAVEFORM_FILENAME = "waveform.json";
 const SOURCE_AUDIO_CODEC = "pcm_s16le";
@@ -45,11 +45,8 @@ const METER_CANDIDATES = [4, 3];
 const ANALYSIS_SAMPLE_RATE = 8000;
 const MIN_BAR_START_SECONDS = -60;
 const MAX_BAR_START_SECONDS = 60 * 60;
-const CHORD_CHART_VERSION = 1;
-const DEFAULT_CHORD_DIVISIONS_PER_QUARTER = 4;
 const MAX_CHORD_CHART_CHORDS = 4096;
 const MAX_CHORD_CHART_BARS = 10000;
-const MAX_CHORD_CHART_DIVISIONS = 4096;
 const MAX_SECTION_COUNT = 64;
 const WAVEFORM_PEAKS_PER_SECOND = 80;
 const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
@@ -142,7 +139,7 @@ function generatedStemDescriptors() {
 }
 
 function stemsForJob(job) {
-  return job.stems?.length ? job.stems : generatedStemDescriptors();
+  return Array.isArray(job.stems) ? job.stems : [];
 }
 
 function stemAudioUrl(job, stem) {
@@ -1333,59 +1330,6 @@ async function readJsonBody(req) {
   return JSON.parse(body.toString("utf8"));
 }
 
-function parseContentDisposition(value) {
-  const result = {};
-  for (const part of value.split(";")) {
-    const [rawKey, rawValue] = part.trim().split("=");
-    if (!rawValue) continue;
-    result[rawKey] = rawValue.replace(/^"|"$/g, "");
-  }
-  return result;
-}
-
-function parseMultipart(buffer, boundary) {
-  const delimiter = Buffer.from(`--${boundary}`);
-  const parts = [];
-  let cursor = buffer.indexOf(delimiter);
-
-  while (cursor !== -1) {
-    cursor += delimiter.length;
-    if (buffer.slice(cursor, cursor + 2).toString() === "--") break;
-    if (buffer.slice(cursor, cursor + 2).toString() === "\r\n") cursor += 2;
-
-    const next = buffer.indexOf(delimiter, cursor);
-    if (next === -1) break;
-
-    const headerEnd = buffer.indexOf(Buffer.from("\r\n\r\n"), cursor);
-    if (headerEnd === -1 || headerEnd > next) break;
-
-    const headerText = buffer.slice(cursor, headerEnd).toString("utf8");
-    const headers = new Map();
-    for (const line of headerText.split("\r\n")) {
-      const separator = line.indexOf(":");
-      if (separator === -1) continue;
-      headers.set(line.slice(0, separator).toLowerCase(), line.slice(separator + 1).trim());
-    }
-
-    let contentEnd = next;
-    if (buffer.slice(contentEnd - 2, contentEnd).toString() === "\r\n") {
-      contentEnd -= 2;
-    }
-
-    const disposition = parseContentDisposition(headers.get("content-disposition") || "");
-    parts.push({
-      name: disposition.name,
-      filename: disposition.filename,
-      contentType: headers.get("content-type") || "application/octet-stream",
-      data: buffer.slice(headerEnd + 4, contentEnd)
-    });
-
-    cursor = next;
-  }
-
-  return parts;
-}
-
 function createMockMetadata(durationSeconds = MOCK_DURATION_SECONDS) {
   const beatDurationSeconds = 1;
   const beatsPerBar = 4;
@@ -1400,6 +1344,7 @@ function createMockMetadata(durationSeconds = MOCK_DURATION_SECONDS) {
 
   return {
     durationSeconds,
+    analysisIdentity: randomUUID(),
     key: {
       tonic: "C",
       mode: "major",
@@ -1576,6 +1521,13 @@ function generateMockWav(stemId = "piano") {
   return buffer;
 }
 
+const mockWavs = new Map();
+
+function cachedMockWav(stemId) {
+  if (!mockWavs.has(stemId)) mockWavs.set(stemId, generateMockWav(stemId));
+  return mockWavs.get(stemId);
+}
+
 async function saveJob(job) {
   await writeFile(join(job.dir, "job.json"), JSON.stringify(job, null, 2));
 }
@@ -1622,7 +1574,6 @@ async function createJobRecord({
       lastPosition: 0,
       metronomeEnabled: false,
       metronomeVolume: 0.45,
-      metronomeAccent: true,
       metronomeSolo: false,
       gridOverrides: {},
       timingMap: null,
@@ -1660,52 +1611,11 @@ function clampNumber(value, fallback, min, max) {
 }
 
 function normalizeChordChart(value) {
-  if (!value || typeof value !== "object" || !Array.isArray(value.chords)) return null;
-
-  const divisionsPerQuarter = Math.round(
-    clampNumber(Number(value.divisionsPerQuarter), DEFAULT_CHORD_DIVISIONS_PER_QUARTER, 1, 24)
-  );
-
-  const chords = value.chords
-    .map((chord) => {
-      const raw = String(chord?.raw || "").trim().slice(0, 48);
-      const rawDurationDiv = Number(chord?.durationDiv);
-      const bar = Math.round(clampNumber(Number(chord?.bar), 1, 1, MAX_CHORD_CHART_BARS));
-      const offsetDiv = Math.round(clampNumber(Number(chord?.offsetDiv), 0, 0, MAX_CHORD_CHART_DIVISIONS));
-      const durationDiv = Math.round(clampNumber(rawDurationDiv, null, 1, MAX_CHORD_CHART_DIVISIONS));
-      if (!raw || !Number.isFinite(bar) || !Number.isFinite(offsetDiv) || !Number.isFinite(durationDiv)) return null;
-
-      const id = String(chord?.id || randomUUID()).trim().slice(0, 64) || randomUUID();
-      return {
-        id,
-        bar,
-        offsetDiv,
-        durationDiv,
-        raw,
-        source: "user"
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => left.bar - right.bar || left.offsetDiv - right.offsetDiv)
-    .slice(0, MAX_CHORD_CHART_CHORDS);
-
-  return {
-    version: CHORD_CHART_VERSION,
-    divisionsPerQuarter,
-    chords
-  };
+  return normalizeSharedChordChart({ chordChart: value }, randomUUID);
 }
 
 function normalizeHarmonyView(value) {
-  const supportedBarsPerRow = new Set([1, 2, 4, 8]);
-  const supportedChordDisplays = new Set(["both", "name", "roman"]);
-  const barsPerRow = Math.round(clampNumber(Number(value?.barsPerRow), 2, 1, 8));
-  const chordDisplay = supportedChordDisplays.has(value?.chordDisplay) ? value.chordDisplay : "both";
-  return {
-    barsPerRow: supportedBarsPerRow.has(barsPerRow) ? barsPerRow : 2,
-    chordDisplay,
-    sectionInfoVisible: value?.sectionInfoVisible !== false
-  };
+  return normalizeSharedHarmonyView({ harmonyView: value });
 }
 
 function normalizeTimelineView(value) {
@@ -1768,10 +1678,7 @@ function ensurePracticeState(job) {
     beatsPerBar: gridOverrides.beatsPerBar || job.metadata?.beatGrid?.beatsPerBar || DEFAULT_BEATS_PER_BAR,
     beatUnit: gridOverrides.beatUnit || job.metadata?.beatGrid?.beatUnit || 4
   }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
-  const migratedTimingMap = normalizeTimingMap(
-    job.practiceState?.timingMap || timingMapFromTempoMap(job.practiceState?.tempoMap, { timeSignature: baseTimeSignature }),
-    { baseTimeSignature }
-  );
+  const timingMap = normalizeTimingMap(job.practiceState?.timingMap, { baseTimeSignature });
 
   job.practiceState = {
     learningStatus: ["not_started", "practicing", "learned"].includes(job.practiceState?.learningStatus)
@@ -1786,10 +1693,9 @@ function ensurePracticeState(job) {
     lastPosition: clampNumber(Number(job.practiceState?.lastPosition), 0, 0, 60 * 60),
     metronomeEnabled: Boolean(job.practiceState?.metronomeEnabled),
     metronomeVolume: clampNumber(Number(job.practiceState?.metronomeVolume), 0.45, 0, 1),
-    metronomeAccent: true,
     metronomeSolo: Boolean(job.practiceState?.metronomeSolo),
     gridOverrides,
-    timingMap: migratedTimingMap,
+    timingMap,
     keyOverride: normalizedKeyOverride,
     chordChart: normalizeChordChart(job.practiceState?.chordChart),
     chordChartBackup: job.practiceState?.chordChartBackup?.chordChart
@@ -1838,7 +1744,6 @@ function publicJob(job) {
     practiceState: ensurePracticeState(job),
     result: job.status === "complete"
       ? {
-          audioUrl: `/api/jobs/${job.id}/piano.wav`,
           waveformUrl: `/api/jobs/${job.id}/waveform.json`,
           stems: stems.map((stem) => publicStem(job, stem)),
           metadata: job.metadata
@@ -1882,11 +1787,7 @@ async function generateFallbackMockStems(job) {
   job.stems = generatedStemDescriptors();
 
   for (const stem of job.stems) {
-    const wav = generateMockWav(stem.id);
-    await writeFile(join(job.dir, "stems", stem.filename), wav);
-    if (stem.id === "piano") {
-      await writeFile(join(job.dir, "piano.wav"), wav);
-    }
+    await writeFile(join(job.dir, "stems", stem.filename), cachedMockWav(stem.id));
   }
 }
 
@@ -1914,12 +1815,14 @@ async function runMockPipeline(job) {
 
   for (const step of steps) {
     await new Promise((resolve) => setTimeout(resolve, step.delay));
+    if (jobs.get(job.id) !== job) return;
     job.status = step.status;
     job.progress = step.progress;
     job.updatedAt = new Date().toISOString();
     await saveJob(job);
   }
 
+  if (jobs.get(job.id) !== job) return;
   await completeMockJob(job);
 }
 
@@ -2011,12 +1914,6 @@ function jobProgressFromSeparatorPercent(percent) {
   return Math.min(96, Math.max(56, 55 + Math.round((percent / 100) * 41)));
 }
 
-async function ffmpegVersionLine() {
-  const result = await runProcess(FFMPEG_PATH, ["-version"]);
-  if (!result.ok) return null;
-  return result.stdout.split(/\r?\n/).find(Boolean) || null;
-}
-
 async function demucsVersionLine() {
   const result = await runProcess(DEMUCS_INVOCATION.command, [...DEMUCS_INVOCATION.argumentPrefix, "--version"], {
     env: { ...process.env, TORCH_HOME: DEMUCS_TORCH_HOME }
@@ -2070,99 +1967,6 @@ async function extractSourceAudio(job) {
     command: FFMPEG_PATH,
     args,
     codec: SOURCE_AUDIO_CODEC
-  };
-}
-
-async function separatePianoAndAccompaniment(job, extracted) {
-  const stemsDir = join(job.dir, "stems");
-  await mkdir(stemsDir, { recursive: true });
-
-  const pianoFilename = "piano.wav";
-  const accompanimentFilename = "accompaniment.wav";
-  const pianoPath = join(stemsDir, pianoFilename);
-  const accompanimentPath = join(stemsDir, accompanimentFilename);
-  const filterGraph = [
-    "[0:a]asplit=3[piano_source][low_source][high_source]",
-    "[piano_source]highpass=f=170,lowpass=f=1400,volume=1.35[piano]",
-    "[low_source]lowpass=f=160,volume=1.2[low]",
-    "[high_source]highpass=f=1500,volume=1.0[high]",
-    "[low][high]amix=inputs=2:normalize=0,alimiter=limit=0.95[accompaniment]"
-  ].join(";");
-  const args = [
-    "-hide_banner",
-    "-y",
-    "-i",
-    extracted.path,
-    "-filter_complex",
-    filterGraph,
-    "-map",
-    "[piano]",
-    "-ac",
-    "1",
-    "-ar",
-    "44100",
-    pianoPath,
-    "-map",
-    "[accompaniment]",
-    "-ac",
-    "1",
-    "-ar",
-    "44100",
-    accompanimentPath
-  ];
-  const [version, result] = await Promise.all([
-    ffmpegVersionLine(),
-    runProcess(FFMPEG_PATH, args)
-  ]);
-
-  if (!result.ok) {
-    throw Object.assign(new Error("FFmpeg could not create piano-focused separated stems."), {
-      separator: {
-        name: FFMPEG_SEPARATOR_NAME,
-        version,
-        command: FFMPEG_PATH,
-        args,
-        exitCode: result.code,
-        stderr: result.stderr.trim(),
-        durationMs: result.durationMs
-      }
-    });
-  }
-
-  const [pianoStats, accompanimentStats] = await Promise.all([
-    stat(pianoPath),
-    stat(accompanimentPath)
-  ]);
-  const outputs = [
-    {
-      id: "piano",
-      name: "Piano",
-      filename: pianoFilename,
-      contentType: "audio/wav",
-      size: pianoStats.size
-    },
-    {
-      id: "accompaniment",
-      name: "Accompaniment",
-      filename: accompanimentFilename,
-      contentType: "audio/wav",
-      size: accompanimentStats.size
-    }
-  ];
-
-  return {
-    name: FFMPEG_SEPARATOR_NAME,
-    version,
-    command: FFMPEG_PATH,
-    args,
-    filterGraph,
-    durationMs: result.durationMs,
-    outputs,
-    limitations: [
-      "This is a lightweight FFmpeg spectral split, not ML source separation.",
-      "The accompaniment is made from low and high frequency bands, so midrange instruments may be removed with the piano.",
-      "The piano stem is a broad midrange band and may contain vocals, guitar, synths, or other pitched material."
-    ]
   };
 }
 
@@ -2269,13 +2073,6 @@ async function separateWithDemucs(job, extracted) {
   };
 }
 
-async function runSelectedSeparator(job, extracted) {
-  if (REAL_SEPARATOR === "ffmpeg-spectral") {
-    return separatePianoAndAccompaniment(job, extracted);
-  }
-  return separateWithDemucs(job, extracted);
-}
-
 async function runRealPipeline(job) {
   await new Promise((resolve) => setTimeout(resolve, 100));
   job.status = "processing";
@@ -2297,18 +2094,14 @@ async function runRealPipeline(job) {
       outputSize: null
     },
     separator: {
-      name: REAL_SEPARATOR_NAME,
+      name: DEMUCS_SEPARATOR_NAME,
       available: null,
       durationMs: null,
       outputs: []
     },
     limitations: [
-      REAL_SEPARATOR === "ffmpeg-spectral"
-        ? "Source-audio extraction and a narrow piano-focused FFmpeg spectral split are real in this phase."
-        : "Source-audio extraction and Demucs stem separation are real in this phase.",
-      REAL_SEPARATOR === "ffmpeg-spectral"
-        ? "The separator is a heuristic spike, not production-quality source separation."
-        : "Demucs output is accepted for play-along piano removal in the POC, but solo piano may contain artifacts.",
+      "Source-audio extraction and Demucs stem separation are real in this phase.",
+      "Demucs output is accepted for play-along practice, but isolated stems may contain artifacts.",
       "Harmony cues are estimated from bar-aligned full-mix audio analysis and should be treated as approximate."
     ]
   };
@@ -2321,7 +2114,7 @@ async function runRealPipeline(job) {
     job.progress = 55;
     job.metadata = {
       ...job.metadata,
-      pipelineStage: "piano-focused-separation",
+      pipelineStage: "stem-separation",
       ffmpeg: {
         command: extracted.command,
         available: true,
@@ -2335,7 +2128,7 @@ async function runRealPipeline(job) {
     job.updatedAt = new Date().toISOString();
     await saveJob(job);
 
-    const separation = await runSelectedSeparator(job, extracted);
+    const separation = await separateWithDemucs(job, extracted);
     await updateProcessingProgress(job, 98, {
       pipelineStage: "audio-analysis"
     });
@@ -2352,7 +2145,7 @@ async function runRealPipeline(job) {
     job.metadata = {
       ...job.metadata,
       ...harmonicMetadata,
-      pipelineStage: "piano-focused-separated",
+      pipelineStage: "complete",
       durationSeconds: extracted.durationSeconds || harmonicMetadata.durationSeconds,
       ffmpeg: {
         command: extracted.command,
@@ -2405,38 +2198,42 @@ async function handleCreateJob(req, res) {
       mode: selectedMode
     });
   } else {
-    const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/);
-    if (!boundaryMatch) {
+    if (!contentType.includes("multipart/form-data")) {
       badRequest(res, "Expected multipart/form-data upload.");
       return;
     }
 
     const body = await readRequestBody(req);
-    const parts = parseMultipart(body, boundaryMatch[1] || boundaryMatch[2]);
-    const media = parts.find((part) => part.name === "media" && part.filename);
-    const durationPart = parts.find((part) => part.name === "durationSeconds" && !part.filename);
-    const thumbnailPart = parts.find((part) => part.name === "thumbnailDataUrl" && !part.filename);
-    if (!media) {
+    let form;
+    try {
+      form = await new Response(body, { headers: { "content-type": contentType } }).formData();
+    } catch {
+      badRequest(res, "Expected a valid multipart/form-data upload.");
+      return;
+    }
+    const media = form.get("media");
+    if (!media || typeof media === "string" || typeof media.arrayBuffer !== "function") {
       badRequest(res, "Upload must include a file field named media.");
       return;
     }
-    if (media.data.length > MAX_UPLOAD_BYTES) {
+    if (media.size > MAX_UPLOAD_BYTES) {
       throw new UploadTooLargeError();
     }
+    const mediaData = Buffer.from(await media.arrayBuffer());
 
-    const sourceExt = extname(media.filename) || ".upload";
+    const sourceExt = extname(media.name) || ".upload";
     const sourceFilename = `source${sourceExt}`;
     job = await createJobRecord({
-      originalFilename: media.filename,
-      originalSize: media.data.length,
-      originalType: media.contentType,
-      originalDurationSeconds: durationPart?.data?.toString("utf8"),
-      thumbnailDataUrl: thumbnailPart?.data?.toString("utf8"),
+      originalFilename: media.name,
+      originalSize: media.size,
+      originalType: media.type || "application/octet-stream",
+      originalDurationSeconds: form.get("durationSeconds"),
+      thumbnailDataUrl: form.get("thumbnailDataUrl"),
       sourceFilename,
       mode: selectedMode
     });
     job.sourcePath = join(job.dir, sourceFilename);
-    await writeFile(job.sourcePath, media.data);
+    await writeFile(job.sourcePath, mediaData);
     await saveJob(job);
   }
 
@@ -2529,13 +2326,9 @@ async function handleUpdatePracticeState(req, id, res) {
     beatUnit: payload.gridOverrides?.beatUnit || job.practiceState?.gridOverrides?.beatUnit || job.metadata?.beatGrid?.beatUnit || 4
   }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
   const hasRequestedTimingMap = Object.prototype.hasOwnProperty.call(payload, "timingMap");
-  const hasLegacyTempoMap = Object.prototype.hasOwnProperty.call(payload, "tempoMap");
   let requestedTimingMap = null;
-  if ((hasRequestedTimingMap && payload.timingMap !== null) || (hasLegacyTempoMap && payload.tempoMap !== null)) {
-    const candidate = hasRequestedTimingMap
-      ? payload.timingMap
-      : timingMapFromTempoMap(payload.tempoMap, { timeSignature: requestedGridSignature });
-    requestedTimingMap = normalizeTimingMap(candidate, { baseTimeSignature: requestedGridSignature });
+  if (hasRequestedTimingMap && payload.timingMap !== null) {
+    requestedTimingMap = normalizeTimingMap(payload.timingMap, { baseTimeSignature: requestedGridSignature });
     if (!requestedTimingMap) {
       badRequest(res, "Timing map must contain ordered bar events beginning at bar 1 with valid time or meter corrections.");
       return;
@@ -2573,9 +2366,6 @@ async function handleUpdatePracticeState(req, id, res) {
   if (typeof payload.metronomeVolume === "number") {
     practiceState.metronomeVolume = clampNumber(payload.metronomeVolume, practiceState.metronomeVolume, 0, 1);
   }
-  if (typeof payload.metronomeAccent === "boolean") {
-    practiceState.metronomeAccent = true;
-  }
   if (typeof payload.metronomeSolo === "boolean") {
     practiceState.metronomeSolo = payload.metronomeSolo;
   }
@@ -2599,10 +2389,8 @@ async function handleUpdatePracticeState(req, id, res) {
       );
     }
   }
-  if (hasRequestedTimingMap || hasLegacyTempoMap) {
-    practiceState.timingMap = (hasRequestedTimingMap ? payload.timingMap : payload.tempoMap) === null
-      ? null
-      : requestedTimingMap;
+  if (hasRequestedTimingMap) {
+    practiceState.timingMap = payload.timingMap === null ? null : requestedTimingMap;
   }
   if (payload.keyOverride && typeof payload.keyOverride === "object") {
     const noteNames = new Set(["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"]);
@@ -2655,7 +2443,7 @@ function correctedTimingGridForJob(job) {
     beatUnit: overrides.beatUnit || source.beatUnit || 4
   }, { beatsPerBar: DEFAULT_BEATS_PER_BAR, beatUnit: 4 });
   const timingMap = normalizeTimingMap(
-    job.practiceState?.timingMap || timingMapFromTempoMap(job.practiceState?.tempoMap, { timeSignature: baseTimeSignature }),
+    job.practiceState?.timingMap,
     { baseTimeSignature }
   );
   const bpm = Number(overrides.bpm || source.bpm);
@@ -2679,13 +2467,7 @@ function correctedTimingGridForJob(job) {
 function activeChordAnalysisIdentity(job) {
   const corrected = job.metadata?.correctedTimingAnalysis;
   const source = corrected || job.metadata || {};
-  if (source.analysisIdentity) return String(source.analysisIdentity).slice(0, 256);
-  const scope = corrected ? "corrected" : "original";
-  const createdAt = corrected?.createdAt || job.createdAt || "unknown";
-  const harmonySource = source.harmonySource || "unknown";
-  const analyzer = source.analysis?.name || "unknown";
-  const chordCount = Array.isArray(source.chords) ? source.chords.length : 0;
-  return `legacy:${scope}:${createdAt}:${harmonySource}:${analyzer}:${chordCount}`.slice(0, 256);
+  return source.analysisIdentity ? String(source.analysisIdentity).slice(0, 256) : null;
 }
 
 async function handleBackToAnalysis(req, id, res) {
@@ -2827,7 +2609,7 @@ async function handleDeleteJob(id, res) {
   }
 
   jobs.delete(id);
-  await rm(join(JOBS_DIR, id), { recursive: true, force: true });
+  await rm(join(JOBS_DIR, id), { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
   json(res, 200, { ok: true, id });
 }
 
@@ -2871,7 +2653,7 @@ async function handleSetPipelineMode(req, res) {
     ok: true,
     mode: activePipelineMode,
     startupMode: startupPipelineMode,
-    realSeparator: REAL_SEPARATOR_NAME
+    realSeparator: DEMUCS_SEPARATOR_NAME
   });
 }
 
@@ -2920,36 +2702,6 @@ async function handleGetJob(id, res) {
     return;
   }
   json(res, 200, publicJob(job));
-}
-
-async function handleGetAudio(req, id, res) {
-  const job = await readJobFromDisk(id);
-  if (!job || job.status !== "complete") {
-    notFound(res);
-    return;
-  }
-
-  const stems = stemsForJob(job);
-  const preferredStem = stems.find((stem) => stem.id === "piano") || stems[0] || null;
-  let streamPath = preferredStem
-    ? stemFilePath(job, preferredStem)
-    : join(job.dir, "piano.wav");
-  let streamContentType = preferredStem?.contentType || contentTypeForPath(streamPath, "audio/wav");
-  try {
-    await access(streamPath);
-  } catch {
-    const fallbackPath = join(job.dir, "piano.wav");
-    try {
-      await access(fallbackPath);
-      streamPath = fallbackPath;
-      streamContentType = contentTypeForPath(streamPath, "audio/wav");
-    } catch {
-      notFound(res);
-      return;
-    }
-  }
-
-  await streamMediaFile(req, res, streamPath, streamContentType);
 }
 
 async function handleGetStem(req, id, stemId, res) {
@@ -3023,7 +2775,7 @@ async function route(req, res) {
       ok: true,
       mode: activePipelineMode,
       startupMode: startupPipelineMode,
-      realSeparator: REAL_SEPARATOR_NAME,
+      realSeparator: DEMUCS_SEPARATOR_NAME,
       ffmpegPath: FFMPEG_PATH
     });
     return;
@@ -3089,12 +2841,6 @@ async function route(req, res) {
   const deleteJobMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)$/);
   if (req.method === "DELETE" && deleteJobMatch) {
     await handleDeleteJob(deleteJobMatch[1], res);
-    return;
-  }
-
-  const audioMatch = url.pathname.match(/^\/api\/jobs\/([a-f0-9-]+)\/piano\.wav$/);
-  if (req.method === "GET" && audioMatch) {
-    await handleGetAudio(req, audioMatch[1], res);
     return;
   }
 

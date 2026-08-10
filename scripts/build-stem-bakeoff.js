@@ -211,70 +211,6 @@ async function importLogicBaseline() {
   });
 }
 
-async function createFfmpegSpectralSplit() {
-  const target = await findExistingJob("ffmpeg-spectral-piano-v1");
-  await mkdir(join(target.dir, "stems"), { recursive: true });
-  const sourceAudio = await ensureSourceAudio(target.dir);
-  const pianoPath = join(target.dir, "stems", "piano.wav");
-  const accompanimentPath = join(target.dir, "stems", "accompaniment.wav");
-  const filterGraph = [
-    "[0:a]asplit=3[piano_source][low_source][high_source]",
-    "[piano_source]highpass=f=170,lowpass=f=1400,volume=1.35[piano]",
-    "[low_source]lowpass=f=160,volume=1.2[low]",
-    "[high_source]highpass=f=1500,volume=1.0[high]",
-    "[low][high]amix=inputs=2:normalize=0,alimiter=limit=0.95[accompaniment]"
-  ].join(";");
-  const args = [
-    "-hide_banner",
-    "-y",
-    "-i",
-    sourceAudio,
-    "-filter_complex",
-    filterGraph,
-    "-map",
-    "[piano]",
-    "-ac",
-    "1",
-    "-ar",
-    "44100",
-    pianoPath,
-    "-map",
-    "[accompaniment]",
-    "-ac",
-    "1",
-    "-ar",
-    "44100",
-    accompanimentPath
-  ];
-  const result = await runProcess(ffmpegPath, args);
-
-  if (!result.ok) {
-    throw new Error(`FFmpeg spectral split failed: ${result.stderr || result.error?.message || result.code}`);
-  }
-
-  return writeJob({
-    method: "ffmpeg-spectral-piano-v1",
-    title: "MakeYouFeelMyLovePart2 - FFmpeg spectral",
-    stems: [
-      { id: "piano", name: "Piano", filename: "piano.wav", contentType: "audio/wav", kind: "bakeoff-stem" },
-      {
-        id: "accompaniment",
-        name: "Accompaniment",
-        filename: "accompaniment.wav",
-        contentType: "audio/wav",
-        kind: "bakeoff-stem"
-      }
-    ],
-    target,
-    metadata: {
-      separator: "ffmpeg-spectral-piano-v1",
-      filterGraph,
-      durationMs: result.durationMs,
-      limitations: ["Heuristic EQ-style split; included as current Phase 2G baseline."]
-    }
-  });
-}
-
 async function createDemucsSplit() {
   const target = await findExistingJob("demucs-htdemucs-6s");
   await mkdir(join(target.dir, "stems"), { recursive: true });
@@ -322,7 +258,6 @@ async function main() {
 
   const created = [];
   created.push(await importLogicBaseline());
-  created.push(await createFfmpegSpectralSplit());
 
   if (runDemucs) {
     created.push(await createDemucsSplit());

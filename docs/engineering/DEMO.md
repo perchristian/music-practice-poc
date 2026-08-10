@@ -24,7 +24,7 @@ Real-mode progress is approximate. FFmpeg extraction moves the job to the separa
 
 Processing mode uses stable browser URLs. A new browser visiting the root redirects to `?mode=real`; later root visits reuse the last selected mode. Open the topbar information control to choose Real or Mock and inspect backend readiness. `PIPELINE_MODE` remains the server startup default before a browser applies its URL selection, and mode selection changes the active backend mode for new uploads in the current server session.
 
-When Real mode is selected, the service status should show the active separator. `Backend ready: real · demucs-htdemucs_6s` means new uploads will use Demucs. `Backend ready: real · FFmpeg fallback` means the server was started with `REAL_SEPARATOR=ffmpeg-spectral`; stop that server and restart without `REAL_SEPARATOR=ffmpeg-spectral` if the goal is Demucs separation.
+When Real mode is selected, the service status should show `Backend ready: real · demucs-htdemucs_6s` before new uploads begin.
 
 ## Prerequisites
 
@@ -61,12 +61,6 @@ The default uses `.venv-real/bin/python -m demucs`, which continues to work when
 the repository is moved even if `.venv-real/bin/demucs` retains its old absolute
 Python path. Use `DEMUCS_PYTHON` for a different interpreter or `DEMUCS_PATH` for
 an explicit Demucs entrypoint.
-
-To use the old lightweight FFmpeg spectral split instead of Demucs:
-
-```bash
-REAL_SEPARATOR=ffmpeg-spectral PIPELINE_MODE=real npm start
-```
 
 ## Run
 
@@ -202,13 +196,13 @@ test-media/MakeYouFeelMyLovePart2.mov
 test-media/stems from logic/
 ```
 
-Create or refresh the Logic baseline and FFmpeg spectral jobs:
+Create or refresh the Logic baseline:
 
 ```bash
 npm run bakeoff:stems
 ```
 
-Create or refresh those jobs plus a Demucs `htdemucs_6s` job after installing Demucs in `.venv-real`:
+Create or refresh the Logic baseline plus a Demucs `htdemucs_6s` job after installing Demucs in `.venv-real`:
 
 ```bash
 TORCH_HOME=.cache/torch npm run bakeoff:stems -- --demucs
@@ -218,7 +212,6 @@ The script creates processed library entries named:
 
 ```text
 MakeYouFeelMyLovePart2 - Logic baseline
-MakeYouFeelMyLovePart2 - FFmpeg spectral
 MakeYouFeelMyLovePart2 - Demucs htdemucs_6s
 ```
 
@@ -254,7 +247,7 @@ This creates:
 - `test-media/phase-2h-three-four-90.wav`: synthesized 3/4 material at 90 BPM.
 - `test-media/phase-2h-inversions-100.wav`: synthesized 4/4 material at 100 BPM where the bass plays chord tones other than the root.
 
-These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that the backend creates and serves practice-compatible stems; with default Demucs real mode that means six stems, while `REAL_SEPARATOR=ffmpeg-spectral` creates `piano.wav` and `accompaniment.wav`. It cannot prove quality on real screen recordings.
+These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that Demucs real mode creates and serves six practice-compatible stems. It cannot prove quality on real screen recordings.
 
 ## Known Limitations
 

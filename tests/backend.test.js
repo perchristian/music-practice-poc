@@ -244,7 +244,6 @@ describe("mock backend", () => {
     assert.equal(updatedJob.practiceState.lastPosition, 3.25);
     assert.equal(updatedJob.practiceState.metronomeEnabled, true);
     assert.equal(updatedJob.practiceState.metronomeVolume, 0.65);
-    assert.equal(updatedJob.practiceState.metronomeAccent, true);
     assert.equal(updatedJob.practiceState.metronomeSolo, true);
     assert.equal(updatedJob.practiceState.countInBars, 1);
     assert.equal(updatedJob.practiceState.startAtBarOne, true);
@@ -441,20 +440,20 @@ describe("mock backend", () => {
     );
     assert.equal(repeatedUndoResponse.status, 400);
 
-    const invalidTempoMapResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
+    const invalidTimingMapResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}/practice-state`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        tempoMap: {
-          version: 1,
-          anchors: [
-            { bar: 1, timeSeconds: 4 },
+        timingMap: {
+          version: 2,
+          events: [
+            { bar: 1, timeSeconds: 4, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
             { bar: 2, timeSeconds: 3 }
           ]
         }
       })
     });
-    assert.equal(invalidTempoMapResponse.status, 400);
+    assert.equal(invalidTimingMapResponse.status, 400);
 
     const deleteResponse = await fetch(`${baseUrl}/api/jobs/${completedJob.id}`, { method: "DELETE" });
     assert.equal(deleteResponse.status, 200);

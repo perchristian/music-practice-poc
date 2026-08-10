@@ -1007,3 +1007,50 @@ testing.
 
 Date:
 2026-07-25
+
+## Decision 37
+
+Decision:
+Retire the rejected `ffmpeg-spectral-piano-v1` separator and remove disposable
+piano-era and version-1 job compatibility. Real mode has one separation path,
+Demucs; current jobs use per-stem URLs and version-2 timing events. Mock mode
+remains the dependency-light path when Demucs is unavailable.
+
+Reason:
+The FFmpeg branch produced only piano/accompaniment and was already rejected by
+listening, so it no longer supports the band-wide product question. The POC's
+own storage decision says runtime jobs are disposable and should be regenerated
+rather than accumulating compatibility layers. Keeping both paths duplicated
+pipeline logic, tests, API fields, timing adapters, documentation, and failure
+modes without improving the current demo.
+
+Alternatives considered:
+- Keep FFmpeg as a lightweight real separator. Advantages: real extraction and
+  two output files work without ML installation. Disadvantages: output quality
+  was rejected, four band roles are absent, and maintaining it risks presenting
+  a technically complete but unusable result. Effort is low, technical risk is
+  medium, and expected demo quality is low.
+- Keep legacy job adapters indefinitely. Advantages: old local jobs continue to
+  open. Disadvantages: the POC gains migration, fallback URL, and identity logic
+  for disposable data, while every current writer already emits the new shape.
+  Effort is medium over time, technical risk is medium, and demo quality is
+  unchanged.
+- Retire both paths now. Advantages: one real pipeline, one timing schema, one
+  stem result contract, and smaller automated coverage. Disadvantages: old
+  runtime jobs may need regeneration and real mode always needs Demucs. Effort
+  is low, technical risk is low because mock remains available, and expected
+  demo quality is unchanged or better.
+
+Tradeoffs:
+Developers lose the non-ML spectral-separation smoke and old local jobs may not
+open meaningfully. In exchange, mock mode remains fully demonstrable, the fake
+Demucs integration test still verifies extraction and the six-stem contract,
+and production code no longer preserves rejected behavior.
+
+Confidence:
+High. The separator was already rejected and scheduled for retirement; current
+state writers and documented cleanup policy make the compatibility break
+appropriate for this POC.
+
+Date:
+2026-08-09

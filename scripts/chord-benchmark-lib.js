@@ -136,9 +136,13 @@ export function buildOracleTimingGrid(track) {
     beatOffsetSeconds: downbeats[0].time,
     downbeatOffsetSeconds: downbeats[0].time,
     durationSeconds: track.durationSeconds,
-    tempoMap: {
-      version: 1,
-      anchors: downbeats.map((beat, index) => ({ bar: index + 1, timeSeconds: beat.time }))
+    timingMap: {
+      version: 2,
+      events: downbeats.map((beat, index) => ({
+        bar: index + 1,
+        timeSeconds: beat.time,
+        ...(index === 0 ? { timeSignature: { beatsPerBar, beatUnit: 4 } } : {})
+      }))
     }
   };
 }

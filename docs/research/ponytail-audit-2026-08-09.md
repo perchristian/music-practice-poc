@@ -2,7 +2,7 @@
 
 Date: 2026-08-09
 
-Status: Point-in-time, read-only audit. No findings have been applied.
+Status: All findings applied and verified on 2026-08-10.
 
 Scope: Repository-wide complexity and over-engineering only. Correctness,
 security, and performance were intentionally excluded.
@@ -48,3 +48,8 @@ Net estimate: **-900 lines, -0 dependencies possible.**
 The estimate includes corresponding tests and documentation where a listed
 compatibility path or feature would be removed. Binary screenshot savings are
 not represented in the line count.
+
+Applied result: **-801 net tracked text lines, -14 generated screenshots, and
+-0 dependencies.** The measured line count includes the implementation,
+verification updates, documentation, and the small mock-pipeline performance and
+cleanup fix found during the browser run.

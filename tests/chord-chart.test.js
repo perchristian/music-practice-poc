@@ -189,13 +189,13 @@ describe("chord chart transforms", () => {
     );
   });
 
-  it("derives working-chart cue times from a variable tempo map without moving musical positions", () => {
+  it("derives working-chart cue times from a variable timing map without moving musical positions", () => {
     const cues = chordChartToCues(baseChart(), {
       ...grid,
-      tempoMap: {
-        version: 1,
-        anchors: [
-          { bar: 1, timeSeconds: 0 },
+      timingMap: {
+        version: 2,
+        events: [
+          { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 4, beatUnit: 4 } },
           { bar: 2, timeSeconds: 6 },
           { bar: 3, timeSeconds: 11 }
         ]

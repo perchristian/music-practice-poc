@@ -67,8 +67,8 @@ describe("RWC chord benchmark contract", () => {
       const track = await readRwcTrack(root, "RWC_P001.wav");
       assert.equal(track.title, "Fixture");
       assert.deepEqual(track.chords[1], { start: 1, end: 2, label: "G:maj" });
-      assert.deepEqual(buildOracleTimingGrid(track).tempoMap.anchors, [
-        { bar: 1, timeSeconds: 0 },
+      assert.deepEqual(buildOracleTimingGrid(track).timingMap.events, [
+        { bar: 1, timeSeconds: 0, timeSignature: { beatsPerBar: 2, beatUnit: 4 } },
         { bar: 2, timeSeconds: 1 }
       ]);
     } finally {

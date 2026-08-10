@@ -8,6 +8,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Replaced the custom multipart decoder with Node's native `FormData` parser
+  and consolidated server-side chord/Harmony validation onto the shared browser
+  model helpers.
 - Broadened the product from piano practice to practice for any member of a band
   playing covers. The user now chooses which stem is their own part; the app no
   longer assumes it is the piano. Recorded as Decision 34.
@@ -25,6 +28,14 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Removed
 
+- Removed the rejected FFmpeg spectral separator, its `REAL_SEPARATOR` switch,
+  and its bakeoff/test paths; real processing now has one separator contract:
+  Demucs.
+- Removed disposable piano-era and version-1 job compatibility, including the
+  `/piano.wav` endpoint, result-level `audioUrl`, v1 `tempoMap` migration, and
+  missing-stem fallbacks. Current jobs use stem URLs and version-2 timing events.
+- Removed dead UI helpers and styles, a constant metronome setting, a superseded
+  planning task, and fourteen unreferenced generated design screenshots.
 - Note-level transcription and melody extraction left scope. No band role needs
   them: a part is learned by soloing its stem, and the chord chart carries the
   harmony that cannot be recovered by ear.
@@ -40,6 +51,12 @@ The project currently uses date-based development milestones rather than numbere
 - `docs/planning/TASKS.md` now contains pending work only and opens with a status index.
   Completed task records moved verbatim to a new `docs/archive/TASKS_ARCHIVE.md`, and the
   task-contract template moved to `AGENTS.md`.
+
+### Fixed
+
+- Reused deterministic mock stem audio across jobs and stopped deleted mock
+  pipelines before later writes, keeping multi-song flows fast and cleanup
+  race-free.
 
 ### Added
 
@@ -82,7 +99,7 @@ The project currently uses date-based development milestones rather than numbere
 - Video thumbnails are now captured as square crops, while persisted artwork is clipped into square list and header surfaces.
 - The macOS demo launcher now opens the stable URL matching its configured pipeline mode.
 - Follow keeps the playhead about 37.5% into the visible timeline, yields when the user manually pans, remains separate from timing-editor zoom, and defaults to off pending long-song review.
-- Replaced user-owned `practiceState.tempoMap` persistence with version-2 `practiceState.timingMap` events; existing version-1 anchors migrate deterministically on read.
+- Replaced user-owned `practiceState.tempoMap` persistence with version-2 `practiceState.timingMap` events; the temporary version-1 read migration was retired once POC jobs became disposable.
 - Time and meter correction aspects can now be removed independently, while tempo remains derived from timed bar events.
 - Real harmonic analysis now suppresses isolated one-beat chord changes when both neighboring beats agree, reducing development cue density and false boundaries while preserving the user-owned working chart.
 - Displayed BPM now follows the active tempo-map segment, and segment edits move only its next anchored downbeat.
