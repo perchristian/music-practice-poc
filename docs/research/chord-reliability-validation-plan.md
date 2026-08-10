@@ -4,7 +4,7 @@ Date: 2026-07-23
 
 ## Decision summary
 
-Reliable chord analysis is a core capability of the piano-learning hypothesis,
+Reliable chord analysis is a core capability of the music-learning hypothesis,
 alongside useful stem separation. The current analyzer is not yet reliable enough
 to treat its charts as a validated input to user testing.
 
