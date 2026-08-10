@@ -2,18 +2,17 @@
 
 ## Next Task
 
-CR1: add evidence diagnostics and failure fixtures against RWC-P.
+CR2: validate accompaniment-first melody suppression against the generated
+failure fixtures and locked RWC-P development split.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
 `BR1` practice target and `BR2` stem import — which are ready but do not preempt
-CR1.
+CR2.
 
-CR0 is amended and no longer blocks implementation. One product-owner input is
-still open — approving the proposed RWC primary gate thresholds — but it is only
-required before the RWC **holdout** is opened, not before CR1 starts. Create the
-`owner:agent` issue for CR1 when work begins, and an `owner:per` issue for the
-threshold approval when the CR1 development results make it actionable.
+CR1 is complete. One product-owner input is ready — approving the proposed RWC
+primary gate thresholds and final manual-domain-check scope — but it is required
+only before the RWC **holdout** is opened, not before CR2 development starts.
 
 Current issue pointers and blocking state live in `docs/planning/STATUS.md` under Active Work
 Ownership. They are not duplicated here.
@@ -23,13 +22,12 @@ Ownership. They are not duplicated here.
 | ID | Task | Status |
 |---|---|---|
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
-| [CR1](#cr1-add-evidence-diagnostics-and-failure-fixtures) | Evidence diagnostics and failure fixtures | **Ready — next task** |
-| [CR2](#cr2-validate-accompaniment-first-melody-suppression) | Accompaniment-first melody suppression | Planned after CR1 |
+| [CR2](#cr2-validate-accompaniment-first-melody-suppression) | Accompaniment-first melody suppression | **Ready — next task** |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Planned after CR2 |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
-| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR1 |
+| [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2 |
 | [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
@@ -149,48 +147,9 @@ changing the existing application job directories.
 The two untouched target holdout slots, the blind two-reviewer reference process,
 and Logic fixture authoring were removed from the critical path by the `CHANGES`
 verdict; they apply again only if a scored target holdout is reinstated. What
-remains open is one deferred product-owner input: approving or replacing the
+remains open is one ready product-owner input: approving or replacing the
 proposed `thresholds.rwcPrimaryGate` values before the RWC holdout is opened,
 and agreeing the scope of the final manual domain check.
-
-### CR1: Add evidence diagnostics and failure fixtures
-
-Files and symbols:
-- `server.js`: `analyzeHarmonyFromAudio`, `chromaEvidenceForBar`,
-  `pitchClassEnergyDetails`
-- `scripts/generate-phase2a-test-media.js`: generated known-answer media
-- `scripts/chord-benchmark-lib.js`: diagnostic result adapters
-- `tests/harmony-analysis.test.js`: known-answer analysis coverage
-
-Goal:
-- Expose per-beat, per-source chroma, low-note candidates, bass reliability,
-  persistence/chordality features, raw candidate scores, and the evidence that
-  changed the winner without changing public chord output.
-- Add fixtures for vocal melody, no dedicated bass, piano/guitar bass fallback,
-  ornaments, repeated accompaniment with different melodies, and a legitimate
-  repeated-section variation.
-
-Contracts to preserve:
-- Mock mode remains dependency-light.
-- Public analyzer output and immutable provenance remain unchanged.
-- Diagnostics stay in benchmark artifacts unless a later task explicitly
-  defines a bounded persisted subset.
-
-Non-goals:
-- Changing stem weights or chord labels.
-- Product-facing diagnostic UI.
-
-Verify:
-- Semantic before/after analyzer-output comparison.
-- Focused fixture tests.
-- Current full-mix and Demucs-assisted baselines.
-- Review of dominant error classes before CR2.
-
-Milestone:
-- Milestone 1 passes.
-
-Status: Ready. This is the next task. Generated known-answer fixtures cover the
-listed scenarios; Logic-authored fixtures are optional and off the critical path.
 
 ### CR2: Validate accompaniment-first melody suppression
 
@@ -228,7 +187,8 @@ Milestone:
 - Milestone 2 passes or the project follows its external-analyzer comparison
   escape rule.
 
-Status: Planned after CR1.
+Status: Ready. CR1 passed on 2026-08-10. Product-owner threshold approval is
+required before opening the RWC holdout, not before development experiments.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
@@ -370,7 +330,7 @@ Status: Planned after the last entered experimental milestone.
 
 Created by Decision 34 on 2026-08-08. Neither task changes the analyzer, so
 neither interacts with the chord-reliability gate. Both are small enough to
-schedule around CR1 rather than ahead of it.
+schedule around the CR sequence rather than ahead of it.
 
 ### BR1: Per-song practice target
 

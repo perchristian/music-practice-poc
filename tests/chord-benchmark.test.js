@@ -8,6 +8,7 @@ import {
   appChordNameToHarte,
   buildOracleTimingGrid,
   contractRootScore,
+  diagnosticsForBenchmarkResult,
   readRwcTrack,
   validateAudioFilename,
   validateIntervals
@@ -103,5 +104,20 @@ describe("RWC chord benchmark contract", () => {
       /Holdout analyzer results are locked/
     );
     assert.doesNotThrow(() => assertHoldoutAccess(tracks, { dryRun: false, allowHoldout: true }));
+  });
+
+  it("adapts only complete analyzer diagnostics into benchmark artifacts", () => {
+    const beat = { sources: [{ id: "fullMix" }], candidateScores: [{ name: "C", score: 1 }] };
+    assert.deepEqual(diagnosticsForBenchmarkResult({ diagnostics: { version: 1, beats: [beat] } }), {
+      version: 1,
+      beatCount: 1,
+      sourceIds: ["fullMix"],
+      beats: [beat]
+    });
+    assert.throws(() => diagnosticsForBenchmarkResult({}), /diagnostics version 1/);
+    assert.throws(
+      () => diagnosticsForBenchmarkResult({ diagnostics: { version: 1, beats: [{}] } }),
+      /per-source evidence/
+    );
   });
 });

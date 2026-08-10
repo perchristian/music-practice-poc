@@ -44,12 +44,19 @@ chord chart, sections, and Harmony view are separate user-owned state.
 ### Current checkpoint
 
 The chord-reliability validation gate is the committed line of work. Everything
-else is deferred behind it. The measured position is:
+else is deferred behind it. CR1 passed on 2026-08-10. The measured position is:
 
-- RWC-P development MajMin 60.8% with oracle timing and 55.7% end-to-end, after
-  the isolated-beat smoothing rule.
+- On the locked CR0 development split, full-mix MajMin is 53.6% with oracle
+  timing and 48.1% end-to-end; real Demucs evidence improves those to 61.0% and
+  57.5% without changing analyzer behavior.
+- Demucs oracle cue density remains 65.0 changes/minute against 27.4 reference,
+  with 1,400 false-extra boundaries. Wrong roots remain the largest error class.
+- Opt-in benchmark artifacts now expose per-source chroma, low-note and
+  reliability measurements, persistence/chordality, all candidate score
+  components, and winner-change evidence. Six generated CR1 scenarios pass.
 - The Phase 2J holdout is consumed and fixed at 49.0% oracle and 39.9%
   end-to-end. It must never be used for tuning.
+- The new four-track RWC holdout remains unopened.
 - Human review found chord names still inaccurate on real recordings after
   corrected-timing reanalysis. Timing itself passed its human gate.
 
@@ -97,26 +104,29 @@ Local web POC:
   pure, unit-tested model code. Chord-chart, Harmony-view, and section validation
   are shared with `server.js` so frontend and backend persistence cannot diverge.
 - `scripts/` — benchmark, fixture, and contract-verification tooling. None of it
-  touches the application library.
+  touches the application library. CR1 diagnostics are requested only by the
+  benchmark CLI and remain outside job metadata.
 
 ## Active Work Ownership
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/music-practice-poc/issues/1)
-- Current agent task: None open. CR1 is ready and needs an `owner:agent` issue
+- Current agent task: None open. CR2 is ready and needs an `owner:agent` issue
   when work begins.
-- Current human action: None ready.
-- Blocked by human action: No. CR0 was answered `CHANGES` in
-  [#3](https://github.com/perchristian/music-practice-poc/issues/3) on
-  2026-07-24 and the contract is amended accordingly.
-- Deferred human input: approve or replace the proposed
-  `thresholds.rwcPrimaryGate` values in
-  `benchmarks/chord-reliability-contract-v1.json` before the RWC holdout is
-  opened, and agree the scope of the final manual domain check.
+- Current human action:
+  [#8 — Approve RWC gate thresholds and final manual domain-check scope](https://github.com/perchristian/music-practice-poc/issues/8)
+  (`owner:per`, `state:ready`). Reply in the exact `APPROVE` or `CHANGES` format
+  requested in the issue.
+- Blocked by human action: CR2 development is not blocked. Opening the RWC
+  holdout is blocked until #8 is answered.
 
 ## In Progress
 
 - No implementation phase is currently in progress.
+- CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
+  generated scenarios, full-mix and Demucs-assisted RWC development baselines,
+  and a dominant-error review in
+  `benchmarks/chord-reliability-cr1-checkpoint.md`.
 - CR0 is complete and amended. The product owner answered `CHANGES` in
   [#3](https://github.com/perchristian/music-practice-poc/issues/3) on
   2026-07-24: RWC-P is the primary benchmark and runs first, Logic fixtures and
@@ -132,13 +142,67 @@ Local web POC:
 
 ## Next Recommended Task
 
-CR1: add evidence diagnostics and failure fixtures against RWC-P, without
-changing public analyzer output. See `docs/planning/TASKS.md` for the task contract.
+CR2: validate accompaniment-first melody suppression against the generated
+fixtures and locked RWC-P development split. See `docs/planning/TASKS.md` for
+the task contract.
 
-The deferred threshold approval is not needed to start CR1; it is needed before
-the RWC holdout is opened.
+Issue #8 is not needed to start CR2 development; it is needed before the RWC
+holdout is opened.
+
+## Context Recovery Review Result
+
+Type: Fresh Session
+
+Files used:
+- `docs/planning/STATUS.md`
+- `docs/planning/TASKS.md`
+- `docs/planning/DECISIONS.md`
+- `docs/engineering/ARCHITECTURE.md`
+
+Summary:
+- Current architecture: local static-browser/Node.js POC with filesystem job
+  storage, mock and Demucs/FFmpeg real pipelines, synchronized multi-stem
+  practice controls, persisted timing and chord-chart state, and immutable
+  analyzer suggestions.
+- Completed work: the end-to-end library, practice workspace, mixer, transport,
+  metronome, timing editor/map, editable Harmony chart, mock pipeline, real
+  six-stem Demucs pipeline, and CR0/CR1 chord-reliability work are implemented
+  and verified.
+- Remaining work: chord reliability remains the decisive validation gate.
+  CR2–CR6 remain, with the four-track RWC holdout blocked on product-owner
+  approval of thresholds and manual domain-check scope. Practice-target,
+  stem-import, and timeline-hardening work remain behind the gate.
+- Next recommended task: CR2 — validate accompaniment-first melody suppression
+  on generated fixtures and the locked RWC-P development split; create its
+  `owner:agent` issue when starting.
+
+Gaps found:
+- No material gaps. The four files consistently identify CR2 as the next task,
+  the chord-reliability gate as the active priority, and issue #8 as required
+  only before opening the RWC holdout.
+
+Result:
+PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-08-10 for CR1 implementation.
+  - Purpose: expose the required benchmark diagnostics and fixtures through the
+    smallest existing seams without adding dependencies or speculative
+    abstractions.
+  - Result: diagnostics and fixtures shipped without dependencies or analyzer
+    behavior changes; all focused and full tests pass.
+  - Reproducibility: the work is ordinary version-controlled
+    JavaScript, tests, benchmark artifacts, and documentation; the skill is not
+    required to run or verify it.
+- Used Codex skill `github:github` on 2026-08-10 to create and orient the CR1
+  execution issue.
+  - Purpose: satisfy the repository's GitHub-Issue ownership contract before
+    implementation.
+  - Result: created execution issue #7 and the just-in-time product-owner review
+    issue #8 after the development results made its decision packet actionable.
+  - Reproducibility: the issue and labels are visible through GitHub; the skill
+    is not required to execute CR1 locally.
 
 - Used Codex skill `ponytail:ponytail` on 2026-08-09 to apply the saved
   over-engineering audit with deletion and native/shared platform features first.
@@ -180,9 +244,15 @@ Older skill use is recorded in `docs/archive/STATUS_ARCHIVE.md`.
 
 ## Agent and Model Use
 
-- No delegated agents used.
-- No model switch performed.
-- Main Codex session is being used for planning and implementation.
+- CR1 used one read-only `gpt-5.6-terra` agent at high reasoning for routine
+  generator, benchmark-adapter, and test reconnaissance. It recommended the
+  opt-in diagnostic seam and identified the fixture/test risks; it changed no
+  files.
+- A second fresh `gpt-5.6-terra` high-reasoning reviewer received only the four
+  required recovery files and passed the context recovery review with no gaps;
+  it changed no files.
+- The main high-reasoning Codex session performed implementation, benchmark
+  execution, documentation, and final review.
 
 ## Known Local State
 
@@ -192,8 +262,9 @@ Older skill use is recorded in `docs/archive/STATUS_ARCHIVE.md`.
   been deleted; WP3 must resolve or explicitly preserve it.
 - The Playwright suite runs against an isolated temporary `DATA_DIR` since
   2026-07-25, so GUI runs no longer write into the local library.
-- `.benchmark-data/` holds the RWC-P archive, annotations, and the twelve
-  extracted CR0 audio files. All of it is ignored by Git.
+- `.benchmark-data/` holds the RWC-P archive, annotations, twelve extracted CR0
+  audio files, and CR1 Demucs-derived development stems. `benchmark-results/`
+  holds detailed CR1 diagnostics. All of it is ignored by Git.
 
 ## Verification
 
@@ -203,6 +274,7 @@ Current commands:
 npm test              # Node backend and pure-module tests
 npm run test:gui      # Playwright browser tests
 npm run verify:chord-contract   # CR0 contract dry run, requires .benchmark-data
+npm run benchmark:chords -- --timing both   # CR1+ development artifact run
 ```
 
 Dated verification evidence for completed work is in `docs/archive/STATUS_ARCHIVE.md`.

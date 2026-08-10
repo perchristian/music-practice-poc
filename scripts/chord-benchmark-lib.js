@@ -178,6 +178,22 @@ export function predictionsToIntervals(chords) {
   })), { label: "predicted chords" });
 }
 
+export function diagnosticsForBenchmarkResult(result) {
+  const diagnostics = result?.diagnostics;
+  if (diagnostics?.version !== 1 || !Array.isArray(diagnostics.beats)) {
+    throw new Error("Analyzer diagnostics version 1 are required for a benchmark artifact.");
+  }
+  if (diagnostics.beats.some((beat) => !Array.isArray(beat.sources) || !Array.isArray(beat.candidateScores))) {
+    throw new Error("Analyzer diagnostics must include per-source evidence and candidate scores for every beat.");
+  }
+  return {
+    version: diagnostics.version,
+    beatCount: diagnostics.beats.length,
+    sourceIds: [...new Set(diagnostics.beats.flatMap((beat) => beat.sources.map((source) => source.id)))],
+    beats: diagnostics.beats
+  };
+}
+
 function rootPitchClass(label) {
   if (label === "N") return null;
   const match = String(label).match(/^([A-G])([#b]?)/);

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +10,7 @@ const phase2hOutputPath = join(repoRoot, "test-media", "phase-2h-bar-grid.wav");
 const multiChordOutputPath = join(repoRoot, "test-media", "phase-2h-multi-chord-120.wav");
 const threeFourOutputPath = join(repoRoot, "test-media", "phase-2h-three-four-90.wav");
 const inversionOutputPath = join(repoRoot, "test-media", "phase-2h-inversions-100.wav");
+const cr1OutputRoot = join(repoRoot, "test-media", "cr1");
 const sampleRate = 44100;
 const durationSeconds = 6;
 const phase2hDownbeatOffsetSeconds = 0.65;
@@ -49,6 +50,12 @@ function createWavBuffer(sampleFn, options = {}) {
 
 function writeString(buffer, offset, value) {
   buffer.write(value, offset, value.length, "ascii");
+}
+
+async function writeGeneratedFile(path, contents) {
+  const temporaryPath = `${path}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, contents);
+  await rename(temporaryPath, path);
 }
 
 const noteSemitones = {
@@ -213,6 +220,72 @@ const harmonyFixtures = [
   }
 ];
 
+const cr1Fixtures = [
+  {
+    id: "vocal-melody",
+    description: "Strong monophonic vocal melody over a stable C accompaniment.",
+    chords: ["C", "C", "C", "C"],
+    stems: {
+      piano: { kind: "chord", amplitude: 0.08 },
+      vocals: { kind: "melody", notes: ["G4", "D5", "A4", "B4", "E5", "D5", "A4", "G4"], amplitude: 0.3 },
+      drums: { kind: "pulse" }
+    }
+  },
+  {
+    id: "no-dedicated-bass",
+    description: "Changing harmony with no bass stem and only ordinary comp voicings.",
+    chords: ["C", "F", "G", "C"],
+    stems: {
+      piano: { kind: "chord", amplitude: 0.09 },
+      guitar: { kind: "chord", amplitude: 0.07 },
+      drums: { kind: "pulse" }
+    }
+  },
+  {
+    id: "comp-bass-fallback",
+    description: "Silent dedicated bass with functional low notes in piano and guitar.",
+    chords: ["C", "F", "G", "C"],
+    stems: {
+      piano: { kind: "chord", amplitude: 0.07, lowRoot: true },
+      guitar: { kind: "chord", amplitude: 0.07, lowRoot: true },
+      bass: { kind: "silence" },
+      drums: { kind: "pulse" }
+    }
+  },
+  {
+    id: "brief-ornament",
+    description: "A brief F-sharp ornament over stable C accompaniment.",
+    chords: ["C", "C", "C", "C"],
+    stems: {
+      guitar: { kind: "chord", amplitude: 0.08 },
+      other: { kind: "ornament", note: "F#5", beats: [1, 5, 9, 13], amplitude: 0.48 },
+      drums: { kind: "pulse" }
+    }
+  },
+  {
+    id: "repeated-different-melody",
+    description: "Repeated C-F accompaniment with different melody notes in the second instance.",
+    chords: ["C", "F", "C", "F"],
+    repeatGroups: [[1, 3], [2, 4]],
+    stems: {
+      piano: { kind: "chord", amplitude: 0.09 },
+      vocals: { kind: "melody", notes: ["E4", "G4", "A4", "C5", "F#4", "B4", "C#5", "E5"], amplitude: 0.25 },
+      drums: { kind: "pulse" }
+    }
+  },
+  {
+    id: "legitimate-repeat-variation",
+    description: "A repeated two-bar phrase whose final F chord legitimately changes to G.",
+    chords: ["C", "F", "C", "G"],
+    repeatGroups: [[1, 3], [2, 4]],
+    legitimateVariationBars: [4],
+    stems: {
+      piano: { kind: "chord", amplitude: 0.1, lowRoot: true },
+      drums: { kind: "pulse" }
+    }
+  }
+].map((fixture) => ({ bpm: 120, beatsPerBar: 4, ...fixture }));
+
 function fixtureSegmentAt(fixture, musicalTime) {
   const beatDuration = 60 / fixture.bpm;
   const absoluteBeat = Math.floor(musicalTime / beatDuration);
@@ -257,16 +330,67 @@ function fixtureSample(fixture) {
   };
 }
 
+function cr1LayerSample(fixture, layer, time) {
+  const beatDuration = 60 / fixture.bpm;
+  const barDuration = beatDuration * fixture.beatsPerBar;
+  const barIndex = Math.min(fixture.chords.length - 1, Math.floor(time / barDuration));
+  const chord = fixture.chords[barIndex];
+  const beatIndex = Math.min(fixture.chords.length * fixture.beatsPerBar - 1, Math.floor(time / beatDuration));
+  const beatPhase = time % beatDuration;
+
+  if (layer.kind === "silence") return 0;
+  if (layer.kind === "pulse") return fixturePulse(time, fixture) * 0.7;
+  if (layer.kind === "melody") {
+    const note = layer.notes[Math.min(layer.notes.length - 1, Math.floor(beatIndex / 2))];
+    return Math.sin(2 * Math.PI * noteFrequency(note) * time) * layer.amplitude;
+  }
+  if (layer.kind === "ornament") {
+    if (!layer.beats.includes(beatIndex) || beatPhase > beatDuration * 0.22) return 0;
+    return Math.sin(2 * Math.PI * noteFrequency(layer.note) * time) *
+      Math.exp(-beatPhase * 18) * layer.amplitude;
+  }
+
+  const envelope = 0.72 + 0.28 * Math.exp(-beatPhase * 5);
+  const chordTone = chordVoicings[chord].reduce((sum, note) => {
+    return sum + Math.sin(2 * Math.PI * noteFrequency(note) * time) * layer.amplitude * envelope;
+  }, 0);
+  if (!layer.lowRoot) return chordTone;
+  return chordTone + Math.sin(2 * Math.PI * noteFrequency(chordBassRoots[chord]) * time) * layer.amplitude * 1.8;
+}
+
 await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, createWavBuffer(phase2aSample));
+await writeGeneratedFile(outputPath, createWavBuffer(phase2aSample));
 console.log(`Generated ${outputPath}`);
-await writeFile(phase2gOutputPath, createWavBuffer(phase2gSample));
+await writeGeneratedFile(phase2gOutputPath, createWavBuffer(phase2gSample));
 console.log(`Generated ${phase2gOutputPath}`);
-await writeFile(phase2hOutputPath, createWavBuffer(phase2hSample, { durationSeconds: 16 + phase2hDownbeatOffsetSeconds }));
+await writeGeneratedFile(phase2hOutputPath, createWavBuffer(phase2hSample, { durationSeconds: 16 + phase2hDownbeatOffsetSeconds }));
 console.log(`Generated ${phase2hOutputPath}`);
 for (const fixture of harmonyFixtures) {
   const beatDuration = 60 / fixture.bpm;
   const outputDurationSeconds = fixture.bars * fixture.beatsPerBar * beatDuration;
-  await writeFile(fixture.path, createWavBuffer(fixtureSample(fixture), { durationSeconds: outputDurationSeconds }));
+  await writeGeneratedFile(fixture.path, createWavBuffer(fixtureSample(fixture), { durationSeconds: outputDurationSeconds }));
   console.log(`Generated ${fixture.path}`);
 }
+for (const fixture of cr1Fixtures) {
+  const directory = join(cr1OutputRoot, fixture.id);
+  const outputDurationSeconds = fixture.chords.length * fixture.beatsPerBar * (60 / fixture.bpm);
+  await mkdir(join(directory, "stems"), { recursive: true });
+  const layers = Object.entries(fixture.stems);
+  const source = (time) => layers.reduce((sum, [, layer]) => sum + cr1LayerSample(fixture, layer, time), 0);
+  await writeGeneratedFile(join(directory, "source-audio.wav"), createWavBuffer(source, { durationSeconds: outputDurationSeconds }));
+  for (const [id, layer] of layers) {
+    await writeGeneratedFile(
+      join(directory, "stems", `${id}.wav`),
+      createWavBuffer((time) => cr1LayerSample(fixture, layer, time), { durationSeconds: outputDurationSeconds })
+    );
+  }
+  console.log(`Generated ${directory}`);
+}
+await writeGeneratedFile(join(cr1OutputRoot, "fixtures.json"), `${JSON.stringify({
+  version: 1,
+  fixtures: cr1Fixtures.map(({ stems, ...fixture }) => ({
+    ...fixture,
+    stemIds: Object.keys(stems),
+    source: `${fixture.id}/source-audio.wav`
+  }))
+}, null, 2)}\n`);

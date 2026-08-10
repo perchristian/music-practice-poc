@@ -418,3 +418,46 @@ Verification:
 - Delete test-created jobs.
 
 Status: Complete on 2026-07-23. The library now renders clipped square persisted artwork and captures new video thumbnails as centered square crops. Search uses an icon and explicit clear action. The compact topbar moves stable Real/Mock URL links and backend details into an information popover; first visits choose Real, root visits remember the last mode, and mock/demo URLs remain explicit. The selected-song header and empty states no longer repeat pipeline, eyebrow, duration, key, BPM, learning-label, or instructional copy already communicated elsewhere.
+
+## Completed Work Added After the Archive Split
+
+### CR1: Add evidence diagnostics and failure fixtures
+
+Completed: 2026-08-10
+
+Files and symbols:
+- `server.js`: opt-in analyzer evidence diagnostics
+- `scripts/generate-phase2a-test-media.js`: six generated CR1 scenarios
+- `scripts/chord-benchmark-lib.js`, `scripts/benchmark-chords.js`: diagnostic
+  artifact adapter and full-mix/Demucs evidence selection
+- `tests/harmony-analysis.test.js`: semantic-output and known-answer coverage
+
+Outcome:
+- Benchmark runs can inspect per-beat, per-source chroma, low-note candidates,
+  bass reliability, persistence/chordality, all candidate score components, and
+  winner-change evidence without persisting any of it in application jobs.
+- Generated fixtures cover vocal melody, no dedicated bass, piano/guitar bass
+  fallback evidence, brief ornaments, repeated accompaniment with different
+  melodies, and a legitimate repeated-section variation.
+- The locked RWC-P development baseline is 53.6% MajMin full-mix and 61.0%
+  Demucs-assisted with oracle timing; end-to-end results are 48.1% and 57.5%.
+- Wrong roots and false-extra boundaries remain dominant, supporting CR2 as the
+  next isolated experiment. The holdout was not opened.
+
+Contracts preserved:
+- Mock mode gained no dependency.
+- Normal analyzer output, immutable provenance, weights, score formula, and
+  chord labels are unchanged.
+- Detailed diagnostics, RWC media, Demucs outputs, and run artifacts remain
+  ignored and outside application jobs.
+
+Verification:
+- Focused diagnostic and fixture tests.
+- Semantic pre/post full-mix comparison in oracle and end-to-end modes.
+- Full eight-track development runs with and without real Demucs stems.
+- `npm test` (54 passed, one optional local calibration skipped).
+- `npm run verify:chord-contract` (12 files checked; 10 existing job
+  directories unchanged).
+
+Status: Complete. Milestone 1 passed; details are in
+`benchmarks/chord-reliability-cr1-checkpoint.md`.

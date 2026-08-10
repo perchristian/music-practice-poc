@@ -9,6 +9,7 @@ import { analyzeHarmonyFromAudio, readPcm16WavFromFile } from "../server.js";
 import {
   audioCandidates,
   buildOracleTimingGrid,
+  diagnosticsForBenchmarkResult,
   predictionsToIntervals,
   readRwcTrack,
   selectStratifiedPilot,
@@ -33,10 +34,11 @@ function usage() {
 Options:
   --annotations PATH   RWC annotations checkout (default: .benchmark-data/rwc-annotations)
   --audio PATH         directory containing RWC_Pxxx.wav files
+  --stems PATH         optional Demucs output root containing htdemucs_6s/RWC_Pxxx/*.wav
   --manifest PATH      locked benchmark manifest
   --exclude-manifest PATH
                        manifest whose consumed tracks cannot enter a new split
-  --output PATH        ignored output directory
+  --output PATH        ignored artifact output directory
   --python PATH        Python with requirements-eval.txt installed
   --track RWC_Pxxx     run one manifest track
   --split NAME         defaults to development, protecting the holdout
@@ -64,7 +66,7 @@ function parseArgs(argv) {
     holdoutCount: 4,
     allowHoldout: false
   };
-  const pathKeys = new Set(["annotations", "audio", "manifest", "output", "python", "exclude-manifest"]);
+  const pathKeys = new Set(["annotations", "audio", "stems", "manifest", "output", "python", "exclude-manifest"]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help" || argument === "-h") return { help: true };
@@ -209,6 +211,22 @@ async function findAudio(audioRoot, trackId) {
   throw new Error(`Missing ${trackId}.wav under ${audioRoot}. See docs/research/chord-analysis-benchmark-strategy.md.`);
 }
 
+async function findStemOutputs(stemsRoot, trackId) {
+  if (!stemsRoot) return [];
+  const stemIds = ["drums", "bass", "guitar", "piano", "vocals", "other"];
+  const directories = [
+    join(stemsRoot, "htdemucs_6s", trackId),
+    join(stemsRoot, trackId)
+  ];
+  for (const directory of directories) {
+    const paths = stemIds.map((id) => ({ id, analysisPath: join(directory, `${id}.wav`) }));
+    if ((await Promise.all(paths.map((stem) => fileExists(stem.analysisPath)))).every(Boolean)) {
+      return paths.map((stem) => ({ ...stem, filename: `${stem.id}.wav` }));
+    }
+  }
+  throw new Error(`Missing six-source Demucs stems for ${trackId} under ${stemsRoot}.`);
+}
+
 function runProcess(command, args) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -230,10 +248,13 @@ function percent(value) {
 
 function markdownReport(report, jsonFilename) {
   const { aggregate, complexityGroups } = report.evaluation;
+  const winnerChanges = Object.entries(report.diagnosticsSummary.winnerChangeCounts)
+    .map(([evidence, count]) => `${evidence} ${count}`)
+    .join(", ") || "none";
   const lines = [
     `# RWC-P ${report.timing} ${report.split} report`,
     "",
-    `Tracks: ${report.trackCount} · smoothing: ${report.smoothing} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
+    `Tracks: ${report.trackCount} · evidence: ${report.evidenceMode} · smoothing: ${report.smoothing} · evaluator: mir_eval ${report.evaluation.evaluator.version} · detailed JSON: \`${jsonFilename}\``,
     "",
     "| Metric | Duration weighted | Track median | OOV seconds |",
     "| --- | ---: | ---: | ---: |",
@@ -250,7 +271,8 @@ function markdownReport(report, jsonFilename) {
     }),
     "",
     `Reference changes/min: ${aggregate.cueDensity.referenceChangesPerMinute.toFixed(1)}; estimated changes/min: ${aggregate.cueDensity.estimatedChangesPerMinute.toFixed(1)}; raw analyzer cues/min: ${aggregate.cueDensity.rawEstimatedCuesPerMinute.toFixed(1)}.`,
-    `Runtime: ${(aggregate.runtimeMs.total / 1000).toFixed(1)}s total; real-time factor ${aggregate.runtimeMs.realTimeFactor.toFixed(4)}.`,
+    `Runtime: ${(aggregate.runtimeMs.total / 1000).toFixed(1)}s total; real-time factor ${aggregate.runtimeMs.realTimeFactor.toFixed(4)}; peak RSS estimate ${(report.peakResidentMemoryEstimateBytes / 1024 / 1024).toFixed(1)} MiB.`,
+    `Diagnostics: ${report.diagnosticsSummary.beatCount} beats; sources ${report.diagnosticsSummary.sourceIds.join(", ")}; winner changes: ${winnerChanges}.`,
     "",
     "| Complexity | MajMin | MIREX | Changes/min |",
     "| --- | ---: | ---: | ---: |",
@@ -285,6 +307,7 @@ async function evaluateWithMirEval(options, payload) {
 
 async function runTimingMode(options, manifest, selectedTracks, timing) {
   const predictions = [];
+  let peakResidentMemoryEstimateBytes = process.memoryUsage().rss;
   for (const [index, selected] of selectedTracks.entries()) {
     const track = await readRwcTrack(options.annotations, selected.trackId);
     const audioPath = await findAudio(options.audio, track.trackId);
@@ -293,15 +316,18 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
       throw new Error(`${track.trackId} audio duration ${audio.durationSeconds.toFixed(3)}s does not match metadata ${track.durationSeconds.toFixed(3)}s.`);
     }
     console.log(`[${index + 1}/${selectedTracks.length}] ${timing} ${track.trackId} (${audio.durationSeconds.toFixed(1)}s)`);
+    const outputs = await findStemOutputs(options.stems, track.trackId);
     if (options.dryRun) continue;
     const result = await analyzeHarmonyFromAudio(
       { path: audioPath, durationSeconds: audio.durationSeconds },
-      { outputs: [] },
+      { outputs },
       {
         ...(timing === "oracle" ? { timingGrid: buildOracleTimingGrid(track) } : {}),
-        sequenceSmoothing: options.smoothing
+        sequenceSmoothing: options.smoothing,
+        includeDiagnostics: true
       }
     );
+    peakResidentMemoryEstimateBytes = Math.max(peakResidentMemoryEstimateBytes, process.memoryUsage().rss);
     predictions.push({
       trackId: track.trackId,
       split: selected.split,
@@ -311,25 +337,42 @@ async function runTimingMode(options, manifest, selectedTracks, timing) {
       reference: track.chords,
       estimated: predictionsToIntervals(result.chords),
       estimatedKey: result.key,
-      analyzer: result.analysis.name
+      analyzer: result.analysis.name,
+      diagnostics: diagnosticsForBenchmarkResult(result)
     });
   }
   if (options.dryRun) return null;
 
-  const evaluation = await evaluateWithMirEval(options, { tracks: predictions });
+  const evaluation = await evaluateWithMirEval(options, {
+    tracks: predictions.map(({ diagnostics, ...prediction }) => prediction)
+  });
+  const diagnostics = predictions.map(({ trackId, diagnostics }) => ({ trackId, ...diagnostics }));
+  const diagnosticBeats = diagnostics.flatMap((track) => track.beats);
+  const winnerChangeCounts = {};
+  for (const change of diagnosticBeats.flatMap((beat) => beat.winnerChanges)) {
+    winnerChangeCounts[change.evidence] = (winnerChangeCounts[change.evidence] || 0) + 1;
+  }
   const report = {
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
     timing,
     split: options.split,
     smoothing: options.smoothing,
+    evidenceMode: options.stems ? "demucs-assisted" : "full-mix",
     manifest: options.manifest,
     dataset: manifest.dataset,
     trackCount: predictions.length,
+    peakResidentMemoryEstimateBytes,
+    diagnosticsSummary: {
+      beatCount: diagnosticBeats.length,
+      sourceIds: [...new Set(diagnostics.flatMap((track) => track.sourceIds))],
+      winnerChangeCounts
+    },
+    diagnostics,
     evaluation
   };
   await mkdir(options.output, { recursive: true });
-  const filename = `rwc-popular-${timing}-${options.smoothing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  const filename = `rwc-popular-${timing}-${report.evidenceMode}-${options.smoothing}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
   const outputPath = join(options.output, filename);
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   const markdownPath = outputPath.replace(/\.json$/, ".md");

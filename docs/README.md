@@ -69,5 +69,6 @@ of the day it was moved.
 - [AGENTS.md](../AGENTS.md) — the agent operating manual: workflow, roles, definition of done
 - [CHANGELOG.md](../CHANGELOG.md) — notable additions, improvements, and fixes over time
 - [benchmarks/README.md](../benchmarks/README.md) — benchmark datasets, contracts, and baselines
+- [chord-reliability-cr1-checkpoint.md](../benchmarks/chord-reliability-cr1-checkpoint.md) — inspectable full-mix/Demucs development baseline and dominant error review
 - [assets/design-screenshots/](../assets/design-screenshots/) — prototype screenshots used by the design brief
 - [assets/moises-screenshots/](../assets/moises-screenshots/) — Moises reference captures used by the competitive analysis

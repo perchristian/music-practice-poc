@@ -349,6 +349,11 @@ Exit criteria:
 - every fixture reproduces its intended failure or control;
 - baseline results and dominant error classes are reviewed before tuning.
 
+Status: Passed on 2026-08-10. Opt-in diagnostics, six generated scenarios,
+semantic output comparison, and full-mix plus Demucs-assisted development
+baselines are recorded in
+`benchmarks/chord-reliability-cr1-checkpoint.md`. The holdout was not opened.
+
 ### Milestone 2: Accompaniment-first analysis
 
 Outcome:

@@ -23,6 +23,30 @@ The first mock-mode vertical slice, Phase 1 processed-song library, Phase 1B uni
 These are the dated narrative entries previously kept under `## Current Status`.
 They are in the original order, oldest editorial additions last as written.
 
+CR1 inspectable chord baseline completed on 2026-08-10. The real-audio analyzer
+now has an opt-in benchmark-only diagnostic result with per-beat source chroma,
+low-note candidates, acoustic bass-reliability measurements,
+persistence/chordality, all 96 candidate score decompositions, and explicit
+winner-change reasons. Normal jobs and corrected-timing reanalysis do not
+request or persist it. Six dependency-free generated fixtures cover vocal
+melody, no dedicated bass, piano/guitar low-note fallback, brief ornaments,
+repeated accompaniment with different melodies, and a legitimate repeat
+variation. Pre/post full-mix RWC evaluation was semantically identical. On the
+locked eight-track development split, full-mix MajMin was 53.6% oracle and 48.1%
+end to end; Demucs-assisted results were 61.0% and 57.5%. Wrong root remained
+the dominant error class, and Demucs oracle density remained 65.0 changes/minute
+against 27.4 reference, so CR2 accompaniment-first evidence is next. The RWC
+holdout was not opened. `npm test` passed 54 tests with one optional calibration
+skip; `npm run verify:chord-contract` passed and left 10 existing application
+job directories unchanged. Detailed results are in
+`benchmarks/chord-reliability-cr1-checkpoint.md`. One read-only
+`gpt-5.6-terra` high-reasoning agent was delegated for routine reconnaissance,
+and a second fresh agent passed the required four-file context recovery review;
+the primary high-reasoning agent implemented and reviewed the work. The
+`ponytail:ponytail` skill enforced dependency-free, existing-seam-first changes,
+and `github:github` guided issues #7 and #8. Both skills are unnecessary to
+reproduce the version-controlled implementation and commands.
+
 Documentation-synchronization and test-isolation pass completed on 2026-07-25
 after an external project review. Four defects were addressed. First, `docs/planning/TASKS.md`
 and `docs/planning/STATUS.md` still pointed at issue #3 as the next action although the product

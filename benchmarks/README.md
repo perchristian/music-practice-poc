@@ -38,6 +38,36 @@ Do not use `--allow-holdout` until a precommitted milestone gate. The full CR0
 contract and review process are documented in
 `docs/research/chord-reliability-cr0-contract.md`.
 
+## CR1 evidence diagnostics
+
+Generate the six dependency-free failure/control fixtures and run their focused
+known-answer checks:
+
+```sh
+npm run generate:test-media
+node --test tests/harmony-analysis.test.js tests/chord-benchmark.test.js
+```
+
+The fixtures cover strong vocal melody, no dedicated bass, piano/guitar low-note
+fallback evidence, brief ornaments, repeated accompaniment with different
+melodies, and a legitimate repeated-section variation. Generated WAV files stay
+under ignored `test-media/cr1/`; the versioned generator and assertions are the
+reproducible source of truth.
+
+CR1 benchmark JSON opts into analyzer diagnostics and records, for every beat:
+
+- per-source harmonic and bass chroma, weights, RMS, and inclusion state;
+- low-note candidates and a measured bass-reliability score;
+- four-subframe persistence and chordality features;
+- all 96 raw chord-candidate scores with their score components;
+- winner changes caused by separated stems, bass evidence, weak-extension
+  simplification, or isolated-beat smoothing.
+
+Normal real-mode jobs do not request or persist this data. Detailed artifacts
+remain under ignored `benchmark-results/`. The new low-note reliability,
+persistence, and chordality measurements are explicitly diagnostic-only in CR1;
+they do not alter weights, candidate scores, or labels.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:
@@ -83,6 +113,20 @@ Run the eight development tracks with reference timing first:
 
 ```sh
 npm run benchmark:chords -- --timing oracle
+```
+
+To run the same development benchmark with previously generated Demucs
+`htdemucs_6s` outputs, point `--stems` at a root containing either
+`htdemucs_6s/RWC_Pxxx/*.wav` or `RWC_Pxxx/*.wav`:
+
+```sh
+npm run benchmark:chords -- \
+  --manifest benchmarks/chord-reliability-rwc-v1.json \
+  --audio .benchmark-data/chord-reliability-rwc-audio \
+  --stems .benchmark-data/chord-reliability-rwc-demucs \
+  --split development \
+  --timing both \
+  --output benchmark-results/chord-reliability/cr1/demucs-assisted
 ```
 
 The application default uses conservative isolated-beat smoothing. Reproduce

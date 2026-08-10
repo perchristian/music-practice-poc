@@ -60,6 +60,12 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added opt-in, benchmark-only chord evidence diagnostics with per-beat source
+  chroma, low-note and bass-reliability measurements, persistence/chordality
+  features, complete candidate score breakdowns, and winner-change reasons.
+- Added six generated CR1 failure/control fixtures covering vocal melody,
+  missing and comp-provided bass, ornaments, melody-varying repeats, and a
+  legitimate repeated-section variation.
 - Added a checksum-locked CR0 chord-reliability contract with a fresh
   8-development/4-holdout RWC-P split, target screen-recording inventory,
   independent reference process, exact metrics, artifact paths, and

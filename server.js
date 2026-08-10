@@ -767,13 +767,16 @@ function pitchClassEnergyDetails(audio, startSeconds, endSeconds, options = {}) 
   const {
     minMidi = 36,
     maxMidi = 83,
-    stride = Math.max(1, Math.floor(audio.sampleRate / ANALYSIS_SAMPLE_RATE))
+    stride = Math.max(1, Math.floor(audio.sampleRate / ANALYSIS_SAMPLE_RATE)),
+    subframeCount = 0
   } = options;
   const start = Math.max(0, Math.floor(startSeconds * audio.sampleRate));
   const end = Math.min(audio.samples.length, Math.floor(endSeconds * audio.sampleRate));
   const chroma = Array(12).fill(0);
+  const midiEnergies = [];
+  const subframeChromas = Array.from({ length: subframeCount }, () => Array(12).fill(0));
 
-  if (end <= start) return { chroma, peak: 0 };
+  if (end <= start) return { chroma, peak: 0, midiEnergies, subframeChromas };
 
   for (let midi = minMidi; midi <= maxMidi; midi += 1) {
     const frequency = 440 * Math.pow(2, (midi - 69) / 12);
@@ -781,22 +784,44 @@ function pitchClassEnergyDetails(audio, startSeconds, endSeconds, options = {}) 
     let real = 0;
     let imaginary = 0;
     let count = 0;
+    const subframes = Array.from({ length: subframeCount }, () => ({ real: 0, imaginary: 0, count: 0 }));
 
     for (let index = start; index < end; index += stride) {
       const phase = angular * count;
       const sample = audio.samples[index];
       real += sample * Math.cos(phase);
       imaginary -= sample * Math.sin(phase);
+      if (subframeCount) {
+        const subframeIndex = Math.min(
+          subframeCount - 1,
+          Math.floor(((index - start) / Math.max(1, end - start)) * subframeCount)
+        );
+        const subframe = subframes[subframeIndex];
+        const subframePhase = angular * subframe.count;
+        subframe.real += sample * Math.cos(subframePhase);
+        subframe.imaginary -= sample * Math.sin(subframePhase);
+        subframe.count += 1;
+      }
       count += 1;
     }
 
-    chroma[midi % 12] += Math.sqrt(real * real + imaginary * imaginary) / Math.max(1, count);
+    const energy = Math.sqrt(real * real + imaginary * imaginary) / Math.max(1, count);
+    chroma[midi % 12] += energy;
+    if (subframeCount) midiEnergies.push({ midi, energy });
+    for (let index = 0; index < subframes.length; index += 1) {
+      const subframe = subframes[index];
+      subframeChromas[index][midi % 12] +=
+        Math.sqrt(subframe.real * subframe.real + subframe.imaginary * subframe.imaginary) /
+        Math.max(1, subframe.count);
+    }
   }
 
   const peak = Math.max(...chroma);
   return {
     chroma: peak > 0 ? chroma.map((value) => value / peak) : chroma,
-    peak
+    peak,
+    midiEnergies,
+    subframeChromas: subframeChromas.map(normalizeChroma)
   };
 }
 
@@ -815,20 +840,119 @@ function normalizeChroma(chroma) {
   return max > 0 ? chroma.map((value) => value / max) : chroma;
 }
 
-async function loadAnalysisStemAudios(extracted, separation) {
+function roundedChroma(chroma) {
+  return chroma.map((value) => Number(value.toFixed(5)));
+}
+
+function lowNoteCandidates(details) {
+  const total = details.midiEnergies.reduce((sum, candidate) => sum + candidate.energy, 0);
+  return [...details.midiEnergies]
+    .filter((candidate) => candidate.energy > Number.EPSILON)
+    .sort((left, right) => right.energy - left.energy || left.midi - right.midi)
+    .slice(0, 3)
+    .map(({ midi, energy }) => ({
+      midi,
+      note: `${NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`,
+      pitchClass: midi % 12,
+      energyShare: Number((energy / Math.max(total, Number.EPSILON)).toFixed(5))
+    }));
+}
+
+function persistenceAndChordality(details) {
+  const activeThreshold = 0.35;
+  const pitchClassPersistence = Array(12).fill(0);
+  const activeCounts = details.subframeChromas.map((chroma) => {
+    let count = 0;
+    for (let pitchClass = 0; pitchClass < 12; pitchClass += 1) {
+      if (chroma[pitchClass] < activeThreshold) continue;
+      pitchClassPersistence[pitchClass] += 1;
+      count += 1;
+    }
+    return count;
+  });
+  const subframeCount = Math.max(1, details.subframeChromas.length);
+  const persistence = pitchClassPersistence.map((count) => Number((count / subframeCount).toFixed(3)));
+  return {
+    persistence: {
+      subframeCount: details.subframeChromas.length,
+      pitchClasses: persistence,
+      stablePitchClasses: persistence
+        .map((value, pitchClass) => ({ value, pitchClass }))
+        .filter(({ value }) => value >= 0.75)
+        .map(({ pitchClass }) => pitchClass)
+    },
+    chordality: {
+      meanActivePitchClasses: Number(
+        (activeCounts.reduce((sum, count) => sum + count, 0) / subframeCount).toFixed(3)
+      ),
+      polyphonicSubframeRatio: Number(
+        (activeCounts.filter((count) => count >= 3).length / subframeCount).toFixed(3)
+      )
+    }
+  };
+}
+
+function sourceDiagnostics(id, audio, segment, harmonicWeight, bassWeight, included, audible = included) {
+  const harmonic = pitchClassEnergyDetails(audio, segment.start, segment.end, {
+    minMidi: 36,
+    maxMidi: 84,
+    subframeCount: 4
+  });
+  const bass = pitchClassEnergyDetails(audio, segment.start, segment.end, {
+    minMidi: 28,
+    maxMidi: 52,
+    subframeCount: 4
+  });
+  const rms = segmentRms(audio, segment.start, segment.end);
+  const candidates = lowNoteCandidates(bass);
+  const { persistence, chordality } = persistenceAndChordality(harmonic);
+  const bassPitchClass = candidates[0]?.pitchClass;
+  const bassPersistence = Number.isInteger(bassPitchClass)
+    ? persistenceAndChordality(bass).persistence.pitchClasses[bassPitchClass]
+    : 0;
+  const dominance = candidates[0]?.energyShare || 0;
+  const reliabilityScore = Math.min(1,
+    bassPersistence * 0.5 + dominance * 0.3 + Math.min(1, rms / 0.02) * 0.2
+  );
+  return {
+    chroma: harmonic.chroma,
+    bassChroma: bass.chroma,
+    public: {
+      id,
+      included,
+      audible,
+      rms: Number(rms.toFixed(6)),
+      harmonicWeight,
+      bassWeight,
+      measuredFeaturesAffectScoring: false,
+      chroma: roundedChroma(harmonic.chroma),
+      bassChroma: roundedChroma(bass.chroma),
+      lowNoteCandidates: candidates,
+      bassReliability: {
+        score: Number(reliabilityScore.toFixed(3)),
+        reliable: audible && rms >= MIN_ANALYSIS_STEM_RMS && reliabilityScore >= 0.55,
+        strongestPitchClassPersistence: bassPersistence
+      },
+      persistence,
+      chordality
+    }
+  };
+}
+
+async function loadAnalysisStemAudios(extracted, separation, { includeDiagnostics = false } = {}) {
   const stemsDir = join(dirname(extracted.path), "stems");
   const loaded = [];
 
   for (const stem of separation.outputs || []) {
     const harmonicWeight = HARMONIC_STEM_WEIGHTS[stem.id] || 0;
     const bassWeight = BASS_STEM_WEIGHTS[stem.id] || 0;
-    if (!harmonicWeight && !bassWeight) continue;
+    if (!includeDiagnostics && !harmonicWeight && !bassWeight) continue;
     if (extname(stem.filename || "").toLowerCase() !== ".wav") continue;
 
     try {
       loaded.push({
         id: stem.id,
-        audio: await readPcm16WavFromFile(join(stemsDir, stem.filename)),
+        audio: await readPcm16WavFromFile(stem.analysisPath || join(stemsDir, stem.filename)),
         harmonicWeight,
         bassWeight
       });
@@ -840,38 +964,66 @@ async function loadAnalysisStemAudios(extracted, separation) {
   return loaded;
 }
 
-function chromaEvidenceForBar(audio, stemAudios, bar) {
+function chromaEvidenceForBar(audio, stemAudios, bar, { includeDiagnostics = false } = {}) {
   const chroma = Array(12).fill(0);
   const bassChroma = Array(12).fill(0);
   let harmonicWeight = 0;
   let bassWeight = 0;
 
-  const sourceChroma = pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
-  const sourceBassChroma = pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
+  const sourceEvidence = includeDiagnostics
+    ? sourceDiagnostics("fullMix", audio, bar, 0.45, 0.7, true)
+    : null;
+  const sourceChroma = sourceEvidence?.chroma ||
+    pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
+  const sourceBassChroma = sourceEvidence?.bassChroma ||
+    pitchClassEnergy(audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
   addWeightedChroma(chroma, sourceChroma, 0.45);
   addWeightedChroma(bassChroma, sourceBassChroma, 0.7);
   harmonicWeight += 0.45;
   bassWeight += 0.7;
+  const diagnosticSources = sourceEvidence ? [sourceEvidence.public] : [];
 
   for (const stem of stemAudios) {
-    if (segmentRms(stem.audio, bar.start, bar.end) < MIN_ANALYSIS_STEM_RMS) continue;
+    const audible = segmentRms(stem.audio, bar.start, bar.end) >= MIN_ANALYSIS_STEM_RMS;
+    const included = audible && Boolean(stem.harmonicWeight || stem.bassWeight);
+    const evidence = includeDiagnostics
+      ? sourceDiagnostics(stem.id, stem.audio, bar, stem.harmonicWeight, stem.bassWeight, included, audible)
+      : null;
+    if (evidence) diagnosticSources.push(evidence.public);
+    if (!audible) continue;
 
     if (stem.harmonicWeight) {
-      const stemChroma = pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
+      const stemChroma = evidence?.chroma ||
+        pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 36, maxMidi: 84 });
       addWeightedChroma(chroma, stemChroma, stem.harmonicWeight);
       harmonicWeight += stem.harmonicWeight;
     }
 
     if (stem.bassWeight) {
-      const stemBassChroma = pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
+      const stemBassChroma = evidence?.bassChroma ||
+        pitchClassEnergy(stem.audio, bar.start, bar.end, { minMidi: 28, maxMidi: 52 });
       addWeightedChroma(bassChroma, stemBassChroma, stem.bassWeight);
       bassWeight += stem.bassWeight;
     }
   }
 
+  const combinedChroma = normalizeChroma(harmonicWeight ? chroma.map((value) => value / harmonicWeight) : chroma);
+  const combinedBassChroma = normalizeChroma(bassWeight ? bassChroma.map((value) => value / bassWeight) : bassChroma);
   return {
-    chroma: normalizeChroma(harmonicWeight ? chroma.map((value) => value / harmonicWeight) : chroma),
-    bassChroma: normalizeChroma(bassWeight ? bassChroma.map((value) => value / bassWeight) : bassChroma)
+    chroma: combinedChroma,
+    bassChroma: combinedBassChroma,
+    ...(includeDiagnostics ? {
+      diagnostics: {
+        sources: diagnosticSources,
+        combined: {
+          chroma: roundedChroma(combinedChroma),
+          bassChroma: roundedChroma(combinedBassChroma),
+          harmonicWeight: Number(harmonicWeight.toFixed(3)),
+          bassWeight: Number(bassWeight.toFixed(3))
+        },
+        sourceOnly: { chroma: sourceChroma, bassChroma: sourceBassChroma }
+      }
+    } : {})
   };
 }
 
@@ -886,7 +1038,7 @@ const chordQualities = [
   { suffix: "dim", romanSuffix: "dim", intervals: [0, 3, 6], label: "diminished" }
 ];
 
-function scoreChord(chroma, bassChroma, root, quality) {
+function scoreChordDetails(chroma, bassChroma, root, quality) {
   const template = new Set(quality.intervals.map((interval) => (root + interval) % 12));
   const templateEnergy = [...template].reduce((sum, pitchClass) => sum + chroma[pitchClass], 0);
   const outsideEnergy = chroma.reduce((sum, value, pitchClass) => {
@@ -897,7 +1049,19 @@ function scoreChord(chroma, bassChroma, root, quality) {
   const thirdOrSuspensionBonus = quality.intervals.some((interval) => [2, 3, 4, 5].includes(interval))
     ? Math.max(...quality.intervals.filter((interval) => [2, 3, 4, 5].includes(interval)).map((interval) => chroma[(root + interval) % 12])) * 0.5
     : 0;
-  return templateEnergy + rootBonus + bassChordToneBonus + thirdOrSuspensionBonus - outsideEnergy * 0.08;
+  const outsidePenalty = outsideEnergy * 0.08;
+  return {
+    score: templateEnergy + rootBonus + bassChordToneBonus + thirdOrSuspensionBonus - outsidePenalty,
+    templateEnergy,
+    rootBonus,
+    bassChordToneBonus,
+    thirdOrSuspensionBonus,
+    outsidePenalty
+  };
+}
+
+function scoreChord(chroma, bassChroma, root, quality) {
+  return scoreChordDetails(chroma, bassChroma, root, quality).score;
 }
 
 function chordName(root, quality) {
@@ -922,13 +1086,18 @@ function simplifyWeakExtension(root, quality, chroma) {
   return chordQualities.find((candidate) => candidate.label === simpleLabel) || quality;
 }
 
-function estimateChord(chroma, bassChroma) {
+function estimateChord(chroma, bassChroma, { includeDiagnostics = false } = {}) {
   let best = null;
   let secondBestScore = -Infinity;
+  const candidates = [];
 
   for (let root = 0; root < 12; root += 1) {
     for (const quality of chordQualities) {
-      const score = scoreChord(chroma, bassChroma, root, quality);
+      const details = includeDiagnostics
+        ? scoreChordDetails(chroma, bassChroma, root, quality)
+        : null;
+      const score = details?.score ?? scoreChord(chroma, bassChroma, root, quality);
+      if (details) candidates.push({ root, quality, order: candidates.length, ...details });
       if (!best || score > best.score) {
         secondBestScore = best?.score ?? -Infinity;
         best = { root, quality, score };
@@ -940,10 +1109,38 @@ function estimateChord(chroma, bassChroma) {
 
   const margin = best ? best.score - secondBestScore : 0;
   const confidence = Math.max(0.15, Math.min(0.92, 0.35 + margin / 4));
+  const quality = best ? simplifyWeakExtension(best.root, best.quality, chroma) : chordQualities[0];
   return {
     root: best?.root ?? 0,
-    quality: best ? simplifyWeakExtension(best.root, best.quality, chroma) : chordQualities[0],
-    confidence: Number(confidence.toFixed(2))
+    quality,
+    confidence: Number(confidence.toFixed(2)),
+    ...(includeDiagnostics ? {
+      diagnostics: {
+        rawWinner: {
+          name: chordName(best?.root ?? 0, best?.quality || chordQualities[0]),
+          score: Number((best?.score || 0).toFixed(6)),
+          margin: Number(margin.toFixed(6))
+        },
+        candidateScores: candidates
+          .sort((left, right) => right.score - left.score || left.order - right.order)
+          .map((candidate) => ({
+            name: chordName(candidate.root, candidate.quality),
+            root: candidate.root,
+            quality: candidate.quality.label,
+            score: Number(candidate.score.toFixed(6)),
+            templateEnergy: Number(candidate.templateEnergy.toFixed(6)),
+            rootBonus: Number(candidate.rootBonus.toFixed(6)),
+            bassChordToneBonus: Number(candidate.bassChordToneBonus.toFixed(6)),
+            thirdOrSuspensionBonus: Number(candidate.thirdOrSuspensionBonus.toFixed(6)),
+            outsidePenalty: Number(candidate.outsidePenalty.toFixed(6))
+          })),
+        winnerChanges: best && best.quality.label !== quality.label ? [{
+          evidence: "weak-extension-simplification",
+          from: chordName(best.root, best.quality),
+          to: chordName(best.root, quality)
+        }] : []
+      }
+    } : {})
   };
 }
 
@@ -1116,23 +1313,56 @@ function mergeAdjacentChordDrafts(chordDrafts) {
 async function analyzeHarmonyFromAudio(
   extracted,
   separation,
-  { timingGrid = null, fixedKey = null, sequenceSmoothing = "isolated" } = {}
+  {
+    timingGrid = null,
+    fixedKey = null,
+    sequenceSmoothing = "isolated",
+    includeDiagnostics = false
+  } = {}
 ) {
   const startedAt = Date.now();
   const audio = await readPcm16WavFromFile(extracted.path);
-  const stemAudios = await loadAnalysisStemAudios(extracted, separation);
+  const stemAudios = await loadAnalysisStemAudios(extracted, separation, { includeDiagnostics });
   const beatGrid = timingGrid || estimateBeatGrid(audio);
   const segments = chordSegmentsForBeatGrid(beatGrid, audio.durationSeconds);
   const aggregateChroma = Array(12).fill(0);
   const chordDrafts = [];
+  const diagnosticBeats = [];
 
   for (const segment of segments) {
-    const { chroma, bassChroma } = chromaEvidenceForBar(audio, stemAudios, segment);
+    const evidence = chromaEvidenceForBar(audio, stemAudios, segment, { includeDiagnostics });
+    const { chroma, bassChroma } = evidence;
     for (let index = 0; index < 12; index += 1) {
       aggregateChroma[index] += chroma[index];
     }
-    const estimated = estimateChord(chroma, bassChroma);
+    const estimated = estimateChord(chroma, bassChroma, { includeDiagnostics });
     chordDrafts.push({ ...segment, ...estimated });
+    if (includeDiagnostics) {
+      const fullMixWinner = estimateChord(
+        evidence.diagnostics.sourceOnly.chroma,
+        evidence.diagnostics.sourceOnly.bassChroma
+      );
+      const withoutBassWinner = estimateChord(chroma, Array(12).fill(0));
+      const selectedName = chordName(estimated.root, estimated.quality);
+      const winnerChanges = [...estimated.diagnostics.winnerChanges];
+      const fullMixName = chordName(fullMixWinner.root, fullMixWinner.quality);
+      if (fullMixName !== selectedName) {
+        winnerChanges.push({ evidence: "separated-stems", from: fullMixName, to: selectedName });
+      }
+      const withoutBassName = chordName(withoutBassWinner.root, withoutBassWinner.quality);
+      if (withoutBassName !== selectedName) {
+        winnerChanges.push({ evidence: "bass", from: withoutBassName, to: selectedName });
+      }
+      diagnosticBeats.push({
+        ...segment,
+        sources: evidence.diagnostics.sources,
+        combined: evidence.diagnostics.combined,
+        rawWinner: estimated.diagnostics.rawWinner,
+        selectedWinner: { name: selectedName, confidence: estimated.confidence },
+        candidateScores: estimated.diagnostics.candidateScores,
+        winnerChanges
+      });
+    }
   }
 
   const sequenceChordDrafts = sequenceSmoothing === "none"
@@ -1169,6 +1399,22 @@ async function analyzeHarmonyFromAudio(
       reason: "isolated-between-matching-neighbors"
     }));
   const { tonicPitchClass, ...publicKey } = key;
+  if (includeDiagnostics) {
+    for (let index = 0; index < diagnosticBeats.length; index += 1) {
+      const raw = chordDrafts[index];
+      const final = sequenceChordDrafts[index];
+      const rawName = chordName(raw.root, raw.quality);
+      const finalName = chordName(final.root, final.quality);
+      diagnosticBeats[index].finalWinner = { name: finalName, confidence: final.confidence };
+      if (rawName !== finalName) {
+        diagnosticBeats[index].winnerChanges.push({
+          evidence: "isolated-between-matching-neighbors",
+          from: rawName,
+          to: finalName
+        });
+      }
+    }
+  }
 
   return {
     analysisIdentity: randomUUID(),
@@ -1180,6 +1426,7 @@ async function analyzeHarmonyFromAudio(
     suppressedChordSuggestions,
     melody: [],
     beatGrid,
+    ...(includeDiagnostics ? { diagnostics: { version: 1, beats: diagnosticBeats } } : {}),
     analysis: {
       name: timingGrid ? "beat-aware-chroma-corrected-timing-v2" : "beat-aware-chroma-v3",
       available: true,

@@ -239,6 +239,14 @@ The analyzer keeps three explicit chord layers:
 - `metadata.suppressedChordSuggestions`: only raw one-beat candidates changed by the conservative `A-B-A` smoothing rule, including their original musical position, label, confidence, and suppression reason. The complete dense beat sequence is not duplicated in persisted job metadata.
 - `practiceState.chordChart`: the user's authoritative chart. Adding a suppressed suggestion is an explicit local edit that replaces only the overlapping beat and preserves the surrounding working chord before and after it.
 
+Benchmark callers may opt into a separate, non-persisted diagnostic result.
+That artifact records per-beat source chroma, low-note and reliability
+measurements, persistence/chordality features, all raw candidate score
+components, and the evidence that changed a winner. Normal job and corrected
+reanalysis callers do not request it, so public analyzer metadata and immutable
+provenance remain unchanged. The CR1 measured features are diagnostic-only;
+later hypotheses must benchmark any scoring use as a separate analyzer change.
+
 Corrected-timing reanalysis stores the same two immutable analyzer layers inside `metadata.correctedTimingAnalysis`; `effectiveMetadata` selects those together so suggestions cannot be mixed across analyzer timing versions. Already recovered suggestions are hidden by matching their musical position and label against the working chart.
 
 `Back to analysis` is distinct from adding one suggestion. It requires confirmation whenever a working chart exists, snapshots that exact chart with the active analysis identity and reason, then resets presentation to the current conservative analyzer layer. `Undo reset` restores the snapshot once only when the song still has no newer working chart and the same analysis identity remains active. Corrected-timing reanalysis assigns a new identity and creates an undoable snapshot only when it actually displaces a working chart; stale backups are cleared rather than carried across analyses. Neither path merges or trains on user edits.
