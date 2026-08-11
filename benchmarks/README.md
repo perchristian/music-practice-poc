@@ -143,28 +143,18 @@ human response are in `chord-reliability-cr2f-checkpoint.md` and
 `chord-reliability-cr2f-manual-review.md`. Do not run Candidate B unless that
 review returns `PERSISTENT_ROOTS`.
 
-## MR0 progressive musical review
+## MR0 source-first listening gate
 
-MR0 starts with two frozen excerpts from the generated
-`phase-2h-three-four-90.wav` Level-1 fixture. The contract keeps neutral signal
-evidence, analyzer labels, and the generated reference in separate disclosure
-arms:
+`npm run generate:test-media` creates the five-bar C–F–G–C–Dm fixture at
+`test-media/phase-2h-three-four-90.wav` with every musical tone shifted up 12
+semitones from its original low-register version. The same file now serves the
+3/4 analyzer regression and the source-first listening gate; separate CR1
+fixtures retain low-bass coverage.
 
-```sh
-npm run prepare:mr0-review
-```
-
-The command regenerates the fixture, verifies its checksum and the review
-contract inputs, runs the local analyzer twice, and fails unless both runs are
-stable and the final five-chord chart matches the frozen known answer. It writes
-the staged local packet under ignored
-`benchmark-results/musical-review/mr0/level1/`; the durable contract and first
-case report are `musical-review-mr0-level1.json` and
-`musical-review-mr0-level1-report.md`.
-
-Arm A remains unrun until a separately configured audio-input reviewer is
-available. Do not give the current text/image reviewer the candidate or
-reference files before it has completed Arm B.
+Do not prepare new analyzer labels or a staged MR0 packet from this source
+until the product owner confirms it is identifiable by ear. The generated file
+is ignored; its generator and combined register/analyzer regression are
+version-controlled.
 
 ## One-time setup
 

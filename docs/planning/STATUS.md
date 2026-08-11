@@ -89,12 +89,12 @@ bounded follow-up. The measured position is:
   establish the progressive professional musical-review method and a Level-1
   baseline before another analyzer candidate. The pending three-recording
   comparison requires a musical case report before its workflow code.
-- MR0 now has a checksum-frozen 10-second Level-1 source with two clear-triad
-  excerpts, separate neutral/candidate/reference disclosure files, and a
-  complete first case report. Two local-analyzer runs were identical and the
-  final chart matched all five reference chords, but every raw beat winner added
-  an unsupported seventh before conservative simplification. The judgment is
-  `repeat this level`; issue #13 is the only ready product-owner action.
+- MR0's first material attempt failed its human gate on 2026-08-12 because the
+  generated source was two octaves too low for Per to identify. The provisional
+  packet/report were removed. Issue #14 produced a separate +24-semitone
+  audition source; Per found it identifiable but requested one octave lower for
+  a more natural register in issue #15. The refined +12-semitone file is ready
+  for the source-first gate in issue #16.
 
 Chord accuracy is therefore the open core question. Timing, transport,
 persistence, and the editable chart are not.
@@ -168,21 +168,35 @@ Local web POC:
   [#12 — Review CR2F musical-window candidate](https://github.com/perchristian/music-practice-poc/issues/12)
   (`owner:per`, `state:waiting`). Decision 42 supersedes its former one-line
   response; MR0 must complete first.
-- Current human action:
+- Completed human review:
   [#13 — MR0: review Level-1 musical baseline](https://github.com/perchristian/music-practice-poc/issues/13)
-  (`owner:per`, `state:ready`). Confirm the generated baseline is audible, the
-  report is useful, and the two staged reviewer runs are stable or unstable.
+  (closed after Per returned `CHANGES` and clarified that the source was two
+  octaves too low to identify; the staged reviewer was not run).
+- Completed agent task:
+  [#14 — MR0: replace unusable Level-1 review material](https://github.com/perchristian/music-practice-poc/issues/14)
+  (closed after generating and verifying the separate two-octave-up audition
+  source while preserving all lower-register regression fixtures).
+- Completed human review:
+  [#15 — MR0: listen to two-octave-up Level-1 source](https://github.com/perchristian/music-practice-poc/issues/15)
+  (closed after Per confirmed it was identifiable but requested one octave
+  lower for a more natural bass-plus-chords register).
+- Current human action:
+  [#16 — MR0: listen to one-octave-up Level-1 source](https://github.com/perchristian/music-practice-poc/issues/16)
+  (`owner:per`, `state:ready`). Listen to the raised shared 3/4 fixture
+  and return `USABLE` or `UNUSABLE` before any analyzer packet is rebuilt.
 
 ## In Progress
 
 - CR2F Candidate A implementation and automated development evaluation are
   complete. The raw-versus-candidate review now requires the Decision 42 musical
   case report.
-- MR0 agent preparation is complete. The first report selects
-  `repeat this level`: it supports a bounded matched triad/seventh diagnostic,
-  not Level 2. Product-owner confirmation and two fresh staged reviewer runs
-  are pending in issue #13. Candidate B, the consumed holdout, and product
-  integration remain unavailable.
+- MR0 now uses the shared `test-media/phase-2h-three-four-90.wav` fixture with
+  every musical tone raised one octave. The opening root is shifted from C2 at
+  65.406 Hz to C3 at 130.813 Hz, and its existing meter/chord regression still
+  passes. Dedicated CR1 fixtures retain low-bass coverage, so no duplicate
+  low-register MR0 file is needed. No analyzer packet or report has been
+  rebuilt; issue #16 must approve the raw source first. Candidate B, the
+  consumed holdout, and product integration remain unavailable.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -202,10 +216,10 @@ Local web POC:
 
 ## Next Recommended Task
 
-Complete the product-owner review in issue #13. If approved, run only the
-bounded matched triad/seventh Level-1 diagnostic identified in
-`benchmarks/musical-review-mr0-level1-report.md`; do not resume issue #11 or
-advance to Level 2 yet. No MR0 result authorizes product integration.
+Complete the source-first listening gate in issue #16. If the +1-octave file is
+usable, freeze it and rebuild the staged MR0 packet; if it is not, record the
+specific remaining pitch/timbre problem before changing it again. Do not resume
+issue #11 or advance to Level 2.
 
 ## Context Recovery Review Result
 
@@ -229,18 +243,19 @@ Summary:
   `STOP/REFRAME` after Chordino missed oracle root by 1.9 points. The owner then
   selected `REFRAME`; the bounded qualitative review failed on
   `ShapeOfMyHeart`, while `TeAmo` and `Changes part 1` remained useful. CR2F
-  Candidate A subsequently passed its development gate. MR0 then froze two
-  Level-1 clear-triad excerpts, prepared staged evidence, and produced the first
-  complete musical report with a `repeat this level` judgment.
-- Remaining work: issue #13 must confirm the MR0 report and staged reviewer
-  behavior. The bounded matched triad/seventh diagnostic follows only after
-  approval; issue #12 and Candidate B remain waiting. Product integration,
-  CR3–CR5, practice-target, stem-import, and timeline-hardening remain blocked
-  behind that learning sequence.
-- Next recommended task: product-owner MR0 review in issue #13.
+  Candidate A subsequently passed its development gate. MR0's first Level-1
+  attempt was rejected because its source was two octaves too low; its
+  provisional packet/report were removed. A +2-octave audition was identifiable
+  but high; the current +1-octave candidate preserves automated fixtures.
+- Remaining work: issue #16 must approve or reject the audition source before
+  staged review can begin. Issue #12 and Candidate B remain waiting. Product
+  integration, CR3–CR5, practice-target, stem-import, and timeline-hardening
+  remain blocked behind that learning sequence.
+- Next recommended task: source listening gate in issue #16.
 
 Gaps found:
-- Direct audio-review capability remains unavailable in the current reviewer,
+- The +1-octave audition file is not yet approved for human MR0 review. Direct
+  audio-review capability also remains unavailable in the current reviewer,
   and its staged text-evidence behavior is not yet measured. All available RWC
   holdout and local manual recordings are consumed; a successful later
   candidate still needs fresh validation before any replacement claim.
@@ -250,14 +265,24 @@ PASS
 
 ## Skills Used
 
+- Used Codex skills `ponytail:ponytail` and `github:github` on 2026-08-12 to
+  correct the failed MR0 material handoff.
+  - Purpose: remove the invalid packet, simplify the generated source, and keep
+    the GitHub review queue aligned with Per's register corrections.
+  - Result: issue #13 closed with `CHANGES`, issue #14 generated and verified
+    a +2-octave source, issue #15 requested one octave lower, and the shared 3/4
+    fixture now serves both analyzer regression and issue #16's listening gate.
+  - Reproducibility: `npm run generate:test-media` plus the focused octave-shift
+    test reproduce the candidate without either skill.
+
 - Used Codex skill `ponytail:ponytail` on 2026-08-11 for MR0 execution.
   - Purpose: reuse one existing generated known-answer source and the analyzer's
     opt-in diagnostics for the smallest reproducible Level-1 packet.
-  - Result: one contract and one preparation script produce three staged files,
-    verify two stable runs, and expose the raw extension bias without adding a
-    dependency or changing product behavior.
-  - Reproducibility: `npm run prepare:mr0-review` reproduces the packet without
-    the skill.
+  - Result: the first attempt produced a staged packet, but Per later rejected
+    the generated source as unusable listening material; the packet was removed
+    on 2026-08-12.
+  - Reproducibility: commit `5008d6b` preserves the rejected attempt for audit;
+    current work does not depend on it.
 - Used Codex skill `workspace-agents:workspace-agents-manage-agent` on
   2026-08-11 to inspect the existing `Musical Harmony Reviewer` draft.
   - Purpose: freeze the actual draft/version/model identity and confirm that it
@@ -269,8 +294,8 @@ PASS
 - Used Codex skill `github:github` on 2026-08-11 for the MR0 handoff.
   - Purpose: align the issue queue with Decision 42 after the Level-1 packet was
     ready.
-  - Result: issue #12 moved to `state:waiting`; issue #13 is the single
-    `owner:per`, `state:ready` review with an exact response contract.
+  - Result: issue #12 moved to `state:waiting`; issue #13 became the single
+    owner review and later closed with `CHANGES` on 2026-08-12.
   - Reproducibility: the report and local planning files contain the complete
     review steps and decision boundary.
 

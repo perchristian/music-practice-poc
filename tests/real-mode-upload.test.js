@@ -5,7 +5,7 @@ import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/pr
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { analyzeHarmonyFromAudio } from "../server.js";
+import { analyzeHarmonyFromAudio, readPcm16WavFromFile } from "../server.js";
 
 const port = Number(process.env.REAL_BACKEND_TEST_PORT || 3211);
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -174,6 +174,21 @@ async function analyzeGeneratedHarmony(filename) {
     { path: sourcePath, filename },
     { outputs: [] }
   );
+}
+
+function toneMagnitude(audio, frequency, startSeconds = 0.2, endSeconds = 1.8) {
+  let real = 0;
+  let imaginary = 0;
+  let count = 0;
+  const start = Math.floor(audio.sampleRate * startSeconds);
+  const end = Math.floor(audio.sampleRate * endSeconds);
+  for (let index = start; index < end; index += 1) {
+    const phase = 2 * Math.PI * frequency * index / audio.sampleRate;
+    real += audio.samples[index] * Math.cos(phase);
+    imaginary -= audio.samples[index] * Math.sin(phase);
+    count += 1;
+  }
+  return 2 * Math.hypot(real, imaginary) / count;
 }
 
 function silentPcm16Wav(durationSeconds, sampleRate = 1000) {
@@ -525,6 +540,23 @@ for (const stem of ["drums", "bass", "guitar", "piano", "vocals", "other"]) {
 });
 
 describe("generated harmonic-analysis fixtures", () => {
+  it("detects a 3/4 harmonic grid at 90 BPM in the raised listening register", async () => {
+    generateTestMedia();
+    const source = await readPcm16WavFromFile(join(
+      process.cwd(),
+      "test-media",
+      "phase-2h-three-four-90.wav"
+    ));
+    const metadata = await analyzeGeneratedHarmony("phase-2h-three-four-90.wav");
+
+    assert.ok(toneMagnitude(source, 130.813) > 0.15);
+    assert.ok(toneMagnitude(source, 65.406) < 0.01);
+    assert.equal(metadata.beatGrid.beatsPerBar, 3);
+    assert.ok(Math.abs(metadata.beatGrid.bpm - 90) <= 8, JSON.stringify(metadata.beatGrid));
+    assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "F", "G", "C", "Dm"]);
+    assert.deepEqual(metadata.chords.map((chord) => chord.bar), [1, 2, 3, 4, 5]);
+  });
+
   it("detects multiple chord changes inside 4/4 bars at 120 BPM", async () => {
     const metadata = await analyzeGeneratedHarmony("phase-2h-multi-chord-120.wav");
 
@@ -540,15 +572,6 @@ describe("generated harmonic-analysis fixtures", () => {
       [3, 3],
       [4, 1]
     ]);
-  });
-
-  it("detects a 3/4 harmonic grid at 90 BPM", async () => {
-    const metadata = await analyzeGeneratedHarmony("phase-2h-three-four-90.wav");
-
-    assert.equal(metadata.beatGrid.beatsPerBar, 3);
-    assert.ok(Math.abs(metadata.beatGrid.bpm - 90) <= 8, JSON.stringify(metadata.beatGrid));
-    assert.deepEqual(metadata.chords.map((chord) => chord.name), ["C", "F", "G", "C", "Dm"]);
-    assert.deepEqual(metadata.chords.map((chord) => chord.bar), [1, 2, 3, 4, 5]);
   });
 
   it("keeps chord roots stable when the bass plays inversions", async () => {

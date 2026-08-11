@@ -244,7 +244,9 @@ This creates:
 - `test-media/phase-2g-piano-mix.wav`: synthesized piano-band chords plus low bass and high accompaniment content for the separator smoke.
 - `test-media/phase-2h-bar-grid.wav`: synthesized four-bar C, Am, F, G material with a clear 4/4 pulse and 0.65 seconds of pre-roll before the first downbeat for beat/bar-grid and chord-analysis smoke.
 - `test-media/phase-2h-multi-chord-120.wav`: synthesized 4/4 material at 120 BPM with multiple chord changes inside bars.
-- `test-media/phase-2h-three-four-90.wav`: synthesized 3/4 material at 90 BPM.
+- `test-media/phase-2h-three-four-90.wav`: synthesized 3/4 C, F, G, C, Dm
+  material at 90 BPM, raised one octave from the original low-register fixture
+  so the same file is usable for automated analysis and listening review.
 - `test-media/phase-2h-inversions-100.wav`: synthesized 4/4 material at 100 BPM where the bass plays chord tones other than the root.
 
 These files are generated in-repo, are not commercial recordings, and do not include third-party audio. They are intentionally short and musically plain. The Phase 2G file can verify that Demucs real mode creates and serves six practice-compatible stems. It cannot prove quality on real screen recordings.

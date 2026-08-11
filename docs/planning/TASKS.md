@@ -2,11 +2,10 @@
 
 ## Next Task
 
-MR0 has frozen its first Level-1 material and produced a complete musical case
-report. The result is `repeat this level`: the final five-chord chart is correct,
-but all raw beat winners add unsupported sevenths and the specialist's staged
-behavior remains unmeasured. Complete product-owner issue #13, then run only the
-bounded matched triad/seventh diagnostic if approved. CR2F issue #12, Candidate
+MR0's first source failed because its register was two octaves too low for Per
+to identify. A +24-semitone audition was identifiable but less natural, so the
+current candidate is +12 semitones with a C3 bass root. Issue #16 must approve
+that raw file before any analyzer packet is rebuilt. CR2F issue #12, Candidate
 B, the consumed RWC holdout, and product integration remain blocked.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
@@ -32,7 +31,7 @@ Ownership. They are not duplicated here.
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
 | [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
 | [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | Paused for MR0 musical review |
-| [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | Awaiting owner review in #13 |
+| [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | Source listening gate in #16 |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
@@ -372,6 +371,9 @@ Evidence:
 - The pending CR2F response reduces the judgment to a score and workflow code,
   with no required musical map, competing causal theories, or discriminating
   tests.
+- Per rejected the first generated Level-1 source on 2026-08-12 because it was
+  two octaves too low to identify. Technical decodability and analyzer known-
+  answer success did not make that register suitable for listening review.
 
 Hypothesis:
 - A reproducible theory-led review, applied first to simple material and then to
@@ -379,6 +381,8 @@ Hypothesis:
   produce better-founded analyzer experiments than aggregate selection alone.
 
 Test strategy:
+- Require product-owner approval of the unprocessed source before freezing or
+  exposing any analyzer evidence.
 - Freeze a small Level-1 set of user-held, licensed, or generated passages with
   clear triads, roots, timing, and reference interpretations.
 - Run the staged specialist capability experiment: blind audio through a
@@ -403,14 +407,11 @@ Files and symbols:
   contract
 - `docs/research/specialist-harmony-agent-capability-test.md`: staged-disclosure
   capability experiment
-- `benchmarks/musical-review-mr0-level1.json`: frozen Level-1 material,
-  references, identities, and disclosure order
-- `scripts/prepare-mr0-review.js`: checksum, stability, reference, and staged
-  packet preparation
-- `benchmarks/musical-review-mr0-level1-report.md`: first complete musical case
-  report and bounded next experiment
+- `scripts/generate-phase2a-test-media.js`: `harmonyFixtures`, `fixtureSample`
+- `tests/real-mode-upload.test.js`: raised-register 3/4 analyzer regression
 - `benchmarks/chord-reliability-cr2f-manual-review.md`: amended pending review
-- future committed complexity manifest
+- future approved-source manifest, musical-review reports, and complexity
+  manifest
 
 Goal:
 - Produce a professional, reproducible understanding of which harmonies the
@@ -443,16 +444,15 @@ Milestone:
   either advancing to Level 2 or a specific bounded correction at Level 1.
 
 Result and learning (in progress):
-- The generated C–F–G–C–Dm fixture passes 5/5 final labels with exact grid
-  boundaries in two identical analyzer runs. The report nevertheless finds
-  unsupported seventh chords in all 15 raw beat winners and an unreliable
-  neutral chordality summary for several obvious triads.
-- The judgment is `repeat this level`. Issue #13 asks the product owner to
-  confirm the baseline and report, then run Arms B–D twice. Approval authorizes
-  only the matched triad/seventh Level-1 diagnostic; it does not advance to
-  Level 2 or resume CR2F.
+- The first attempt proved only machine behavior: the generated fixture decoded
+  and matched its known answer, but failed the product owner's listening gate.
+- The lower register—not file integrity—was the reported blocker. A separate
+  +2-octave copy was identifiable but high. The shared 3/4 fixture now shifts
+  every musical tone up exactly one octave; its analyzer assertions still pass,
+  while dedicated CR1 fixtures retain low-bass coverage.
+- Issue #16 must approve the shared source before packet or report work begins.
 
-Status: Awaiting product-owner review in issue #13.
+Status: Awaiting product-owner source listening in issue #16.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 

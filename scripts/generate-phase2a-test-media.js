@@ -198,6 +198,7 @@ const harmonyFixtures = [
     bpm: 90,
     beatsPerBar: 3,
     bars: 5,
+    octaveShift: 1,
     progression: [
       { bar: 1, beat: 1, beats: 3, chord: "C" },
       { bar: 2, beat: 1, beats: 3, chord: "F" },
@@ -310,6 +311,7 @@ function fixturePulse(time, fixture) {
 }
 
 function fixtureSample(fixture) {
+  const pitchMultiplier = 2 ** (fixture.octaveShift || 0);
   return (time) => {
     const segment = fixtureSegmentAt(fixture, time);
     const chordNotes = chordVoicings[segment.chord];
@@ -318,10 +320,10 @@ function fixtureSample(fixture) {
     const beat = time % beatDuration;
     const envelope = 0.7 + 0.3 * Math.exp(-beat * 4);
     const harmony = chordNotes.reduce((sum, note) => {
-      const frequency = noteFrequency(note);
+      const frequency = noteFrequency(note) * pitchMultiplier;
       return sum + Math.sin(2 * Math.PI * frequency * time) * 0.11 * envelope;
     }, 0);
-    const bassFrequency = noteFrequency(bassNote);
+    const bassFrequency = noteFrequency(bassNote) * pitchMultiplier;
     const bass = (
       Math.sin(2 * Math.PI * bassFrequency * time) * 0.23 +
       Math.sin(2 * Math.PI * bassFrequency * 2 * time) * 0.06

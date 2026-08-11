@@ -62,12 +62,14 @@ The project currently uses date-based development milestones rather than numbere
   pipelines before later writes, keeping multi-song flows fast and cleanup
   race-free.
 
+### Changed
+
+- Raised the generated 3/4 C–F–G–C–Dm fixture one octave so its bass and chords
+  are easier to identify by ear, while preserving its meter/chord regressions
+  and the separate low-bass diagnostic fixtures.
+
 ### Added
 
-- Added a checksum-frozen MR0 Level-1 musical-review contract, staged neutral/
-  candidate/reference packet generator, and first causal case report. The
-  packet exposes a systematic raw seventh-chord bias without changing product
-  analysis or advancing beyond Level 1.
 - Added the benchmark-only CR2F musical-window Chordino policy, frozen
   development gate, boundary/occupancy diagnostics, and synchronized raw-versus-
   candidate review. Candidate A passed development; it does not change product
