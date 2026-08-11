@@ -97,6 +97,12 @@ Assume this project is developed with:
 - A backend that can run locally and, where practical, in cloud development environments.
 - Heavy ML behind a switchable pipeline mode so the project remains demoable even when ML dependencies are unavailable.
 
+For local macOS work that may run long enough for idle sleep to interrupt it,
+start `caffeinate -i` as a separately tracked subprocess before beginning. Keep it
+running for the duration of the work, then terminate that exact subprocess when
+the work finishes, pauses for user input, or otherwise stops. Do not leave an
+orphaned `caffeinate` process behind.
+
 Use:
 
 ```text
