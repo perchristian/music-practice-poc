@@ -89,6 +89,12 @@ bounded follow-up. The measured position is:
   establish the progressive professional musical-review method and a Level-1
   baseline before another analyzer candidate. The pending three-recording
   comparison requires a musical case report before its workflow code.
+- MR0 now has a checksum-frozen 10-second Level-1 source with two clear-triad
+  excerpts, separate neutral/candidate/reference disclosure files, and a
+  complete first case report. Two local-analyzer runs were identical and the
+  final chart matched all five reference chords, but every raw beat winner added
+  an unsupported seventh before conservative simplification. The judgment is
+  `repeat this level`; issue #13 is the only ready product-owner action.
 
 Chord accuracy is therefore the open core question. Timing, transport,
 persistence, and the editable chart are not.
@@ -158,21 +164,25 @@ Local web POC:
   [#11 — CR2F musical-grid stabilization](https://github.com/perchristian/music-practice-poc/issues/11)
   (`owner:agent`, `state:waiting`). Candidate A passed development; Candidate B
   is conditional on a musically supported root-cause theory.
-- Current human action:
+- Waiting human review:
   [#12 — Review CR2F musical-window candidate](https://github.com/perchristian/music-practice-poc/issues/12)
-  (`owner:per`, `state:ready` on GitHub, but its local review packet was amended
-  by Decision 42 and must not use the former one-line response alone).
+  (`owner:per`, `state:waiting`). Decision 42 supersedes its former one-line
+  response; MR0 must complete first.
+- Current human action:
+  [#13 — MR0: review Level-1 musical baseline](https://github.com/perchristian/music-practice-poc/issues/13)
+  (`owner:per`, `state:ready`). Confirm the generated baseline is audible, the
+  report is useful, and the two staged reviewer runs are stable or unstable.
 
 ## In Progress
 
 - CR2F Candidate A implementation and automated development evaluation are
   complete. The raw-versus-candidate review now requires the Decision 42 musical
   case report.
-- MR0 is next: freeze Level-1 material, perform the first professional musical
-  review, and use the result to decide whether to advance or isolate a simpler
-  correction. Candidate B requires evidence for the proposed root mechanism;
-  the consumed holdout is unavailable and product integration remains
-  unauthorized.
+- MR0 agent preparation is complete. The first report selects
+  `repeat this level`: it supports a bounded matched triad/seventh diagnostic,
+  not Level 2. Product-owner confirmation and two fresh staged reviewer runs
+  are pending in issue #13. Candidate B, the consumed holdout, and product
+  integration remain unavailable.
 - CR1 is complete. Milestone 1 passed with semantic-output equivalence, six
   generated scenarios, full-mix and Demucs-assisted RWC development baselines,
   and a dominant-error review in
@@ -192,12 +202,10 @@ Local web POC:
 
 ## Next Recommended Task
 
-Complete MR0 before resuming issue #11: select and freeze the first Level-1
-material, then produce the report defined in
-`docs/research/musical-chord-review-method.md`. The existing three-recording
-comparison remains useful diagnostic evidence, but its workflow code follows
-the musical analysis rather than replacing it. No result authorizes product
-integration.
+Complete the product-owner review in issue #13. If approved, run only the
+bounded matched triad/seventh Level-1 diagnostic identified in
+`benchmarks/musical-review-mr0-level1-report.md`; do not resume issue #11 or
+advance to Level 2 yet. No MR0 result authorizes product integration.
 
 ## Context Recovery Review Result
 
@@ -221,25 +229,50 @@ Summary:
   `STOP/REFRAME` after Chordino missed oracle root by 1.9 points. The owner then
   selected `REFRAME`; the bounded qualitative review failed on
   `ShapeOfMyHeart`, while `TeAmo` and `Changes part 1` remained useful. CR2F
-  Candidate A subsequently passed its development gate and its comparison
-  packet is ready.
-- Remaining work: issue #12 must assess Candidate A on the three consumed local
-  recordings through the Decision 42 case-report method. MR0 must first freeze
-  and review Level-1 material; Candidate B is conditional on musical evidence
-  for the proposed persistent-root mechanism. Product integration, CR3–CR5,
-  practice-target, stem-import, and timeline-hardening remain blocked behind
-  that learning sequence.
-- Next recommended task: MR0 Level-1 material and first musical report.
+  Candidate A subsequently passed its development gate. MR0 then froze two
+  Level-1 clear-triad excerpts, prepared staged evidence, and produced the first
+  complete musical report with a `repeat this level` judgment.
+- Remaining work: issue #13 must confirm the MR0 report and staged reviewer
+  behavior. The bounded matched triad/seventh diagnostic follows only after
+  approval; issue #12 and Candidate B remain waiting. Product integration,
+  CR3–CR5, practice-target, stem-import, and timeline-hardening remain blocked
+  behind that learning sequence.
+- Next recommended task: product-owner MR0 review in issue #13.
 
 Gaps found:
-- MR0 has no frozen Level-1 material or executable GitHub issue yet. All
-  available RWC holdout and local manual recordings are consumed; a successful
-  Candidate A or B still needs fresh validation before any replacement claim.
+- Direct audio-review capability remains unavailable in the current reviewer,
+  and its staged text-evidence behavior is not yet measured. All available RWC
+  holdout and local manual recordings are consumed; a successful later
+  candidate still needs fresh validation before any replacement claim.
 
 Result:
 PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-08-11 for MR0 execution.
+  - Purpose: reuse one existing generated known-answer source and the analyzer's
+    opt-in diagnostics for the smallest reproducible Level-1 packet.
+  - Result: one contract and one preparation script produce three staged files,
+    verify two stable runs, and expose the raw extension bias without adding a
+    dependency or changing product behavior.
+  - Reproducibility: `npm run prepare:mr0-review` reproduces the packet without
+    the skill.
+- Used Codex skill `workspace-agents:workspace-agents-manage-agent` on
+  2026-08-11 to inspect the existing `Musical Harmony Reviewer` draft.
+  - Purpose: freeze the actual draft/version/model identity and confirm that it
+    remains unpublished and cannot supply the audio-only arm.
+  - Result: MR0 records draft version 5 and keeps Arm A explicitly unrun rather
+    than implying direct listening.
+  - Reproducibility: the committed capability test and review contract preserve
+    the boundary; the Workspace Agent remains optional.
+- Used Codex skill `github:github` on 2026-08-11 for the MR0 handoff.
+  - Purpose: align the issue queue with Decision 42 after the Level-1 packet was
+    ready.
+  - Result: issue #12 moved to `state:waiting`; issue #13 is the single
+    `owner:per`, `state:ready` review with an exact response contract.
+  - Reproducibility: the report and local planning files contain the complete
+    review steps and decision boundary.
 
 - Used Codex skill `openai-docs` on 2026-08-10 to verify the draft reviewer's
   audio capability before treating it as a musical listener.

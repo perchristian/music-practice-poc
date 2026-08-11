@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "reviewId": "mr0-level1-clear-triads-v1",
+  "frozenAt": "2026-08-11",
+  "status": "development",
+  "complexityLevel": 1,
+  "question": "Can the review method and current local analyzer recover a sparse, root-position triad progression before either is exposed to more complex harmony?",
+  "input": {
+    "path": "test-media/phase-2h-three-four-90.wav",
+    "generator": "scripts/generate-phase2a-test-media.js",
+    "generatorSha256": "b09f262a96e964a6e8fe8b58a75c72fa552070dec84b3cbc78f4ece4025e153a",
+    "audioSha256": "651cc3c8138f2b70f8cb2574fd6bb0d88152e0822cf931d0e607d0931669e2d9",
+    "durationSeconds": 10,
+    "sourceRights": "Generated in-repository from synthesized sine-wave chord tones; no third-party recording or composition is bundled."
+  },
+  "timing": {
+    "source": "generated-known-answer",
+    "confidence": "authoritative",
+    "bpm": 90,
+    "beatDurationSeconds": 0.6666666666666666,
+    "beatsPerBar": 3,
+    "downbeatOffsetSeconds": 0,
+    "bars": 5
+  },
+  "signalRepresentation": {
+    "identity": "beat-aware-chroma-diagnostics-v1",
+    "contents": [
+      "beat-aligned full-mix chroma",
+      "bass chroma",
+      "low-note candidates",
+      "bass reliability",
+      "pitch-class persistence",
+      "chordality"
+    ],
+    "candidateLabelsExcludedFromArmB": true
+  },
+  "analyzer": {
+    "name": "beat-aware-chroma-corrected-timing-v2",
+    "evidencePolicy": "legacy",
+    "sequenceSmoothing": "isolated",
+    "timingSource": "generated-known-answer"
+  },
+  "reviewer": {
+    "methodPath": "docs/research/musical-chord-review-method.md",
+    "methodSha256": "5b3a3b4089bfe8cf1a0440aed552af577d57a6ae8b46b8ae0a27f247850e427e",
+    "capabilityTestPath": "docs/research/specialist-harmony-agent-capability-test.md",
+    "capabilityTestSha256": "5de95be2df8c5dbf3357820043e7081aa59c35a4b6763769f95253f1957c29a3",
+    "workspaceAgentId": "agt_6a7a171c650081a49d1d3010dcac622f",
+    "workspaceAgentVersionId": "agtv_6a7a1944e27c81a4ba5ea7036ce59325",
+    "model": "gpt-5.3-codex",
+    "audioInputSupported": false
+  },
+  "runOrder": [
+    "A: audio only through a separately configured audio-input model",
+    "B: arm-b-neutral-evidence.json through the current reviewer",
+    "C: arm-c-candidate-labels.json through the current reviewer",
+    "D: arm-d-reference.json through the current reviewer"
+  ],
+  "excerpts": [
+    {
+      "id": "mr0-l1-a-primary-functions",
+      "startSeconds": 0,
+      "endSeconds": 6,
+      "isolatedFeature": "root-position major triads and primary harmonic functions",
+      "reference": [
+        { "startSeconds": 0, "endSeconds": 2, "bar": 1, "beat": 1, "label": "C", "roman": "I", "allowedAlternatives": [] },
+        { "startSeconds": 2, "endSeconds": 4, "bar": 2, "beat": 1, "label": "F", "roman": "IV", "allowedAlternatives": [] },
+        { "startSeconds": 4, "endSeconds": 6, "bar": 3, "beat": 1, "label": "G", "roman": "V", "allowedAlternatives": [] }
+      ]
+    },
+    {
+      "id": "mr0-l1-b-major-minor-quality",
+      "startSeconds": 6,
+      "endSeconds": 10,
+      "isolatedFeature": "root-position major versus minor triad quality",
+      "reference": [
+        { "startSeconds": 6, "endSeconds": 8, "bar": 4, "beat": 1, "label": "C", "roman": "I", "allowedAlternatives": [] },
+        { "startSeconds": 8, "endSeconds": 10, "bar": 5, "beat": 1, "label": "Dm", "roman": "ii", "allowedAlternatives": [] }
+      ]
+    }
+  ]
+}

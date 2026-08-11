@@ -64,6 +64,10 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Added a checksum-frozen MR0 Level-1 musical-review contract, staged neutral/
+  candidate/reference packet generator, and first causal case report. The
+  packet exposes a systematic raw seventh-chord bias without changing product
+  analysis or advancing beyond Level 1.
 - Added the benchmark-only CR2F musical-window Chordino policy, frozen
   development gate, boundary/occupancy diagnostics, and synchronized raw-versus-
   candidate review. Candidate A passed development; it does not change product

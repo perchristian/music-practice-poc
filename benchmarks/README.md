@@ -143,6 +143,29 @@ human response are in `chord-reliability-cr2f-checkpoint.md` and
 `chord-reliability-cr2f-manual-review.md`. Do not run Candidate B unless that
 review returns `PERSISTENT_ROOTS`.
 
+## MR0 progressive musical review
+
+MR0 starts with two frozen excerpts from the generated
+`phase-2h-three-four-90.wav` Level-1 fixture. The contract keeps neutral signal
+evidence, analyzer labels, and the generated reference in separate disclosure
+arms:
+
+```sh
+npm run prepare:mr0-review
+```
+
+The command regenerates the fixture, verifies its checksum and the review
+contract inputs, runs the local analyzer twice, and fails unless both runs are
+stable and the final five-chord chart matches the frozen known answer. It writes
+the staged local packet under ignored
+`benchmark-results/musical-review/mr0/level1/`; the durable contract and first
+case report are `musical-review-mr0-level1.json` and
+`musical-review-mr0-level1-report.md`.
+
+Arm A remains unrun until a separately configured audio-input reviewer is
+available. Do not give the current text/image reviewer the candidate or
+reference files before it has completed Arm B.
+
 ## One-time setup
 
 1. Check out the annotations at the commit in the manifest:

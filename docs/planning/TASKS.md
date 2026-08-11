@@ -2,12 +2,12 @@
 
 ## Next Task
 
-CR2F Candidate A passed its numerical retention gate, but Decision 42 pauses the
-one-line raw-versus-candidate verdict. Complete MR0 first: establish the
-professional musical review and progressive complexity ladder, then apply that
-report to the pending comparison. Candidate B requires a supported musical
-root-cause theory, not only a `PERSISTENT_ROOTS` code. Do not reopen the consumed
-RWC holdout or add Chordino to the product.
+MR0 has frozen its first Level-1 material and produced a complete musical case
+report. The result is `repeat this level`: the final five-chord chart is correct,
+but all raw beat winners add unsupported sevenths and the specialist's staged
+behavior remains unmeasured. Complete product-owner issue #13, then run only the
+bounded matched triad/seventh diagnostic if approved. CR2F issue #12, Candidate
+B, the consumed RWC holdout, and product integration remain blocked.
 
 The band-cover repositioning (Decision 34) did not change the gate. It added a
 short reframing pass, completed on 2026-08-08, plus two queued tasks below —
@@ -32,7 +32,7 @@ Ownership. They are not duplicated here.
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
 | [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
 | [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | Paused for MR0 musical review |
-| [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | **Next** |
+| [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | Awaiting owner review in #13 |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
 | [CR5](#cr5-evaluate-automatic-repeat-suggestions) | Automatic repeat suggestions | Conditional on CR4 |
@@ -403,8 +403,14 @@ Files and symbols:
   contract
 - `docs/research/specialist-harmony-agent-capability-test.md`: staged-disclosure
   capability experiment
+- `benchmarks/musical-review-mr0-level1.json`: frozen Level-1 material,
+  references, identities, and disclosure order
+- `scripts/prepare-mr0-review.js`: checksum, stability, reference, and staged
+  packet preparation
+- `benchmarks/musical-review-mr0-level1-report.md`: first complete musical case
+  report and bounded next experiment
 - `benchmarks/chord-reliability-cr2f-manual-review.md`: amended pending review
-- future committed musical-review reports and complexity manifest
+- future committed complexity manifest
 
 Goal:
 - Produce a professional, reproducible understanding of which harmonies the
@@ -436,8 +442,17 @@ Milestone:
 - MR0 passes when the Level-1 review is complete and the evidence supports
   either advancing to Level 2 or a specific bounded correction at Level 1.
 
-Status: Next. Create the executable GitHub issue only after the first Level-1
-material and review packet are ready.
+Result and learning (in progress):
+- The generated C–F–G–C–Dm fixture passes 5/5 final labels with exact grid
+  boundaries in two identical analyzer runs. The report nevertheless finds
+  unsupported seventh chords in all 15 raw beat winners and an unreliable
+  neutral chordality summary for several obvious triads.
+- The judgment is `repeat this level`. Issue #13 asks the product owner to
+  confirm the baseline and report, then run Arms B–D twice. Approval authorizes
+  only the matched triad/seventh Level-1 diagnostic; it does not advance to
+  Level 2 or resume CR2F.
+
+Status: Awaiting product-owner review in issue #13.
 
 ### CR3: Validate bass fallback and ornament-resistant comp evidence
 
