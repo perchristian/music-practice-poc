@@ -70,6 +70,9 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Added
 
+- Rebuilt the checksum-frozen MR0 Level-1 staged-review packet from the
+  human-approved shared 3/4 source, with deterministic analyzer and known-answer
+  gates plus explicit F3 low-note-range evidence.
 - Added the benchmark-only CR2F musical-window Chordino policy, frozen
   development gate, boundary/occupancy diagnostics, and synchronized raw-versus-
   candidate review. Candidate A passed development; it does not change product

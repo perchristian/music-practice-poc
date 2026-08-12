@@ -12,6 +12,7 @@
     "generate:test-media": "node scripts/generate-phase2a-test-media.js",
     "prepare:benchmark-audio": "node scripts/extract-rwc-pilot.js",
     "prepare:cr2f-review": "node scripts/prepare-cr2f-review.js",
+    "prepare:mr0-review": "node scripts/prepare-mr0-review.js",
     "start": "node server.js",
     "test": "node --test tests/*.test.js",
     "test:gui": "playwright test"

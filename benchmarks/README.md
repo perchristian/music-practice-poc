@@ -143,18 +143,26 @@ human response are in `chord-reliability-cr2f-checkpoint.md` and
 `chord-reliability-cr2f-manual-review.md`. Do not run Candidate B unless that
 review returns `PERSISTENT_ROOTS`.
 
-## MR0 source-first listening gate
+## MR0 progressive musical review
 
-`npm run generate:test-media` creates the five-bar C–F–G–C–Dm fixture at
-`test-media/phase-2h-three-four-90.wav` with every musical tone shifted up 12
-semitones from its original low-register version. The same file now serves the
-3/4 analyzer regression and the source-first listening gate; separate CR1
-fixtures retain low-bass coverage.
+Per approved the shared five-bar C–F–G–C–Dm source as `USABLE` in issue #16.
+It remains generated at `test-media/phase-2h-three-four-90.wav`, one octave
+above the rejected version, and serves both listening and analyzer regression.
 
-Do not prepare new analyzer labels or a staged MR0 packet from this source
-until the product owner confirms it is identifiable by ear. The generated file
-is ignored; its generator and combined register/analyzer regression are
-version-controlled.
+```sh
+npm run prepare:mr0-review
+```
+
+The command regenerates the source, verifies its checksum and the frozen review
+inputs, runs the analyzer twice, and fails unless both runs are stable and the
+five-chord chart matches the known answer. It writes the staged packet under
+ignored `benchmark-results/musical-review/mr0/level1/`. The durable contract
+and case report are `musical-review-mr0-level1.json` and
+`musical-review-mr0-level1-report.md`.
+
+Arm A remains unrun until a separately configured audio-input reviewer is
+available. Run Arm B twice in fresh reviewer conversations before disclosing
+the candidate labels in Arm C or the reference in Arm D.
 
 ## One-time setup
 
