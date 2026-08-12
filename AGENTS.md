@@ -97,11 +97,14 @@ Assume this project is developed with:
 - A backend that can run locally and, where practical, in cloud development environments.
 - Heavy ML behind a switchable pipeline mode so the project remains demoable even when ML dependencies are unavailable.
 
-For local macOS work that may run long enough for idle sleep to interrupt it,
-start `caffeinate -i` as a separately tracked subprocess before beginning. Keep it
-running for the duration of the work, then terminate that exact subprocess when
-the work finishes, pauses for user input, or otherwise stops. Do not leave an
-orphaned `caffeinate` process behind.
+For any local macOS task expected to run long enough for idle sleep to interfere:
+
+1. Start one `caffeinate -i` subprocess before the task begins.
+2. Record its PID and reuse that process for the entire task.
+3. Do not start another `caffeinate` process during the task.
+4. When the task finishes, pauses for user input, or is cancelled, terminate the recorded PID.
+5. Verify that the process has exited before ending the work session.
+6. Never leave a `caffeinate` process running after the session ends.
 
 Use:
 
