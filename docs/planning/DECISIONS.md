@@ -1314,3 +1314,546 @@ Medium that the first complexity ladder will need adjustment after real reviews.
 
 Date:
 2026-08-10
+
+## Decision 43
+
+
+Decision:
+Make the analysis engines and the interactive controls portable by extracting
+them into shared, platform-free TypeScript packages (`engine-core`,
+`engine-analysis`, `engine-adapters`, `ui-controls`) with a thin host per
+platform: the existing Node + browser host on desktop, and a Swift shell around a
+WKWebView on iOS. Platform differences are confined to provider interfaces. The
+normative rules are `docs/engineering/PORTABILITY.md`.
+
+Reason:
+iPad is a primary target and iPhone must at minimum read shared songs, but the
+interface is dominated by custom domain controls — synchronized transport, stem
+mixer, grid-snapped loops, the editable chord grid, the lyrics lane — that would
+have to be reimplemented in full under any native-UI approach. The analysis code
+is already dependency-free JavaScript operating on numeric arrays, so the
+distance from "runs on a server" to "runs anywhere" is a matter of removing
+platform imports rather than porting algorithms. One codebase is also the only
+realistic option for a single maintainer.
+
+Alternatives considered:
+- Portable Rust or C++ core compiled to WebAssembly and a native library, with
+  UI implemented separately per platform. Advantages: best DSP performance,
+  strongest long-term engine foundation, cleanest native integration.
+  Disadvantages: the UI is written twice, which is where most of the product's
+  complexity lives; adds a toolchain and a language to a single-maintainer
+  project; buys performance the current analysis does not need. Effort very high,
+  technical risk medium.
+- Native SwiftUI client against the existing backend. Advantages: best iOS feel,
+  full access to platform audio and file APIs. Disadvantages: a second UI
+  codebase, no offline analysis on iPad, and every feature ships twice. Effort
+  very high, ongoing drift risk high.
+- Stay web-only and ship a responsive installable web app. Advantages: cheapest,
+  no new toolchain. Disadvantages: iOS Safari constrains audio scheduling,
+  background playback, and file handling in exactly the areas this product
+  depends on; leaves the iPad experience permanently second-class. Effort low,
+  product risk high.
+
+Tradeoffs:
+A WebView-hosted interface will not feel platform-native on iOS, and audio
+scheduling inside a WebView is the main technical unknown — it may force parts of
+playback down to native AVAudioEngine, which is a supported outcome rather than a
+failure of the approach. The migration also introduces a build step and
+TypeScript, giving up the no-build property that made the prototype easy to
+inspect. Both costs are accepted because the alternative is implementing the
+interface twice.
+
+Confidence:
+High on the shared-engine half, which is nearly free given the existing code
+shape. Medium on the shared-UI half, which depends on WebView audio and gesture
+fidelity that has not been measured on real hardware. The provider boundary means
+a later move to native audio does not invalidate the decision.
+
+Date:
+2026-08-14
+
+## Decision 44
+
+
+Decision:
+Band sharing is delivered as portable song bundle files (`.mpsong`, a ZIP
+containing the musical work and the media), exchanged by any means the band
+already uses. No accounts, no server operated by the project, no cloud storage.
+Import never silently overwrites local work; conflicts are resolved by an
+explicit human choice. The format is
+`docs/engineering/SONG_BUNDLE_FORMAT.md`.
+
+Amended the same day, before implementation, after the product owner corrected a
+premise: **the expected source is the band's own rehearsal recording, and the
+audio is enclosed by default.** The original text made chart-only the default
+export and treated enclosing audio as an opt-in, on copyright grounds that do not
+apply to a recording the band made of itself. Three things follow. The default
+export is now the complete bundle — recording and separated stems included —
+because a recipient of a rehearsal recording has no other copy of it, and because
+the members most likely to receive one are on an iPad or iPhone, which cannot run
+separation at all. Media is encoded rather than shipped as WAV, roughly a
+tenfold size reduction, which is what makes a self-contained default practical.
+The media-fingerprint binding machinery survives but demotes to the chart-only
+path, where it is the exception rather than the normal case.
+
+Reason:
+The unit of value is the human work — corrected grid, corrected chords, sections,
+lyrics — and it is small. A file carries it completely, works offline, requires
+no infrastructure, and fits the existing habits of a band that already exchanges
+files. It also keeps the project out of the position of storing other people's
+copyrighted recordings, which a hosted or sync-based design cannot avoid. The
+format, not the transport, is the difficult and durable part; any sync mechanism
+added later moves these same bundles.
+
+Alternatives considered:
+- Self-hosted band sync server. Advantages: real multi-user sharing, automatic
+  propagation, no manual exchange. Disadvantages: someone must run and maintain
+  it, adds accounts and conflict handling, and the format problem still has to be
+  solved first. Effort high, and it can be added later on top of this decision at
+  no loss.
+- Hosted cloud service. Advantages: best user experience, nothing to install.
+  Disadvantages: infrastructure and operating cost, authentication, and direct
+  copyright exposure from storing users' recordings. Rejected as incompatible
+  with the project's local-first, non-hosted scope.
+- Local-network peer sync. Advantages: excellent in a rehearsal room, no server.
+  Disadvantages: useless for a member preparing at home, and it is a transport
+  rather than a format, so the same work would be required underneath.
+
+Tradeoffs:
+Manual exchange means a band can get out of step: two members can edit the same
+song independently and there is no automatic reconciliation. Last-writer-wins
+with an explicit choice, plus a revision counter and lineage, is deliberately the
+whole of the mechanism — a band of four does not need distributed-systems
+machinery, it needs to never lose an evening's work.
+
+The amended default trades size for self-containment. A complete bundle is tens
+of megabytes rather than tens of kilobytes, which rules out email as a transport
+for most sends and makes encoding quality a real decision rather than a detail.
+That is accepted: a bundle that arrives and plays immediately is the product,
+and a bundle that arrives as a chart the recipient must then align against audio
+they have to find is the failure mode this format exists to avoid. Chart-only
+remains available for the case where the source genuinely is someone else's
+recording, and it still depends on media fingerprinting with confirmation rather
+than silent binding.
+
+Confidence:
+High that this is the right first mechanism and the right format investment;
+medium on whether file exchange alone satisfies the band over time. High on the
+enclosed-audio amendment, which follows directly from what the source material
+actually is.
+
+Date:
+2026-08-14, amended 2026-08-14
+
+## Decision 45
+
+
+Decision:
+Lyrics are user-owned data stored grid-first — a line carries `bar` and
+`offsetDiv`, words carry offsets relative to their line, and seconds are derived
+from the effective timing map. One structure serves all three delivery tiers
+(free text, lines on bars, words on beats). Lyrics come only from what the user
+types, pastes, or imports from timed-lyric files they already own. No online
+lyrics services. Automatic vocal-stem transcription is parked, not adopted. The
+model is `docs/engineering/LYRICS_MODEL.md`.
+
+Reason:
+Storing musical positions rather than timestamps is the decision that makes tier
+3 maintainable: a later correction to bar 1, a tempo drift, or a meter change
+moves the lyrics with the music instead of desynchronizing every word the user
+has aligned. It also matches how chords and sections are already stored, so
+lyrics inherit the whole existing timing-correction pipeline for free. Excluding
+online lyrics sources keeps an open-source local-first project clear of licensing
+and redistribution terms it cannot honor, and user-supplied lyrics work equally
+well for original material.
+
+Alternatives considered:
+- Seconds-based lyric timings, as `.lrc` and most karaoke tooling use.
+  Advantages: trivially simple, imports and exports without conversion.
+  Disadvantages: every timing correction invalidates alignment work, which makes
+  the tier-3 goal impractical in exactly the songs that need timing corrections.
+  Rejected.
+- Fetch lyrics from an online service. Advantages: much better first-run
+  experience. Disadvantages: API terms, keys, redistribution constraints, and an
+  external dependency inside an offline-first app. Rejected; may be reconsidered
+  as an optional user-configured plug-in.
+- Auto-transcribe the separated vocal stem first. Advantages: automatic tier-3
+  word timings, the highest-value tier, drafted for free. Disadvantages: a heavy
+  ML dependency, unproven accuracy on separated stems, and it inverts the
+  delivery order by making the cheapest tiers depend on the most expensive
+  machinery. Parked in `docs/product/IDEAS.md`.
+
+Tradeoffs:
+Grid-first storage requires converting `.lrc` timestamps at import and means
+lyrics cannot be placed before the song has a usable grid — acceptable, since a
+song without a grid has no chord chart to place them against either. Manual word
+alignment for tier 3 is genuine user effort; the mitigation is tap-along
+authoring at reduced playback speed, and the transcription assist remains
+available later precisely because correcting a draft is cheaper than authoring.
+
+Confidence:
+High on the data model. Medium on whether musicians will invest the effort in
+tier-3 alignment, which is why tiers 1 and 2 ship first and independently.
+
+Date:
+2026-08-14
+
+## Decision 46
+
+
+Decision:
+Use a band's existing shared cloud folder (Google Drive, Dropbox, OneDrive,
+iCloud) as a second sharing transport, through the local filesystem only — no
+vendor API, no OAuth, no SDK, no account in the codebase. Inside the folder, use
+an append-only layout where media is written once per song and every chart
+correction is a new uniquely named revision file. Do not integrate with BandLab
+or comparable music platforms. Separately, promote import of multitrack stems
+exported from a DAW to a scheduled capability.
+
+The evaluation is
+`docs/research/sharing-transports-and-third-party-services.md`; the folder layout
+and rules are in `docs/engineering/SONG_BUNDLE_FORMAT.md`.
+
+Reason:
+A shared folder gives a band automatic distribution for free. The sync client
+already runs on each member's machine and presents an ordinary directory, so the
+app needs only file I/O to get most of the value of a sync server while the
+project continues to operate no infrastructure — consistent with Decisions 34 and
+36. It also removes the likeliest reason band sharing fails, which is not
+technical: single-file exchange requires somebody to remember to send and
+somebody to remember to import, and a watched folder removes both steps.
+
+The append-only layout exists to defeat a specific failure. Dropbox and Drive
+resolve simultaneous edits to one path by creating a second "conflicted copy"
+file. Writing every revision as a new uniquely named file means two members never
+write the same path, so that machinery never triggers. Writing media once rather
+than per revision matters because audio is tens of megabytes and never changes
+while the chart is tens of kilobytes and changes constantly; bundling them
+together would make every corrected chord cost a full media resync for every
+member.
+
+BandLab is rejected on three independent grounds. There is no documented public
+third-party API or SDK — their GitHub organization publishes internal tooling and
+library forks, and no developer portal surfaced — so integration would mean
+calling private endpoints, which breaks without notice and is awkward under their
+terms. It would reintroduce the account dependency, OAuth flow, and third-party
+service in the critical path that Decisions 34 and 36 deliberately excluded. And
+it would not carry the musical model anyway: BandLab has no concept of a
+corrected beat grid, a chord chart, or word-level lyrics, so the data would
+travel as an opaque attachment — the job a shared folder already does with less
+coupling.
+
+The constructive part of the BandLab question is separate and genuinely valuable.
+BandLab, Soundtrap, Logic, GarageBand, and Reaper are multitrack recorders, so a
+band that records rehearsals in one already possesses truly isolated tracks with
+no separation artifacts at all. Importing those is strictly better than anything
+Demucs can produce from a stereo mix, and it is the path that makes iPad a full
+authoring device given that it cannot run separation.
+
+Alternatives considered:
+- Integrate with the cloud providers' APIs (Drive, Dropbox) rather than the
+  synced folder. Advantages: works without a desktop sync client installed, and
+  gives explicit control over transfer. Disadvantages: an OAuth flow and API key
+  per provider, four separate integrations to maintain, rate limits, and a
+  network stack in an application that currently has none. The filesystem
+  approach is provider-agnostic precisely because no provider is involved.
+  Rejected.
+- Integrate with BandLab as the band's storage and identity layer. Advantages:
+  the band may already be there, and it stores audio. Disadvantages: recorded
+  above. Rejected.
+- Build the self-hosted sync server instead. Advantages: full control, real
+  propagation semantics, works on iOS without Files-app limitations.
+  Disadvantages: someone must run and maintain it, and the shared folder delivers
+  most of the benefit at a fraction of the cost. Remains parked in
+  `docs/product/IDEAS.md`.
+- Keep single-file exchange only. Advantages: simplest, already specified.
+  Disadvantages: leaves two manual steps in the loop, which is where sharing is
+  most likely to fail in practice. Rejected as the sole mechanism; retained
+  alongside folder mode for one-off sends and for bands without a shared folder.
+
+Tradeoffs:
+Folder mode is materially weaker on iOS. The Files app can read the folder
+through a retained bookmark, but background watching is unreliable and files may
+be placeholders requiring on-demand download, so iOS gets a manual check rather
+than automatic appearance. This is stated in the format document rather than
+promised and quietly dropped. The layout also accumulates revision files, which
+requires a manual pruning action and means the folder is not self-tidying. And
+the band must actually have a shared folder — for those who do not, single-file
+bundles remain the mechanism, so folder mode is an addition rather than a
+replacement.
+
+Confidence:
+High on the filesystem-over-API principle and on the append-only layout, both of
+which follow from well-understood behavior of the sync clients. High on rejecting
+BandLab integration. Medium on how well folder mode will work on iPad in
+practice, which is unmeasured and should be verified on a real device before it
+is described as working.
+
+Date:
+2026-08-14
+
+## Decision 47
+
+
+Decision:
+Give every song a single owner, and publish only the owner's edits to the band
+folder. Alongside it: anyone may add a song, reading and practising are never
+blocked, removal from the band folder is a reversible tombstone rather than a
+deletion, there are no roles or permissions, and the append-only revision log is
+the safety net beneath all of it.
+
+An earlier draft of this decision proposed a per-session edit claim instead —
+claim the song while working on it, release it afterwards. That is recorded here
+as a rejected alternative rather than as a superseded decision, because it was
+never adopted.
+
+- The member who adds a song becomes its owner. Ownership is recorded in the song
+  record, shown wherever the song appears, and does not expire.
+- Only the owner's revisions are written to the band folder. Removal from the
+  band folder is a modification and follows the same rule.
+- The owner can transfer ownership. Any member can take ownership, deliberately,
+  attributed, and visibly to the band.
+- A non-owner can always edit their own copy. That edit stays local and can be
+  sent to the owner as a suggestion revision, which the owner accepts or
+  discards.
+- Ownership is a convention the app honors, not a permission it enforces.
+
+Reason:
+Ownership is a better fit than the per-session claim for two reasons that the
+claim design under-weighted.
+
+It races almost never. A claim is acquired and released every editing session, so
+it meets the sync propagation window constantly; a synced folder has no atomic
+compare-and-swap, so every one of those acquisitions is a potential race.
+Ownership changes perhaps once in a song's life. The same unavoidable weakness is
+met a handful of times rather than hundreds.
+
+It is evaluable offline. Ownership is already in the song record on the device,
+so the app knows who owns a song in a rehearsal room with no network. A claim has
+to be reached for, which is precisely where it fails. The objection raised
+against ownership — that an absent owner blocks everyone — is
+answered by transfer and takeover rather than by abandoning ownership, and a
+takeover that happens twice a year is a far smaller cost than a claim negotiation
+that happens every session.
+
+Confining the rule to what gets *published* rather than what a musician may *do*
+preserves the principle that the app never prevents someone from fixing their own
+chart. A non-owner in rehearsal fixes the wrong chord immediately; the edit stays
+local, and the suggestion path gives the correction somewhere to go. Without that
+path, "I found a mistake in the chart" has no route back except a message to
+another human, and the fix is lost.
+
+Alternatives considered:
+- A per-session advisory claim. Advantages: no durable state to
+  maintain, and no takeover ceremony. Disadvantages: races on every session,
+  requires network at exactly the moment it is least available, and adds expiry
+  and lapse behavior that a band would have to reason about. Superseded.
+- Ownership with no takeover path. Advantages: the simplest possible rule, and no
+  way to circumvent the owner. Disadvantages: one member's holiday, dead laptop,
+  or departure freezes a song permanently; "only the owner may modify" becomes
+  "nobody may modify". Rejected.
+- Ownership enforced by hard-blocking non-owner edits entirely, including local
+  ones. Advantages: unambiguous. Disadvantages: a non-owner cannot fix an obvious
+  error while practising, which is the moment errors are actually found, and it
+  makes the app worse at its primary job in order to protect a file nobody is
+  competing for. Rejected in favor of local edits plus suggestions.
+- Ownership at the band-folder level rather than per song. Advantages: one
+  decision instead of many. Disadvantages: the unit of work is a song, and
+  different members maintain different songs. Rejected.
+
+Tradeoffs:
+Ownership is unenforceable for the same reason the claim was: there is no
+authentication, `memberId` is generated on first run, and the name is whatever
+the member typed. Anyone editing the files directly can write what they like.
+This is accepted — a band is a trust context, not a security boundary — and what
+the model delivers is clarity about who maintains a song plus attribution when
+something unexpected appears.
+
+The suggestion path is new surface: a review step, an accept/discard action, and
+a way to see what a suggestion would change. It is small because it reuses the
+chart-only revision file, but it is not free, and a band that never uses it would
+have paid for nothing. The alternative is worse: a non-owner's correction with no
+route home.
+
+Takeover remains a way for two members to end up owning the same song within one
+sync window. The append-only log keeps both sets of work, so the outcome is a
+choice rather than a loss.
+
+Confidence:
+High that ownership beats the claim, on the racing and offline arguments. High
+that a takeover path is required. Medium on the suggestion flow, which is the
+part most likely to be shaped by how the band actually behaves — it may turn out
+that taking ownership is what members do instead, in which case suggestions can
+be trimmed.
+
+Date:
+2026-08-14
+
+## Decision 48
+
+
+Decision:
+A song's canonical shape is a folder. The `.mpsong` single file is a projection
+of that folder, produced on export and unpacked on import — not a second source
+of truth. The local library uses the same layout as the band folder, so the
+project holds two representations rather than three.
+
+Supporting rules:
+- Media entries inside the archive are stored, not deflated; deflate applies to
+  JSON only.
+- Song identity is the id inside `song.json`, never the folder or file name.
+- The folder must be readable at every intermediate state of syncing.
+- Local-only state is separated within the layout so it is never published to the
+  band folder.
+
+Reason:
+Three representations had accumulated without anyone choosing them: the local job
+directory, the band folder layout, and the bundle file. The first two are already
+the same idea with different names, and the third is derivable from either.
+
+The folder is the right canonical form because it is strictly more expressive. It
+can hold revision history, media shared across revisions, and legitimate partial
+states such as a chart whose audio has not finished downloading. The single file
+is a flattened snapshot of one revision: every file can be produced from a
+folder, but not every folder state survives being flattened into a file. Defining
+the relationship as one-way leaves one reader and one writer for the content plus
+a thin zip adapter at the edge, and removes any possibility of the two shapes
+drifting apart.
+
+Both shapes are nonetheless required. A single file cannot serve the band folder:
+rewriting a 30 MB archive for every corrected chord would force every member to
+re-download it, and rewriting the same path is exactly what makes sync clients
+produce conflicted copies. A folder cannot serve one-off sending: it arrives
+piecemeal and iOS treats a directory as a directory rather than as a document.
+
+Aligning the local library to the shared layout is cheap now and expensive later.
+The local library is already a directory per song; it differs mainly in naming.
+Doing it before any sharing code exists means export is "zip this folder" and
+import is "unzip into the library", with no translation layer to write, test, or
+migrate.
+
+Alternatives considered:
+- A single file everywhere, including the band folder. Advantages: one shape,
+  simplest possible mental model. Disadvantages: breaks against the sync medium
+  as described above. The only workaround — small chart revisions written beside
+  a large base file — is the folder layout under another name. Rejected.
+- A folder everywhere, zipping only at the moment of sending. Advantages: also
+  one canonical shape. Disadvantages: does not avoid the packaging layer, since
+  sending still requires an archive; and a folder is a poor document on iOS.
+  macOS packages give file-like behavior for a directory, but on exactly one
+  platform, so they do not solve it portably. Rejected as the sole shape,
+  adopted as the canonical one.
+- Leave all three representations and translate between them. Advantages: no
+  change to existing local storage. Disadvantages: two translations to maintain
+  and a standing divergence risk, for no benefit. Rejected.
+
+Tradeoffs:
+Aligning the local library touches working code rather than only unbuilt design,
+so it carries regression risk that the rest of this decision does not. It also
+requires an explicit split between shared and local-only state; without that
+discipline, local concerns would leak into the shared layout over time. Both
+costs are accepted because the alternative is maintaining a translation between
+two layouts that exist for no reason other than history.
+
+Confidence:
+High on the folder being canonical and the file being a projection. High on the
+storage and identity rules. Medium on the local library alignment, which is
+correct in principle but should be sequenced with the P3 model extraction rather
+than done as a standalone migration.
+
+Date:
+2026-08-14
+
+## Decision 49
+
+
+Decision:
+Do not build a paid plan now, and do not close the door on one. Specifically:
+
+- the project continues to operate no infrastructure, and `docs/product/VISION.md`
+  keeps "a hosted service" as a non-goal for the current phase;
+- if a paid tier is ever introduced, it sells **hosting and compute, never
+  capability** — hosted sync first, hosted separation second, with the analysis
+  engine identical for paying and non-paying users;
+- a paid "better analysis" tier is rejected outright rather than deferred;
+- self-hosting and export in the same open format remain a real exit;
+- the precondition for reopening the question is that file-based sharing has
+  shipped and a real band has used it long enough to say whether it is
+  insufficient;
+- four architectural properties are preserved deliberately so the option stays
+  cheap: the format is the contract with transports interchangeable, revisions
+  are append-only and immutable, the analyzer is an adapter, and identity is
+  optional and additive.
+
+No capability may be built that works only against a server.
+
+The evaluation is
+`docs/research/paid-plan-and-hosted-service-assessment.md`.
+
+Reason:
+Hosted sync is a coherent offer and is not expensive in money terms — storage at
+band scale is cents, and egress-free object storage removes the usual cost trap.
+It also answers the one part of the sharing design that is a known compromise
+rather than a choice: the band folder is weakest on iPad and iPhone, where
+background folder watching is unreliable.
+
+The real costs are not financial. A paid plan converts a project the maintainer
+works on when he wants to into a service people have paid to depend on, raising
+the impact of the single-maintainer risk already recorded in
+`docs/planning/RISKS.md`. It also changes the legal category: today the project
+never touches user content, and hosting recordings — many of which will be
+commercial material, given what the app is for — brings takedown handling, terms,
+a lawful basis for processing under GDPR, deletion requests, and security duties
+proportionate to holding other people's recordings. That workload is recurring,
+non-technical, and routinely underestimated.
+
+The paid analysis tier is rejected on its own merits, and the decisive argument
+is not economic. It would create a standing incentive to keep the free engine
+worse than it could be, in direct conflict with the chord-reliability gate, whose
+entire purpose is to make the built-in engine good enough to correct quickly. Every improvement to the
+default would erode the reason to pay. That conflict is structural rather than a
+matter of discipline. Three supporting arguments point the same way: chord
+accuracy has moved very little in eight years and sits near the human agreement
+ceiling, so the difference may not be purchasable; the open analyzer adapter from
+an open analyzer adapter would let a user connect the same engines themselves;
+and Moises, the
+reference product, tiers on vocabulary and usage limits rather than on accuracy.
+
+Timing follows from asymmetry. Adding a paid tier later is easy; withdrawing one
+harms people who relied on it. The reversible direction is "not yet". And the
+question cannot be evaluated before file-based sharing ships, because if it
+satisfies the band there is no unmet need to sell against.
+
+Alternatives considered:
+- Build hosted sync now as a paid product. Advantages: solves the iOS folder
+  limitation properly and is the strongest part of the proposal. Disadvantages:
+  commits to infrastructure and legal obligations before anyone has demonstrated
+  that the free mechanism is insufficient. Deferred, not rejected.
+- Build a paid analysis tier. Advantages: a clear differentiator if the quality
+  gap were real. Disadvantages: recorded above; the incentive conflict alone is
+  disqualifying. Rejected.
+- Donations or sponsorship instead. Advantages: some funding with no obligation,
+  no accounts, no hosting, no legal change. Disadvantages: unlikely to cover
+  anything meaningful, but it also costs nothing to accept. Available at any time
+  and not in conflict with this decision.
+- Rule out commercial models permanently. Advantages: maximum clarity, no
+  temptation to compromise the local-first design. Disadvantages: forecloses a
+  reasonable future option for no present benefit, and the four properties above
+  keep it open at zero cost. Rejected.
+
+Tradeoffs:
+Keeping the option open means carrying a standing constraint — no server-only
+capability — which will occasionally rule out a convenient implementation. That
+constraint is worth accepting because it is also what the local-first promise in
+`docs/product/VISION.md` requires, so the cost is largely already paid. Deferring
+also means the iOS folder-watching limitation stays unaddressed for now, which is
+a real gap in the sharing story rather than a theoretical one.
+
+Confidence:
+High that a paid analysis tier should be rejected. High that hosting and compute
+are the only defensible things to sell. Medium on timing, which depends on
+evidence that does not exist yet; if the band finds folder sharing unworkable on
+iPad specifically, this reopens sooner than expected.
+
+Date:
+2026-08-14
