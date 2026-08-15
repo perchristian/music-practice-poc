@@ -29,6 +29,24 @@
 | Large uploads consume local disk or memory | High | High | Keep a 650 MB hard cap; run the local backend on a machine with sufficient free memory and disk; replace buffered upload storage with streaming before broader real user testing | Open for five-minute recordings. The cap now accommodates the observed screen-recording bitrate, but the native multipart decoder and WAV reader still buffer source data in memory, and peak memory/disk usage has not been measured with a near-limit upload |
 | GUI verification depends on Playwright browser installation | Medium | Low | Keep Playwright dev-only; document `npx playwright install chromium`; backend tests still run without browser binaries | Mitigated |
 
+## Sharing and Portability Risks
+
+New with Decisions 43-49. None of this is implemented; the rows record what the
+specifications are designed against.
+
+| Risk | Likelihood | Impact | Mitigation | Current status |
+| --- | --- | --- | --- | --- |
+| Extracting engines and controls into shared packages regresses working, human-verified behavior | Medium | High | Extract in dependency order, one subsystem at a time, moving algorithms rather than rewriting them; start with the already-pure, already-tested modules | Open; sequence in `docs/engineering/PORTABILITY.md` |
+| A WebView-hosted interface cannot schedule audio accurately enough on iOS | Medium | High | Keep audio behind an `AudioEngine` provider so playback can drop to native AVAudioEngine without touching the UI; verify on real hardware before claiming the capability | Open, unmeasured |
+| Cloud sync creates conflicted-copy files the app cannot interpret | Low | Medium | Band folder mode is append-only: media written once per song, every chart correction a new uniquely named file, so two members never write the same path | Open; specified, unimplemented |
+| Band folder mode works on desktop but not on iPad, leaving iOS members out of step | Medium | Medium | iOS gets an explicit manual check rather than a promise of background watching; verify on a real device; a self-hosted sync server remains the escape hatch | Open, unmeasured |
+| An imported bundle is malicious or malformed and damages the local library | Low | High | Treat bundles as untrusted archives: reject traversal, symlinks, oversized and over-compressed entries; validate against a schema before applying anything; never execute anything from a bundle | Open; posture specified |
+| Two members correct the same chart at once and one loses an evening's work | Low | High | One owner per song, so only the owner's edits are published; ownership changes rarely, so it meets the sync race window rarely; the append-only log keeps both sets of work if a takeover is raced | Open; specified |
+| Ownership is mistaken for enforced permission | Medium | Medium | Present it as coordination, not protection; there is no authentication behind it; never prevent a member editing their own copy; attribute every takeover | Open, a wording and interaction risk |
+| A schema change breaks songs a musician has already corrected | Medium | High | Version every persisted and exported structure, ship a forward migration with a committed fixture, and preserve unknown fields on round trip | Open, applies from the first released format |
+| Charts bind to the wrong copy of a recording after a chart-only import | Medium | High | Media enclosed by default removes the binding step entirely; chart-only binds automatically only on exact fingerprint match and requires confirmation on a duration-only match | Open; specified |
+| Specifying three capabilities before the chord gate closes invites scope creep | Medium | High | BR3-BR5 are specified but explicitly not scheduled, and do not preempt CR2F/MR0; each names its non-goals | Open; the main process risk of this batch |
+
 ## Product Risks
 
 | Risk | Likelihood | Impact | Mitigation | Current status |

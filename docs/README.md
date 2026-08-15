@@ -20,6 +20,9 @@ How the system is built and the behavior it must preserve. Read before changing
 the relevant subsystem.
 
 - [ARCHITECTURE.md](engineering/ARCHITECTURE.md) — component layout, pipeline stages, and the mock/real seam
+- [PORTABILITY.md](engineering/PORTABILITY.md) — normative rules for code shared between desktop and iOS
+- [SONG_BUNDLE_FORMAT.md](engineering/SONG_BUNDLE_FORMAT.md) — the `.mpsong` band-sharing format and the band folder
+- [LYRICS_MODEL.md](engineering/LYRICS_MODEL.md) — the grid-first lyrics model and its three tiers
 - [CHORD_ANALYSIS_STRATEGY.md](engineering/CHORD_ANALYSIS_STRATEGY.md) — how chord detection currently works and where it fails
 - [TIMELINE_INTERACTION_CONTRACT.md](engineering/TIMELINE_INTERACTION_CONTRACT.md) — normative timeline input behavior across trackpad, mouse, touch, and keyboard
 - [AI_TOKEN_OPTIMIZATION.md](engineering/AI_TOKEN_OPTIMIZATION.md) — conventions that keep agent context cost down
@@ -49,6 +52,8 @@ explicitly superseded. Do not treat these as current unless the header says so.
 - [section-structure-prototype-results.md](research/section-structure-prototype-results.md)
 - [open-knowledge-format-context-assessment.md](research/open-knowledge-format-context-assessment.md)
 - [band-practice-repositioning-review.md](research/band-practice-repositioning-review.md)
+- [sharing-transports-and-third-party-services.md](research/sharing-transports-and-third-party-services.md) — shared-folder sharing, BandLab and similar platforms, DAW stem import
+- [paid-plan-and-hosted-service-assessment.md](research/paid-plan-and-hosted-service-assessment.md) — whether to add a paid cloud tier, and what keeps the option open
 - [ponytail-audit-2026-08-09.md](research/ponytail-audit-2026-08-09.md) — ranked repository-wide over-engineering cuts; findings not applied
 - [lyrics-transcription-options.md](research/lyrics-transcription-options.md)
 - [source-legality-and-legal-posture.md](research/source-legality-and-legal-posture.md)

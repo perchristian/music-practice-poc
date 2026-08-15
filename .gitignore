@@ -9,3 +9,5 @@ benchmark-results/
 .venv-eval/
 .venv-real/
 .DS_Store
+!docs/research/sharing-transports-and-third-party-services.md
+!docs/research/paid-plan-and-hosted-service-assessment.md

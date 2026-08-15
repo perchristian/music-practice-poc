@@ -92,7 +92,7 @@ coverage, and what each role depends on:
 | --- | --- | --- |
 | Keys, guitar, bass | Chord chart, sections, own stem | Blocked by the chord-reliability gate |
 | Drums | Tempo, meter, bar grid, count-in, click, sections | Served |
-| Vocals | Own stem; lyrics for orientation | Practice mechanic served; lyrics undecided |
+| Vocals | Own stem; lyrics for orientation | Practice mechanic served; lyrics now specified in `docs/engineering/LYRICS_MODEL.md`, not yet built |
 
 ## Non-Goals
 
@@ -101,8 +101,23 @@ coverage, and what each role depends on:
   soloing its stem, and chord labels carry the harmony.
 - Melody extraction. A sung or played melody is learnable by ear from the soloed
   stem; the chord chart exists because harmony is *not*.
-- A production iOS app before the web POC proves value.
-- Large-scale storage, authentication, payments, or sharing.
+- Note-level transcription or notation beyond the chord chart.
+- A hosted service: accounts, servers operated by the project, payments, or
+  storage of anyone's recordings. Assessed and declined in
+  `docs/research/paid-plan-and-hosted-service-assessment.md` (Decision 49).
+- Integrating with music platforms such as BandLab through their APIs. Where a
+  band uses one, the app meets it at the filesystem (Decision 46).
+
+Three capabilities left this list on 2026-08-14 at the product owner's request.
+They are specified and decided, but **not scheduled** — the chord-reliability
+gate still owns the execution order, and they queue behind it as BR3-BR5:
+
+- **Band sharing** as portable song bundles plus an optional shared-folder
+  transport. `docs/engineering/SONG_BUNDLE_FORMAT.md`, Decisions 44, 46, 47, 48.
+- **Lyrics** in three tiers on one grid-first model.
+  `docs/engineering/LYRICS_MODEL.md`, Decision 45.
+- **Portability to iPad and iPhone** through shared platform-free packages rather
+  than a second implementation. `docs/engineering/PORTABILITY.md`, Decision 43.
 - Acting as a capture tool for streaming services. The user supplies material
   they already hold.
 

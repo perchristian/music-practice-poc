@@ -38,6 +38,9 @@ Ownership. They are not duplicated here.
 | [CR6](#cr6-integrated-chord-reliability-checkpoint) | Integrated chord-reliability checkpoint | Planned last |
 | [BR1](#br1-per-song-practice-target) | Per-song practice target | Ready, does not preempt CR2F |
 | [BR2](#br2-import-user-supplied-stems) | Import user-supplied stems | Ready after BR1 |
+| [BR3](#br3-band-sharing) | Band sharing: bundles and the band folder | Specified, queued behind the gate |
+| [BR4](#br4-lyrics) | Lyrics, tiers 1-3 | Specified, queued behind the gate |
+| [BR5](#br5-portable-engine-and-ui-packages) | Portable engine and UI packages | Specified, queued behind the gate |
 | [WP1](#wp1-ai-execution-baseline-and-context-foundations) | AI execution baseline and context foundations | Proposed |
 | [WP2](#wp2-timeline-input-correctness-and-frontend-seam) | Timeline input correctness and frontend seam | Proposed, highest-priority runtime |
 | [WP3](#wp3-user-test-readiness-stabilization) | User-test readiness stabilization | Proposed |
@@ -680,6 +683,82 @@ request and temporarily departs from the default prioritization order above.
 
 Do not start implementation from this list while the chord-reliability gate is
 active.
+
+### BR3: Band sharing
+
+Specification:
+- `docs/engineering/SONG_BUNDLE_FORMAT.md`, Decisions 44, 46, 47 and 48.
+
+Goal:
+- One member's corrected grid, chords, sections and lyrics reach the rest of the
+  band, as a portable `.mpsong` bundle and optionally through the band's existing
+  shared cloud folder.
+
+Contracts to preserve:
+- An import never destroys local work; no automatic merge.
+- The folder is canonical and the single file is a projection of it; the local
+  library uses the same layout.
+- Ownership is coordination, not enforced permission, and a non-owner is never
+  prevented from editing their own copy.
+- Nothing executable travels in a bundle; archives are treated as untrusted.
+
+Non-goals:
+- Sync servers, accounts, vendor APIs, roles, or automatic merge.
+
+Depends on:
+- The song model being owned and versioned first, which is BR5's `engine-core`
+  step. Export is a projection of that model, not a separate serializer.
+
+Status: Specified, not scheduled. Does not preempt the chord-reliability gate.
+
+### BR4: Lyrics
+
+Specification:
+- `docs/engineering/LYRICS_MODEL.md`, Decision 45.
+
+Goal:
+- Lyrics as a note (tier 1), placed on bars (tier 2), and words on beats
+  (tier 3), on one structure at increasing completeness.
+
+Contracts to preserve:
+- Positions are grid-first (`bar` plus `offsetDiv`), never timestamps, so lyrics
+  survive later timing corrections. This is the decision the feature rests on.
+- Lyrics are user-owned data with no analyzer layer.
+- Sources are typed, pasted, or user-supplied timed-lyric files only.
+
+Verify, specifically:
+- Place lyrics, then change bar 1, the tempo map and a time signature, and
+  confirm they still land correctly.
+
+Status: Specified, not scheduled. Tier 3 should not start before tier 2 has been
+used on a real song by a real singer.
+
+### BR5: Portable engine and UI packages
+
+Specification:
+- `docs/engineering/PORTABILITY.md`, Decision 43.
+
+Goal:
+- The analysis engines and interactive controls run unchanged on desktop, iPad,
+  and iPhone, without writing the product twice.
+
+Contracts to preserve:
+- Rules R1-R7: shared code imports no platform APIs, audio enters as decoded PCM
+  rather than a file, engine output is plain JSON, long work runs in a worker
+  with progress and cancellation, host capabilities are declared, controls take
+  state and emit intents, and touch is a first-class input.
+- Extraction moves algorithms; it does not rewrite them.
+
+Non-goals:
+- A second UI codebase; a frontend framework migration.
+
+Note:
+- This is deliberately silent on which analyzer wins. The `AnalyzerProvider`
+  boundary must accommodate whatever the chord-reliability gate selects,
+  including a Chordino-style subprocess.
+
+Status: Specified, not scheduled. The `engine-core` model extraction is the
+prerequisite for BR3.
 
 ### WP1: AI Execution Baseline and Context Foundations
 
