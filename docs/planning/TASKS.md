@@ -31,6 +31,7 @@ Ownership. They are not duplicated here.
 | [CR0](#cr0-lock-the-chord-reliability-validation-contract) | Lock the chord-reliability validation contract | Complete, amended 2026-07-25 |
 | [CR2E](#cr2e-validate-the-chordino-replacement-candidate) | Chordino replacement candidate | Complete — failed automated and manual gates |
 | [CR2F](#cr2f-stabilize-chordino-on-the-musical-grid) | Chordino timing/arpeggio stabilization | Paused for MR0 musical review |
+| [CR2G](#cr2g-chordino-comparison-on-the-bass-inversion-diagnostic-sample) | Chordino comparison on the bass-inversion diagnostic sample | Ready, blocked on Sonic Annotator/Chordino availability |
 | [MR0](#mr0-establish-progressive-musical-chord-review) | Progressive professional musical review | Staged reviewer run in #18 |
 | [CR3](#cr3-validate-bass-fallback-and-ornament-resistant-comp-evidence) | Bass fallback and ornament-resistant comp evidence | Deferred pending CR2F |
 | [CR4](#cr4-validate-repeated-section-evidence-pooling-with-known-groups) | Repeated-section evidence pooling, known groups | Planned after CR3 |
@@ -357,6 +358,75 @@ Status: Candidate A passed the frozen development gate on 2026-08-10. Decision
 its workflow code. Candidate B remains conditional on evidence supporting a
 persistent-root mechanism; the holdout was not reopened and product behavior
 remains unchanged.
+
+### CR2G: Chordino comparison on the bass-inversion diagnostic sample
+
+Evidence:
+- A user-supplied diagnostic recording (`Min sang 23`, session-diagnosed
+  2026-08-16, see
+  `benchmarks/chord-diagnostic-bass-inversion-2026-08-16.md`) plays the same
+  triad shape over three different bass notes. The local `legacy` analyzer,
+  run with full diagnostics, labels the three bars Am / C / **Esus4**.
+- The diagnostic trace shows bar 3's chroma is dominated by the bass note
+  (E:1.00) while C is still materially present (0.34) and G is nearly silent
+  (0.04). `scoreChordDetails`'s `rootBonus` term (`server.js:1085`) gives
+  root=E a 1.350 bonus versus 0.305 for root=C from bass dominance alone,
+  independent of template fit, so C-major-over-E is never even tested as a
+  candidate; the scorer instead roots on E and reaches for `sus4`.
+- This is the real-audio reproduction of the bass-authoritative-root gap
+  raised against CR3's chord vocabulary during code review; it has not been
+  confirmed by ear and is diagnostic-only (see the report's caveat).
+
+Goal:
+- Run the same sample through Chordino (via Sonic Annotator, the existing
+  pinned `benchmarks/chordino-transform.n3` transform) to see whether its
+  HMM-based, overtone-aware decoding resolves bar 3 differently than the
+  local template scorer, before deciding whether a fix belongs in the local
+  scoring formula, in Chordino post-processing (CR2F), or in a new
+  inversion-aware quality vocabulary.
+
+Files and symbols:
+- `benchmarks/chord-diagnostic-bass-inversion-2026-08-16.md`: full diagnostic
+  report, checksums, and reproduction commands
+- `scripts/diagnose-chord-scoring.js`: reusable per-beat chroma/candidate-score
+  dump used to produce the local-analyzer trace
+- `benchmarks/chordino-transform.n3`: unchanged pinned transform
+- `server.js`: `scoreChordDetails`, `estimateChord` (root-selection asymmetry
+  under review)
+
+Contracts to preserve:
+- This sample is diagnostic-only. It is not part of the locked RWC
+  development/holdout split and must never be used to tune thresholds or
+  select a CR2F/CR3 candidate on its own.
+- Do not reopen or reuse the consumed CR2E/CR2F holdouts for this comparison.
+- Sonic Annotator and Chordino remain optional benchmark tooling; no mock or
+  application dependency changes.
+- The source recording stays outside Git per the existing corpus contract;
+  only checksums, scripts, and findings are version-controlled.
+
+Non-goals:
+- Deciding CR3's inversion/slash-chord scope from this single sample.
+- Any change to product code or the chord vocabulary in this task.
+
+Verify:
+- Chordino's raw label(s) for the same bars, compared side by side with the
+  local `legacy` raw and final winners already captured in the diagnostic
+  report.
+- Whether Chordino recognizes bar 3 as a C-family sonority (inversion or
+  otherwise) rather than rooting on the bass note.
+- Record findings against `docs/research/musical-chord-review-method.md`'s
+  evidence layers (acoustic observation vs. analyzer behavior) rather than a
+  bare pass/fail.
+- No application server started, no application jobs created.
+
+Milestone:
+- Produces comparison evidence only. Any resulting fix (inversion
+  vocabulary, bass-`rootBonus` damping, or otherwise) is scoped as separate
+  follow-up work, not authorized by this task alone.
+
+Status: Ready. Blocked on Sonic Annotator/Chordino being available in the
+execution environment — not installed in the session that produced the local
+trace; requires the Vamp plugin SDK and a compiled Chordino build.
 
 ### MR0: Establish progressive musical chord review
 
