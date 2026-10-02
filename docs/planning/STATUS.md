@@ -96,6 +96,10 @@ bounded follow-up. The measured position is:
   approved shared source. Final labels remain 5/5 and stable across repeated
   preparation, while all 15 raw winners still add unsupported sevenths and the
   raised F3 bass exposes the low-note diagnostic's MIDI-52 ceiling.
+- Decisions 43–49 specify future portability, sharing, lyrics, storage, and
+  commercial boundaries. BR3–BR5 remain queued; none of those designs is in the
+  running application. The later CR2G bass-inversion comparison is diagnostic
+  work only, with no product-code change authorized.
 
 Chord accuracy is therefore the open core question. Timing, transport,
 persistence, and the editable chart are not.
@@ -146,6 +150,10 @@ Local web POC:
   metadata. Sonic Annotator and Chordino are optional benchmark tools.
 
 ## Active Work Ownership
+
+The open GitHub issue labels and states below were verified on 2026-10-02.
+CR2G appears in `TASKS.md` but has no open issue; its required Chordino tool is
+also absent from the current shell, so it is not the next executable handoff.
 
 - Shared gate:
   [#1 — Validate chord reliability for user testing](https://github.com/perchristian/music-practice-poc/issues/1)
@@ -261,7 +269,9 @@ Summary:
 - Remaining work: issue #18 must run the staged packet twice before the matched
   triad/seventh diagnostic. Issue #12 and Candidate B remain waiting. Product
   integration, CR3–CR5, practice-target, stem-import, and timeline-hardening
-  remain blocked behind that learning sequence.
+  remain behind that learning sequence. CR2G is a diagnostic comparison that
+  requires Sonic Annotator/Chordino. Decisions 43–49 specify portability, sharing,
+  lyrics, and storage as later work; none is implemented.
 - Next recommended task: staged reviewer run in issue #18.
 
 Gaps found:
@@ -276,6 +286,14 @@ Result:
 PASS
 
 ## Skills Used
+
+- Used Codex skill `ponytail:ponytail` on 2026-10-02 for the repository review.
+  - Purpose: keep the assessment focused on demonstrated behavior, the current
+    gate, and the smallest next step.
+  - Result: verified the documented handoff against the open issue queue and
+    separated implemented features from later design decisions.
+  - Reproducibility: the cited repository files, `npm test`, `npm run test:gui`,
+    and GitHub issue labels suffice without the skill.
 
 - Used Codex skills `ponytail:ponytail` and `github:github` on 2026-08-12 to
   rebuild MR0 after the source passed its listening gate.
