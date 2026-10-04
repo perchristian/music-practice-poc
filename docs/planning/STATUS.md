@@ -41,6 +41,13 @@ in `practiceState.timelineView`. Disposable version-1 runtime jobs are no longer
 migrated. Key,
 chord chart, sections, and Harmony view are separate user-owned state.
 
+Agent GitHub identity on Per's Mac: `perchristian-ai` has push access to
+`perchristian/music-practice-poc` and an isolated GitHub CLI login in
+`$HOME/.config/gh-codex`. The local `origin` uses the repository's canonical
+URL. `AGENTS.md` gives the per-command author and credential settings so Per's
+default Git identity is unaffected. The Codex GitHub connector still uses
+`perchristian`, so agent-authored GitHub writes use the isolated CLI login.
+
 ### Current checkpoint
 
 The chord-reliability validation gate is the committed line of work. Everything

@@ -253,6 +253,26 @@ Each completed iteration should normally end with:
 
 Avoid accumulating multiple unrelated tasks in one dirty worktree.
 
+### Agent GitHub identity
+
+On Per's Mac checkout, agent-authored GitHub work uses the `perchristian-ai`
+machine account. Its GitHub CLI login is isolated in
+`$HOME/.config/gh-codex`; Per's normal Git identity and CLI login stay separate.
+
+- For issues, pull requests, and other GitHub writes, run
+  `GH_CONFIG_DIR="$HOME/.config/gh-codex" gh ...`. Verify the login with
+  `GH_CONFIG_DIR="$HOME/.config/gh-codex" gh api user --jq .login` before writing.
+- For agent-authored commits, pass
+  `-c user.name=perchristian-ai -c user.email=337702759+perchristian-ai@users.noreply.github.com`
+  to `git commit`. Do not set the repository's default `user.name` or
+  `user.email`, since Per also works in this checkout.
+- For HTTPS Git pushes, use
+  `GH_CONFIG_DIR="$HOME/.config/gh-codex" git -c credential.helper= -c credential.https://github.com.helper='!gh auth git-credential' push`.
+- The Codex GitHub connector is currently signed in as `perchristian`. Do not
+  use it for agent-authored GitHub writes unless its login changes to
+  `perchristian-ai`. If the isolated CLI login is unavailable, request a browser
+  sign-in; never ask for a password or token in chat.
+
 ### Changelog maintenance
 
 `CHANGELOG.md` is the curated, audience-facing history of what was added, changed, fixed, or removed. It is not a copy of `docs/planning/TASKS.md`, `docs/planning/STATUS.md`, or the Git log.

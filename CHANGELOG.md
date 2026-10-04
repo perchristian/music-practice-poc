@@ -8,6 +8,8 @@ The project currently uses date-based development milestones rather than numbere
 
 ### Changed
 
+- Documented an isolated GitHub account for agent-authored commits and GitHub
+  operations, leaving the maintainer's default Git identity unchanged.
 - Marked the four-track CR2E RWC-P holdout as consumed after Chordino missed the
   frozen oracle root threshold. Product integration and the manual target-domain
   gate remain failed; a subsequent product-owner reframe authorizes only a
