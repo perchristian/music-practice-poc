@@ -287,6 +287,14 @@ PASS
 
 ## Skills Used
 
+- Used Codex skill `openai-docs` on 2026-10-04 for guidance on using a separate
+  GitHub machine account with Codex.
+  - Purpose: verify current account guidance before answering the product owner.
+  - Result: confirmed that GitHub permits a human-created machine account for
+    automation, with separate repository access and credentials.
+  - Reproducibility: GitHub's public account documentation and ordinary Git
+    configuration suffice without the skill.
+
 - Used Codex skill `ponytail:ponytail` on 2026-10-02 for the repository review.
   - Purpose: keep the assessment focused on demonstrated behavior, the current
     gate, and the smallest next step.
